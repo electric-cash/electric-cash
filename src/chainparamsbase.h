@@ -9,7 +9,7 @@
 #include <string>
 
 /**
- * CBaseChainParams defines the base parameters (shared between bitcoin-cli and elcashd)
+ * CBaseChainParams defines the base parameters (shared between elcash-cli and elcashd)
  * of a given instance of the Bitcoin system.
  */
 class CBaseChainParams

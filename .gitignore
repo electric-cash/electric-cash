@@ -4,7 +4,7 @@
 *.pdb
 src/bitcoin
 src/elcashd
-src/bitcoin-cli
+src/elcash-cli
 src/bitcoin-tx
 src/bitcoin-wallet
 src/test/fuzz

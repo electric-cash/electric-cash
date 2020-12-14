@@ -12,7 +12,7 @@ SOURCE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'
 DEFAULT_PLATFORM_TOOLSET = R'v141'
 
 libs = [
-    'libbitcoin_cli',
+    'libelcash_cli',
     'libbitcoin_common',
     'libbitcoin_crypto',
     'libbitcoin_server',

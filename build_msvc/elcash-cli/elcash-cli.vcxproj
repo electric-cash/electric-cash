@@ -9,10 +9,10 @@
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\bitcoin-cli.cpp" />
+    <ClCompile Include="..\..\src\elcash-cli.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\libbitcoin_cli\libbitcoin_cli.vcxproj">
+    <ProjectReference Include="..\libelcash_cli\libelcash_cli.vcxproj">
       <Project>{0667528c-d734-4009-adf9-c0d6c4a5a5a6}</Project>
     </ProjectReference>
     <ProjectReference Include="..\libbitcoin_crypto\libbitcoin_crypto.vcxproj">

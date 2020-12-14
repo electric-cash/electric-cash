@@ -180,7 +180,7 @@ can be called after the TestShell is shut down.
 | `rpc_timeout` | `60` | Sets the RPC server timeout for the underlying elcashd processes. |
 | `setup_clean_chain` | `False` | Initializes an empty blockchain by default. A 199-block-long chain is initialized if set to `True`. |
 | `randomseed` | Random Integer | `TestShell.options.randomseed` is a member of `TestShell` which can be accessed during a test to seed a random generator. User can override default with a constant value for reproducible test runs. |
-| `supports_cli` | `False` | Whether the bitcoin-cli utility is compiled and available for the test. |
+| `supports_cli` | `False` | Whether the elcash-cli utility is compiled and available for the test. |
 | `tmpdir` | `"/var/folders/.../"` | Sets directory for test logs. Will be deleted upon a successful test run unless `nocleanup` is set to `True` |
 | `trace_rpc` | `False` | Logs all RPC calls if set to `True`. |
-| `usecli` | `False` | Uses the bitcoin-cli interface for all elcashd commands instead of directly calling the RPC server. Requires `supports_cli`. |
+| `usecli` | `False` | Uses the elcash-cli interface for all elcashd commands instead of directly calling the RPC server. Requires `supports_cli`. |

@@ -72,7 +72,7 @@ Section -Main SEC0000
     File /oname=readme.txt @abs_top_srcdir@/doc/README_windows.txt
     SetOutPath $INSTDIR\daemon
     File @abs_top_srcdir@/release/@BITCOIN_DAEMON_NAME@@EXEEXT@
-    File @abs_top_srcdir@/release/@BITCOIN_CLI_NAME@@EXEEXT@
+    File @abs_top_srcdir@/release/@ELCASH_CLI_NAME@@EXEEXT@
     File @abs_top_srcdir@/release/@BITCOIN_TX_NAME@@EXEEXT@
     File @abs_top_srcdir@/release/@BITCOIN_WALLET_TOOL_NAME@@EXEEXT@
     SetOutPath $INSTDIR\doc

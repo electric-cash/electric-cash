@@ -8,8 +8,8 @@ if ENABLE_QT
   dist_man1_MANS+=bitcoin-qt.1
 endif
 
-if BUILD_BITCOIN_CLI
-  dist_man1_MANS+=bitcoin-cli.1
+if BUILD_ELCASH_CLI
+  dist_man1_MANS+=elcash-cli.1
 endif
 
 if BUILD_BITCOIN_TX

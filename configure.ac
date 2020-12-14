@@ -16,7 +16,7 @@ AC_CONFIG_MACRO_DIR([build-aux/m4])
 
 BITCOIN_DAEMON_NAME=elcashd
 BITCOIN_GUI_NAME=bitcoin-qt
-BITCOIN_CLI_NAME=bitcoin-cli
+ELCASH_CLI_NAME=elcash-cli
 BITCOIN_TX_NAME=bitcoin-tx
 BITCOIN_WALLET_TOOL_NAME=bitcoin-wallet
 
@@ -467,15 +467,15 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
 
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
-  [build bitcoin-cli bitcoin-tx bitcoin-wallet (default=yes)])],
+  [build elcash-cli bitcoin-tx bitcoin-wallet (default=yes)])],
   [build_bitcoin_utils=$withval],
   [build_bitcoin_utils=yes])
 
 AC_ARG_ENABLE([util-cli],
   [AS_HELP_STRING([--enable-util-cli],
-  [build bitcoin-cli])],
-  [build_bitcoin_cli=$enableval],
-  [build_bitcoin_cli=$build_bitcoin_utils])
+  [build elcash-cli])],
+  [build_elcash_cli=$enableval],
+  [build_elcash_cli=$build_bitcoin_utils])
 
 AC_ARG_ENABLE([util-tx],
   [AS_HELP_STRING([--enable-util-tx],
@@ -1078,7 +1078,7 @@ dnl enable-fuzz should disable all other targets
 if test "x$enable_fuzz" = "xyes"; then
   AC_MSG_WARN(enable-fuzz will disable all other targets)
   build_bitcoin_utils=no
-  build_bitcoin_cli=no
+  build_elcash_cli=no
   build_bitcoin_tx=no
   build_bitcoin_wallet=no
   build_elcashd=no
@@ -1131,7 +1131,7 @@ if test x$have_miniupnpc != xno; then
 fi
 fi
 
-if test x$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
+if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
     use_boost=no
 else
     use_boost=yes
@@ -1264,7 +1264,7 @@ if test x$use_pkgconfig = xyes; then
       if test x$use_qr != xno; then
         BITCOIN_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
-      if test x$build_bitcoin_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
+      if test x$build_elcash_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
         PKG_CHECK_MODULES([EVENT], [libevent >= 2.0.21],, [AC_MSG_ERROR(libevent version 2.0.21 or greater not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads >= 2.0.21],, [AC_MSG_ERROR(libevent_pthreads version 2.0.21 or greater not found.)])
@@ -1284,7 +1284,7 @@ if test x$use_pkgconfig = xyes; then
   )
 else
 
-  if test x$build_bitcoin_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
+  if test x$build_elcash_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     if test x$TARGET_OS != xwindows; then
@@ -1325,7 +1325,7 @@ dnl univalue check
 
 need_bundled_univalue=yes
 
-if test x$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
+if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
   need_bundled_univalue=no
 else
 
@@ -1373,9 +1373,9 @@ AC_MSG_CHECKING([whether to build elcashd])
 AM_CONDITIONAL([BUILD_ELCASHD], [test x$build_elcashd = xyes])
 AC_MSG_RESULT($build_elcashd)
 
-AC_MSG_CHECKING([whether to build bitcoin-cli])
-AM_CONDITIONAL([BUILD_BITCOIN_CLI], [test x$build_bitcoin_cli = xyes])
-AC_MSG_RESULT($build_bitcoin_cli)
+AC_MSG_CHECKING([whether to build elcash-cli])
+AM_CONDITIONAL([BUILD_ELCASH_CLI], [test x$build_elcash_cli = xyes])
+AC_MSG_RESULT($build_elcash_cli)
 
 AC_MSG_CHECKING([whether to build bitcoin-tx])
 AM_CONDITIONAL([BUILD_BITCOIN_TX], [test x$build_bitcoin_tx = xyes])
@@ -1508,7 +1508,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
-if test x$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoin_libs$build_elcashd$bitcoin_enable_qt$use_bench$use_tests = xnononononononono; then
+if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_bitcoin_libs$build_elcashd$bitcoin_enable_qt$use_bench$use_tests = xnononononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
 fi
 
@@ -1554,7 +1554,7 @@ AC_SUBST(COPYRIGHT_HOLDERS_SUBSTITUTION, "_COPYRIGHT_HOLDERS_SUBSTITUTION")
 AC_SUBST(COPYRIGHT_HOLDERS_FINAL, "_COPYRIGHT_HOLDERS_FINAL")
 AC_SUBST(BITCOIN_DAEMON_NAME)
 AC_SUBST(BITCOIN_GUI_NAME)
-AC_SUBST(BITCOIN_CLI_NAME)
+AC_SUBST(ELCASH_CLI_NAME)
 AC_SUBST(BITCOIN_TX_NAME)
 AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
 

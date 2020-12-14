@@ -68,9 +68,9 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         ], binary_cli=[
             self.options.bitcoincli,
             self.options.bitcoincli,
-            releases_path + "/v0.19.0.1/bin/bitcoin-cli",
-            releases_path + "/v0.18.1/bin/bitcoin-cli",
-            releases_path + "/v0.17.1/bin/bitcoin-cli"
+            releases_path + "/v0.19.0.1/bin/elcash-cli",
+            releases_path + "/v0.18.1/bin/elcash-cli",
+            releases_path + "/v0.17.1/bin/elcash-cli"
         ])
 
         self.start_nodes()
