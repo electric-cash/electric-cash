@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ADDRDB_H
-#define BITCOIN_ADDRDB_H
+#ifndef ELCASH_ADDRDB_H
+#define ELCASH_ADDRDB_H
 
 #include <fs.h>
 #include <net_types.h> // For banmap_t
@@ -73,4 +73,4 @@ public:
     bool Read(banmap_t& banSet);
 };
 
-#endif // BITCOIN_ADDRDB_H
+#endif // ELCASH_ADDRDB_H

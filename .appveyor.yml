@@ -52,14 +52,14 @@ before_build:
 build_script:
 - cmd: msbuild /p:TrackFileAccess=false build_msvc\bitcoin.sln /m /v:q /nologo
 after_build:
-#- 7z a bitcoin-%APPVEYOR_BUILD_VERSION%.zip %APPVEYOR_BUILD_FOLDER%\build_msvc\%platform%\%configuration%\*.exe
+#- 7z a elcash-%APPVEYOR_BUILD_VERSION%.zip %APPVEYOR_BUILD_FOLDER%\build_msvc\%platform%\%configuration%\*.exe
 test_script:
 - cmd: src\test_elcash.exe -l test_suite
 - cmd: src\bench_elcash.exe -evals=1 -scaling=0 > NUL
-- ps:  python test\util\bitcoin-util-test.py
+- ps:  python test\util\elcash-util-test.py
 - cmd: python test\util\rpcauth-test.py
 # Fee estimation test failing on appveyor with: WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted.
 - cmd: python test\functional\test_runner.py --ci --quiet --combinedlogslen=4000 --failfast --exclude feature_fee_estimation
 artifacts:
-#- path: bitcoin-%APPVEYOR_BUILD_VERSION%.zip
+#- path: elcash-%APPVEYOR_BUILD_VERSION%.zip
 deploy: off

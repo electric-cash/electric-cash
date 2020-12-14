@@ -75,7 +75,7 @@ Obviously, it is important to build and run the tests at appropriate times -- bu
 ```sh
 make src/elcashd src/elcash-cli
 make src/qt/elcash-qt
-make -C src bitcoin_bench
+make -C src elcash_bench
 ```
 
 (You can and should combine this with `-j`, as above, for a parallel build.)

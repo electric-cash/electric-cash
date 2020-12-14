@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
-#define BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
+#ifndef ELCASH_WALLET_SCRIPTPUBKEYMAN_H
+#define ELCASH_WALLET_SCRIPTPUBKEYMAN_H
 
 #include <psbt.h>
 #include <script/signingprovider.h>
@@ -477,4 +477,4 @@ public:
     bool GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const override { return m_spk_man.GetKeyOrigin(keyid, info); }
 };
 
-#endif // BITCOIN_WALLET_SCRIPTPUBKEYMAN_H
+#endif // ELCASH_WALLET_SCRIPTPUBKEYMAN_H

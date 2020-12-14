@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_UTIL_MESSAGE_H
-#define BITCOIN_UTIL_MESSAGE_H
+#ifndef ELCASH_UTIL_MESSAGE_H
+#define ELCASH_UTIL_MESSAGE_H
 
 #include <key.h> // For CKey
 #include <uint256.h>
@@ -73,4 +73,4 @@ uint256 MessageHash(const std::string& message);
 
 std::string SigningResultString(const SigningResult res);
 
-#endif // BITCOIN_UTIL_MESSAGE_H
+#endif // ELCASH_UTIL_MESSAGE_H

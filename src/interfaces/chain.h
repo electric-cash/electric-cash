@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_INTERFACES_CHAIN_H
-#define BITCOIN_INTERFACES_CHAIN_H
+#ifndef ELCASH_INTERFACES_CHAIN_H
+#define ELCASH_INTERFACES_CHAIN_H
 
 #include <optional.h>               // For Optional and nullopt
 #include <primitives/transaction.h> // For CTransactionRef
@@ -301,4 +301,4 @@ std::unique_ptr<ChainClient> MakeWalletClient(Chain& chain, std::vector<std::str
 
 } // namespace interfaces
 
-#endif // BITCOIN_INTERFACES_CHAIN_H
+#endif // ELCASH_INTERFACES_CHAIN_H

@@ -19,10 +19,10 @@ else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
 
-BITCOIN_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
+ELCASH_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS)
 
-BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
-BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
+ELCASH_INCLUDES += -I$(srcdir)/secp256k1/include
+ELCASH_INCLUDES += $(UNIVALUE_CFLAGS)
 
 LIBELCASH_SERVER=libelcash_server.a
 LIBELCASH_COMMON=libelcash_common.a
@@ -36,7 +36,7 @@ LIBSECP256K1=secp256k1/libsecp256k1.la
 if ENABLE_ZMQ
 LIBELCASH_ZMQ=libelcash_zmq.a
 endif
-if BUILD_BITCOIN_LIBS
+if BUILD_ELCASH_LIBS
 LIBELCASHCONSENSUS=libelcashconsensus.la
 endif
 if ENABLE_WALLET
@@ -88,18 +88,18 @@ endif
 if BUILD_ELCASH_CLI
   bin_PROGRAMS += elcash-cli
 endif
-if BUILD_BITCOIN_TX
-  bin_PROGRAMS += bitcoin-tx
+if BUILD_ELCASH_TX
+  bin_PROGRAMS += elcash-tx
 endif
 if ENABLE_WALLET
-if BUILD_BITCOIN_WALLET
-  bin_PROGRAMS += bitcoin-wallet
+if BUILD_ELCASH_WALLET
+  bin_PROGRAMS += elcash-wallet
 endif
 endif
 
 .PHONY: FORCE check-symbols check-security
 # electric cash core #
-BITCOIN_CORE_H = \
+ELCASH_CORE_H = \
   addrdb.h \
   addrman.h \
   attributes.h \
@@ -266,7 +266,7 @@ libelcash_util_a-clientversion.$(OBJEXT): obj/build.h
 # Contains code accessing mempool and chain state that is meant to be separated
 # from wallet and gui code (see node/README.md). Shared code should go in
 # libelcash_common or libelcash_util libraries, instead.
-libelcash_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libelcash_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libelcash_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_server_a_SOURCES = \
   addrdb.cpp \
@@ -316,7 +316,7 @@ libelcash_server_a_SOURCES = \
   validation.cpp \
   validationinterface.cpp \
   versionbits.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
 if ENABLE_WALLET
 libelcash_server_a_SOURCES += wallet/init.cpp
@@ -326,7 +326,7 @@ libelcash_server_a_SOURCES += dummywallet.cpp
 endif
 
 if ENABLE_ZMQ
-libelcash_zmq_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+libelcash_zmq_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES) $(ZMQ_CFLAGS)
 libelcash_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
@@ -338,7 +338,7 @@ endif
 
 # wallet: shared between elcashd and elcash-qt, but only linked
 # when wallet enabled
-libelcash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_wallet_a_SOURCES = \
   interfaces/wallet.cpp \
@@ -355,13 +355,13 @@ libelcash_wallet_a_SOURCES = \
   wallet/walletdb.cpp \
   wallet/walletutil.cpp \
   wallet/coinselection.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
-libelcash_wallet_tool_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_wallet_tool_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_wallet_tool_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_wallet_tool_a_SOURCES = \
   wallet/wallettool.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
 # crypto primitives library
 crypto_libelcash_crypto_base_a_CPPFLAGS = $(AM_CPPFLAGS)
@@ -416,7 +416,7 @@ crypto_libelcash_crypto_shani_a_CPPFLAGS += -DENABLE_SHANI
 crypto_libelcash_crypto_shani_a_SOURCES = crypto/sha256_shani.cpp
 
 # consensus: shared between all executables that validate any consensus rules.
-libelcash_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_consensus_a_SOURCES = \
   amount.h \
@@ -453,7 +453,7 @@ libelcash_consensus_a_SOURCES = \
   version.h
 
 # common: shared between elcashd, and elcash-qt and non-server tools
-libelcash_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_common_a_SOURCES = \
   base58.cpp \
@@ -484,12 +484,12 @@ libelcash_common_a_SOURCES = \
   script/standard.cpp \
   versionbitsinfo.cpp \
   warnings.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libelcash_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_util_a_SOURCES = \
   support/lockedpool.cpp \
@@ -524,7 +524,7 @@ libelcash_util_a_SOURCES = \
   util/string.cpp \
   util/time.cpp \
   util/url.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
 if GLIBC_BACK_COMPAT
 libelcash_util_a_SOURCES += compat/glibc_compat.cpp
@@ -532,20 +532,20 @@ AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
 # cli: shared between elcash-cli and elcash-qt
-libelcash_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libelcash_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 libelcash_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_cli_a_SOURCES = \
   compat/stdin.h \
   compat/stdin.cpp \
   rpc/client.cpp \
-  $(BITCOIN_CORE_H)
+  $(ELCASH_CORE_H)
 
 nodist_libelcash_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # elcashd binary #
 elcashd_SOURCES = elcashd.cpp
-elcashd_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+elcashd_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
 elcashd_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 elcashd_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
@@ -571,7 +571,7 @@ elcashd_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LI
 
 # elcash-cli binary #
 elcash_cli_SOURCES = elcash-cli.cpp
-elcash_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+elcash_cli_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES) $(EVENT_CFLAGS)
 elcash_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 elcash_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
@@ -588,17 +588,17 @@ elcash_cli_LDADD = \
 elcash_cli_LDADD += $(BOOST_LIBS) $(EVENT_LIBS)
 #
 
-# bitcoin-tx binary #
-bitcoin_tx_SOURCES = bitcoin-tx.cpp
-bitcoin_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# elcash-tx binary #
+elcash_tx_SOURCES = elcash-tx.cpp
+elcash_tx_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
+elcash_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+elcash_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-bitcoin_tx_SOURCES += bitcoin-tx-res.rc
+elcash_tx_SOURCES += elcash-tx-res.rc
 endif
 
-bitcoin_tx_LDADD = \
+elcash_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBELCASH_COMMON) \
   $(LIBELCASH_UTIL) \
@@ -606,20 +606,20 @@ bitcoin_tx_LDADD = \
   $(LIBELCASH_CRYPTO) \
   $(LIBSECP256K1)
 
-bitcoin_tx_LDADD += $(BOOST_LIBS)
+elcash_tx_LDADD += $(BOOST_LIBS)
 #
 
-# bitcoin-wallet binary #
-bitcoin_wallet_SOURCES = bitcoin-wallet.cpp
-bitcoin_wallet_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_wallet_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_wallet_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# elcash-wallet binary #
+elcash_wallet_SOURCES = elcash-wallet.cpp
+elcash_wallet_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES)
+elcash_wallet_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+elcash_wallet_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-bitcoin_wallet_SOURCES += bitcoin-wallet-res.rc
+elcash_wallet_SOURCES += elcash-wallet-res.rc
 endif
 
-bitcoin_wallet_LDADD = \
+elcash_wallet_LDADD = \
   $(LIBELCASH_WALLET_TOOL) \
   $(LIBELCASH_WALLET) \
   $(LIBELCASH_COMMON) \
@@ -633,11 +633,11 @@ bitcoin_wallet_LDADD = \
   $(LIBSECP256K1) \
   $(LIBUNIVALUE)
 
-bitcoin_wallet_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS)
+elcash_wallet_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS)
 #
 
 # bitcoinconsensus library #
-if BUILD_BITCOIN_LIBS
+if BUILD_ELCASH_LIBS
 include_HEADERS = script/bitcoinconsensus.h
 libelcashconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libelcash_crypto_base_a_SOURCES) $(libelcash_consensus_a_SOURCES)
 
@@ -647,7 +647,7 @@ endif
 
 libelcashconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
 libelcashconsensus_la_LIBADD = $(LIBSECP256K1)
-libelcashconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_BITCOIN_INTERNAL
+libelcashconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -I$(srcdir)/secp256k1/include -DBUILD_ELCASH_INTERNAL
 libelcashconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
 endif

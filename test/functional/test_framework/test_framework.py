@@ -44,7 +44,7 @@ TEST_EXIT_PASSED = 0
 TEST_EXIT_FAILED = 1
 TEST_EXIT_SKIPPED = 77
 
-TMPDIR_PREFIX = "bitcoin_func_test_"
+TMPDIR_PREFIX = "elcash_func_test_"
 
 
 class SkipTest(Exception):
@@ -181,7 +181,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         config.read_file(open(self.options.configfile))
         self.config = config
         self.options.elcashd = os.getenv("ELCASHD", default=config["environment"]["BUILDDIR"] + '/src/elcashd' + config["environment"]["EXEEXT"])
-        self.options.bitcoincli = os.getenv("BITCOINCLI", default=config["environment"]["BUILDDIR"] + '/src/elcash-cli' + config["environment"]["EXEEXT"])
+        self.options.elcashcli = os.getenv("ELCASHCLI", default=config["environment"]["BUILDDIR"] + '/src/elcash-cli' + config["environment"]["EXEEXT"])
 
         os.environ['PATH'] = os.pathsep.join([
             os.path.join(config['environment']['BUILDDIR'], 'src'),
@@ -385,7 +385,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if binary is None:
             binary = [self.options.elcashd] * num_nodes
         if binary_cli is None:
-            binary_cli = [self.options.bitcoincli] * num_nodes
+            binary_cli = [self.options.elcashcli] * num_nodes
         assert_equal(len(extra_confs), num_nodes)
         assert_equal(len(extra_args), num_nodes)
         assert_equal(len(versions), num_nodes)
@@ -544,7 +544,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                     rpchost=None,
                     timewait=self.rpc_timeout,
                     elcashd=self.options.elcashd,
-                    elcash_cli=self.options.bitcoincli,
+                    elcash_cli=self.options.elcashcli,
                     coverage_dir=None,
                     cwd=self.options.tmpdir,
                 ))
@@ -611,9 +611,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             raise SkipTest("wallet has not been compiled.")
 
     def skip_if_no_wallet_tool(self):
-        """Skip the running test if bitcoin-wallet has not been compiled."""
+        """Skip the running test if elcash-wallet has not been compiled."""
         if not self.is_wallet_tool_compiled():
-            raise SkipTest("bitcoin-wallet has not been compiled")
+            raise SkipTest("elcash-wallet has not been compiled")
 
     def skip_if_no_cli(self):
         """Skip the running test if elcash-cli has not been compiled."""
@@ -629,7 +629,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         return self.config["components"].getboolean("ENABLE_WALLET")
 
     def is_wallet_tool_compiled(self):
-        """Checks whether bitcoin-wallet was compiled."""
+        """Checks whether elcash-wallet was compiled."""
         return self.config["components"].getboolean("ENABLE_WALLET_TOOL")
 
     def is_zmq_compiled(self):

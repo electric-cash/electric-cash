@@ -7,8 +7,8 @@
  * Server/client environment: argument handling, config file parsing,
  * thread wrappers, startup time
  */
-#ifndef BITCOIN_UTIL_SYSTEM_H
-#define BITCOIN_UTIL_SYSTEM_H
+#ifndef ELCASH_UTIL_SYSTEM_H
+#define ELCASH_UTIL_SYSTEM_H
 
 #if defined(HAVE_CONFIG_H)
 #include <config/elcash-config.h>
@@ -436,4 +436,4 @@ private:
 
 } // namespace util
 
-#endif // BITCOIN_UTIL_SYSTEM_H
+#endif // ELCASH_UTIL_SYSTEM_H

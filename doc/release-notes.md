@@ -3,7 +3,7 @@
 
 Elecric Cash Core version 0.20.1 is now available from:
 
-  <https://bitcoincore.org/bin/bitcoin-core-0.20.1/>
+  <https://bitcoincore.org/bin/elcash-core-0.20.1/>
 
 This minor release includes various bug fixes and performance
 improvements, as well as updated translations.
@@ -53,7 +53,7 @@ this release:
   `./configure`. This is the same as when checking out from git.
 
 - Instead of running `make` simply, you should instead run
-  `BITCOIN_GENBUILD_NO_GIT=1 make`.
+  `ELCASH_GENBUILD_NO_GIT=1 make`.
 
 Notable changes
 ===============

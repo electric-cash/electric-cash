@@ -134,6 +134,6 @@ deterministic. Here's how it works:
   of a tarball, which also contains all of the tools that have been previously (deterministically)
   built in order to create a final DMG.
 - The Apple keyholder uses this unsigned app to create a detached signature, using the
-  script that is also included there. Detached signatures are available from this [repository](https://github.com/bitcoin-core/bitcoin-detached-sigs).
+  script that is also included there. Detached signatures are available from this [repository](https://github.com/elcash-core/elcash-detached-sigs).
 - Builders feed the unsigned app + detached signature back into Gitian. It uses the
   pre-built tools to recombine the pieces into a deterministic DMG.

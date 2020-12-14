@@ -44,7 +44,7 @@ reachable from the Tor network. Add these lines to your /etc/tor/torrc (or equiv
 config file): *Needed for Tor version 0.2.7.0 and older versions of Tor only. For newer
 versions of Tor see [Section 3](#3-automatically-listen-on-tor).*
 
-	HiddenServiceDir /var/lib/tor/bitcoin-service/
+	HiddenServiceDir /var/lib/tor/elcash-service/
 	HiddenServicePort 8333 127.0.0.1:8333
 	HiddenServicePort 18333 127.0.0.1:18333
 
@@ -54,7 +54,7 @@ your elcashd's P2P listen port (8333 by default).
 	-externalip=X   You can tell bitcoin about its publicly reachable address using
 	                this option, and this can be a .onion address. Given the above
 	                configuration, you can find your .onion address in
-	                /var/lib/tor/bitcoin-service/hostname. For connections
+	                /var/lib/tor/elcash-service/hostname. For connections
 	                coming from unroutable addresses (such as 127.0.0.1, where the
 	                Tor proxy typically runs), .onion addresses are given
 	                preference for your node to advertise itself with.

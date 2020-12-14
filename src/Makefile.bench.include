@@ -43,7 +43,7 @@ bench_bench_elcash_SOURCES = \
 
 nodist_bench_bench_elcash_SOURCES = $(GENERATED_BENCH_FILES)
 
-bench_bench_elcash_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS) -I$(builddir)/bench/
+bench_bench_elcash_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS) -I$(builddir)/bench/
 bench_bench_elcash_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 bench_bench_elcash_LDADD = \
   $(LIBELCASH_SERVER) \
@@ -73,19 +73,19 @@ endif
 bench_bench_elcash_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS)
 bench_bench_elcash_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
-CLEAN_BITCOIN_BENCH = bench/*.gcda bench/*.gcno $(GENERATED_BENCH_FILES)
+CLEAN_ELCASH_BENCH = bench/*.gcda bench/*.gcno $(GENERATED_BENCH_FILES)
 
-CLEANFILES += $(CLEAN_BITCOIN_BENCH)
+CLEANFILES += $(CLEAN_ELCASH_BENCH)
 
 bench/data.cpp: bench/data/block413567.raw.h
 
-bitcoin_bench: $(BENCH_BINARY)
+elcash_bench: $(BENCH_BINARY)
 
 bench: $(BENCH_BINARY) FORCE
 	$(BENCH_BINARY)
 
-bitcoin_bench_clean : FORCE
-	rm -f $(CLEAN_BITCOIN_BENCH) $(bench_bench_elcash_OBJECTS) $(BENCH_BINARY)
+elcash_bench_clean : FORCE
+	rm -f $(CLEAN_ELCASH_BENCH) $(bench_bench_elcash_OBJECTS) $(BENCH_BINARY)
 
 %.raw.h: %.raw
 	@$(MKDIR_P) $(@D)

@@ -44,7 +44,7 @@ The following are developer notes on how to build Elecric Cash Core on your nati
 - [FreeBSD Build Notes](build-freebsd.md)
 - [OpenBSD Build Notes](build-openbsd.md)
 - [NetBSD Build Notes](build-netbsd.md)
-- [Gitian Building Guide (External Link)](https://github.com/bitcoin-core/docs/blob/master/gitian-building.md)
+- [Gitian Building Guide (External Link)](https://github.com/elcash-core/docs/blob/master/gitian-building.md)
 
 Development
 ---------------------
@@ -66,8 +66,8 @@ The Bitcoin repo's [root README](/README.md) contains relevant information on th
 
 ### Resources
 * Discuss on the [BitcoinTalk](https://bitcointalk.org/) forums, in the [Development & Technical Discussion board](https://bitcointalk.org/index.php?board=6.0).
-* Discuss project-specific development on #bitcoin-core-dev on Freenode. If you don't have an IRC client, use [webchat here](https://webchat.freenode.net/#bitcoin-core-dev).
-* Discuss general Bitcoin development on #bitcoin-dev on Freenode. If you don't have an IRC client, use [webchat here](https://webchat.freenode.net/#bitcoin-dev).
+* Discuss project-specific development on #elcash-core-dev on Freenode. If you don't have an IRC client, use [webchat here](https://webchat.freenode.net/#elcash-core-dev).
+* Discuss general Bitcoin development on #elcash-dev on Freenode. If you don't have an IRC client, use [webchat here](https://webchat.freenode.net/#elcash-dev).
 
 ### Miscellaneous
 - [Assets Attribution](assets-attribution.md)

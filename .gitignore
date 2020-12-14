@@ -5,8 +5,8 @@
 src/bitcoin
 src/elcashd
 src/elcash-cli
-src/bitcoin-tx
-src/bitcoin-wallet
+src/elcash-tx
+src/elcash-wallet
 src/test/fuzz
 !src/test/fuzz/*.*
 src/test/test_elcash

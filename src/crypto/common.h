@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CRYPTO_COMMON_H
-#define BITCOIN_CRYPTO_COMMON_H
+#ifndef ELCASH_CRYPTO_COMMON_H
+#define ELCASH_CRYPTO_COMMON_H
 
 #if defined(HAVE_CONFIG_H)
 #include <config/elcash-config.h>
@@ -100,4 +100,4 @@ uint64_t static inline CountBits(uint64_t x)
     return ret;
 }
 
-#endif // BITCOIN_CRYPTO_COMMON_H
+#endif // ELCASH_CRYPTO_COMMON_H

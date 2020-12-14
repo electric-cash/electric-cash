@@ -88,6 +88,6 @@ The .appveyor.yml in the root directory is suitable to perform builds on [AppVey
 For safety reasons the Elecric Cash Core .appveyor.yml file has the artifact options disabled. The build will be performed but no executable files will be available. To enable artifacts on a forked repository uncomment the lines shown below:
 
 ```
-    #- 7z a bitcoin-%APPVEYOR_BUILD_VERSION%.zip %APPVEYOR_BUILD_FOLDER%\build_msvc\%platform%\%configuration%\*.exe
-    #- path: bitcoin-%APPVEYOR_BUILD_VERSION%.zip
+    #- 7z a elcash-%APPVEYOR_BUILD_VERSION%.zip %APPVEYOR_BUILD_FOLDER%\build_msvc\%platform%\%configuration%\*.exe
+    #- path: elcash-%APPVEYOR_BUILD_VERSION%.zip
 ```

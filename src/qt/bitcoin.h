@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ELCASH_QT_BITCOIN_H
-#define ELCASH_QT_BITCOIN_H
+#ifndef ELCASH_QT_ELCASH_H
+#define ELCASH_QT_ELCASH_H
 
 #if defined(HAVE_CONFIG_H)
 #include <config/elcash-config.h>
@@ -122,4 +122,4 @@ private:
 
 int GuiMain(int argc, char* argv[]);
 
-#endif // ELCASH_QT_BITCOIN_H
+#endif // ELCASH_QT_ELCASH_H

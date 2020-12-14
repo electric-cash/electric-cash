@@ -885,7 +885,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 
 void CWallet::LoadToWallet(CWalletTx& wtxIn)
 {
-    // If wallet doesn't have a chain (e.g bitcoin-wallet), lock can't be taken.
+    // If wallet doesn't have a chain (e.g elcash-wallet), lock can't be taken.
     auto locked_chain = LockChain();
     if (locked_chain) {
         Optional<int> block_height = locked_chain->getBlockHeight(wtxIn.m_confirm.hashBlock);
@@ -1153,7 +1153,7 @@ void CWallet::transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRe
         // when improving this code in the future. The wallet's heuristics for
         // distinguishing between conflicted and unconfirmed transactions are
         // imperfect, and could be improved in general, see
-        // https://github.com/bitcoin-core/bitcoin-devwiki/wiki/Wallet-Transaction-Conflict-Tracking
+        // https://github.com/elcash-core/elcash-devwiki/wiki/Wallet-Transaction-Conflict-Tracking
         SyncTransaction(tx, {CWalletTx::Status::UNCONFIRMED, /* block height */ 0, /* block hash */ {}, /* index */ 0});
     }
 }
@@ -2766,7 +2766,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
 
             // Create change script that will be used if we need change
             // TODO: pass in scriptChange instead of reservedest so
-            // change transaction isn't always pay-to-bitcoin-address
+            // change transaction isn't always pay-to-elcash-address
             CScript scriptChange;
 
             // coin control: send change to custom address
@@ -3117,7 +3117,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
     // Even if we don't use this lock in this function, we want to preserve
     // lock order in LoadToWallet if query of chain state is needed to know
-    // tx status. If lock can't be taken (e.g bitcoin-wallet), tx confirmation
+    // tx status. If lock can't be taken (e.g elcash-wallet), tx confirmation
     // status may be not reliable.
     auto locked_chain = LockChain();
     LOCK(cs_wallet);

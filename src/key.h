@@ -4,8 +4,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_KEY_H
-#define BITCOIN_KEY_H
+#ifndef ELCASH_KEY_H
+#define ELCASH_KEY_H
 
 #include <pubkey.h>
 #include <serialize.h>
@@ -173,4 +173,4 @@ void ECC_Stop();
 /** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck();
 
-#endif // BITCOIN_KEY_H
+#endif // ELCASH_KEY_H

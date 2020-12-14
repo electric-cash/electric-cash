@@ -12,12 +12,12 @@ if BUILD_ELCASH_CLI
   dist_man1_MANS+=elcash-cli.1
 endif
 
-if BUILD_BITCOIN_TX
-  dist_man1_MANS+=bitcoin-tx.1
+if BUILD_ELCASH_TX
+  dist_man1_MANS+=elcash-tx.1
 endif
 
 if ENABLE_WALLET
-if BUILD_BITCOIN_WALLET
-  dist_man1_MANS+=bitcoin-wallet.1
+if BUILD_ELCASH_WALLET
+  dist_man1_MANS+=elcash-wallet.1
 endif
 endif

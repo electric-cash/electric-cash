@@ -2,7 +2,7 @@
 # Copyright (c) 2018-2019 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test bitcoin-wallet."""
+"""Test elcash-wallet."""
 
 import hashlib
 import os
@@ -25,20 +25,20 @@ class ToolWalletTest(BitcoinTestFramework):
         self.skip_if_no_wallet()
         self.skip_if_no_wallet_tool()
 
-    def bitcoin_wallet_process(self, *args):
-        binary = self.config["environment"]["BUILDDIR"] + '/src/bitcoin-wallet' + self.config["environment"]["EXEEXT"]
+    def elcash_wallet_process(self, *args):
+        binary = self.config["environment"]["BUILDDIR"] + '/src/elcash-wallet' + self.config["environment"]["EXEEXT"]
         args = ['-datadir={}'.format(self.nodes[0].datadir), '-chain=%s' % self.chain] + list(args)
         return subprocess.Popen([binary] + args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
     def assert_raises_tool_error(self, error, *args):
-        p = self.bitcoin_wallet_process(*args)
+        p = self.elcash_wallet_process(*args)
         stdout, stderr = p.communicate()
         assert_equal(p.poll(), 1)
         assert_equal(stdout, '')
         assert_equal(stderr.strip(), error)
 
     def assert_tool_output(self, output, *args):
-        p = self.bitcoin_wallet_process(*args)
+        p = self.elcash_wallet_process(*args)
         stdout, stderr = p.communicate()
         assert_equal(stderr, '')
         assert_equal(stdout, output)
@@ -65,7 +65,7 @@ class ToolWalletTest(BitcoinTestFramework):
     def test_invalid_tool_commands_and_args(self):
         self.log.info('Testing that various invalid commands raise with specific error messages')
         self.assert_raises_tool_error('Invalid command: foo', 'foo')
-        # `bitcoin-wallet help` raises an error. Use `bitcoin-wallet -help`.
+        # `elcash-wallet help` raises an error. Use `elcash-wallet -help`.
         self.assert_raises_tool_error('Invalid command: help', 'help')
         self.assert_raises_tool_error('Error: two methods provided (info and create). Only one method should be provided.', 'info', 'create')
         self.assert_raises_tool_error('Error parsing command line arguments: Invalid parameter -foo', '-foo')

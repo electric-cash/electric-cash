@@ -9,7 +9,7 @@ This directory contains the following sets of tests:
 elcashd and elcash-qt by interacting with them through the RPC and P2P
 interfaces.
 - [util](/test/util) which tests the bitcoin utilities, currently only
-bitcoin-tx.
+elcash-tx.
 - [lint](/test/lint/) which perform various static analysis checks.
 
 The util tests are run as part of `make check` target. The functional
@@ -247,7 +247,7 @@ For ways to generate more granular profiles, see the README in
 
 ### Util tests
 
-Util tests can be run locally by running `test/util/bitcoin-util-test.py`.
+Util tests can be run locally by running `test/util/elcash-util-test.py`.
 Use the `-v` option for verbose output.
 
 ### Lint tests

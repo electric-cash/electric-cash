@@ -19,7 +19,7 @@ function clean_up {
    done
 }
 
-WORKINGDIR="/tmp/bitcoin_verify_binaries"
+WORKINGDIR="/tmp/elcash_verify_binaries"
 TMPFILE="hashes.tmp"
 
 SIGNATUREFILENAME="SHA256SUMS.asc"
@@ -27,7 +27,7 @@ RCSUBDIR="test"
 HOST1="https://bitcoincore.org"
 HOST2="https://bitcoin.org"
 BASEDIR="/bin/"
-VERSIONPREFIX="bitcoin-core-"
+VERSIONPREFIX="elcash-core-"
 RCVERSIONSTRING="rc"
 
 if [ ! -d "$WORKINGDIR" ]; then
@@ -38,7 +38,7 @@ cd "$WORKINGDIR" || exit 1
 
 #test if a version number has been passed as an argument
 if [ -n "$1" ]; then
-   #let's also check if the version number includes the prefix 'bitcoin-',
+   #let's also check if the version number includes the prefix 'elcash-',
    #  and add this prefix if it doesn't
    if [[ $1 == "$VERSIONPREFIX"* ]]; then
       VERSION="$1"

@@ -14,11 +14,11 @@ AC_CONFIG_HEADERS([src/config/elcash-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
-BITCOIN_DAEMON_NAME=elcashd
-BITCOIN_GUI_NAME=elcash-qt
+ELCASH_DAEMON_NAME=elcashd
+ELCASH_GUI_NAME=elcash-qt
 ELCASH_CLI_NAME=elcash-cli
-BITCOIN_TX_NAME=bitcoin-tx
-BITCOIN_WALLET_TOOL_NAME=bitcoin-wallet
+ELCASH_TX_NAME=elcash-tx
+ELCASH_WALLET_TOOL_NAME=elcash-wallet
 
 dnl Unless the user specified ARFLAGS, force it to be cr
 AC_ARG_VAR(ARFLAGS, [Flags for the archiver, defaults to <cr> if not set])
@@ -467,33 +467,33 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
 
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
-  [build elcash-cli bitcoin-tx bitcoin-wallet (default=yes)])],
-  [build_bitcoin_utils=$withval],
-  [build_bitcoin_utils=yes])
+  [build elcash-cli elcash-tx elcash-wallet (default=yes)])],
+  [build_elcash_utils=$withval],
+  [build_elcash_utils=yes])
 
 AC_ARG_ENABLE([util-cli],
   [AS_HELP_STRING([--enable-util-cli],
   [build elcash-cli])],
   [build_elcash_cli=$enableval],
-  [build_elcash_cli=$build_bitcoin_utils])
+  [build_elcash_cli=$build_elcash_utils])
 
 AC_ARG_ENABLE([util-tx],
   [AS_HELP_STRING([--enable-util-tx],
-  [build bitcoin-tx])],
-  [build_bitcoin_tx=$enableval],
-  [build_bitcoin_tx=$build_bitcoin_utils])
+  [build elcash-tx])],
+  [build_elcash_tx=$enableval],
+  [build_elcash_tx=$build_elcash_utils])
 
 AC_ARG_ENABLE([util-wallet],
   [AS_HELP_STRING([--enable-util-wallet],
-  [build bitcoin-wallet])],
-  [build_bitcoin_wallet=$enableval],
-  [build_bitcoin_wallet=$build_bitcoin_utils])
+  [build elcash-wallet])],
+  [build_elcash_wallet=$enableval],
+  [build_elcash_wallet=$build_elcash_utils])
 
 AC_ARG_WITH([libs],
   [AS_HELP_STRING([--with-libs],
   [build libraries (default=yes)])],
-  [build_bitcoin_libs=$withval],
-  [build_bitcoin_libs=yes])
+  [build_elcash_libs=$withval],
+  [build_elcash_libs=yes])
 
 AC_ARG_WITH([daemon],
   [AS_HELP_STRING([--with-daemon],
@@ -1077,15 +1077,15 @@ AC_SUBST(LIBMEMENV)
 dnl enable-fuzz should disable all other targets
 if test "x$enable_fuzz" = "xyes"; then
   AC_MSG_WARN(enable-fuzz will disable all other targets)
-  build_bitcoin_utils=no
+  build_elcash_utils=no
   build_elcash_cli=no
-  build_bitcoin_tx=no
-  build_bitcoin_wallet=no
+  build_elcash_tx=no
+  build_elcash_wallet=no
   build_elcashd=no
-  build_bitcoin_libs=no
-  bitcoin_enable_qt=no
-  bitcoin_enable_qt_test=no
-  bitcoin_enable_qt_dbus=no
+  build_elcash_libs=no
+  elcash_enable_qt=no
+  elcash_enable_qt_test=no
+  elcash_enable_qt_dbus=no
   enable_wallet=no
   use_bench=no
   use_upnp=no
@@ -1093,13 +1093,13 @@ if test "x$enable_fuzz" = "xyes"; then
 else
   ELCASH_QT_INIT
 
-  dnl sets $bitcoin_enable_qt, $bitcoin_enable_qt_test, $bitcoin_enable_qt_dbus
+  dnl sets $elcash_enable_qt, $elcash_enable_qt_test, $elcash_enable_qt_dbus
   ELCASH_QT_CONFIGURE([$use_pkgconfig])
 fi
 
 if test x$enable_wallet != xno; then
     dnl Check for libdb_cxx only if wallet enabled
-    BITCOIN_FIND_BDB48
+    ELCASH_FIND_BDB48
 fi
 
 dnl Check for libminiupnpc (optional)
@@ -1131,7 +1131,7 @@ if test x$have_miniupnpc != xno; then
 fi
 fi
 
-if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
+if test x$build_elcash_wallet$build_elcash_cli$build_elcash_tx$build_elcashd$elcash_enable_qt$use_tests$use_bench = xnonononononono; then
     use_boost=no
 else
     use_boost=yes
@@ -1264,7 +1264,7 @@ if test x$use_pkgconfig = xyes; then
       if test x$use_qr != xno; then
         ELCASH_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
       fi
-      if test x$build_elcash_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
+      if test x$build_elcash_cli$build_elcashd$elcash_enable_qt$use_tests$use_bench != xnonononono; then
         PKG_CHECK_MODULES([EVENT], [libevent >= 2.0.21],, [AC_MSG_ERROR(libevent version 2.0.21 or greater not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads >= 2.0.21],, [AC_MSG_ERROR(libevent_pthreads version 2.0.21 or greater not found.)])
@@ -1284,7 +1284,7 @@ if test x$use_pkgconfig = xyes; then
   )
 else
 
-  if test x$build_elcash_cli$build_elcashd$bitcoin_enable_qt$use_tests$use_bench != xnonononono; then
+  if test x$build_elcash_cli$build_elcashd$elcash_enable_qt$use_tests$use_bench != xnonononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     if test x$TARGET_OS != xwindows; then
@@ -1325,7 +1325,7 @@ dnl univalue check
 
 need_bundled_univalue=yes
 
-if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_elcashd$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
+if test x$build_elcash_wallet$build_elcash_cli$build_elcash_tx$build_elcashd$elcash_enable_qt$use_tests$use_bench = xnonononononono; then
   need_bundled_univalue=no
 else
 
@@ -1377,21 +1377,21 @@ AC_MSG_CHECKING([whether to build elcash-cli])
 AM_CONDITIONAL([BUILD_ELCASH_CLI], [test x$build_elcash_cli = xyes])
 AC_MSG_RESULT($build_elcash_cli)
 
-AC_MSG_CHECKING([whether to build bitcoin-tx])
-AM_CONDITIONAL([BUILD_BITCOIN_TX], [test x$build_bitcoin_tx = xyes])
-AC_MSG_RESULT($build_bitcoin_tx)
+AC_MSG_CHECKING([whether to build elcash-tx])
+AM_CONDITIONAL([BUILD_ELCASH_TX], [test x$build_elcash_tx = xyes])
+AC_MSG_RESULT($build_elcash_tx)
 
-AC_MSG_CHECKING([whether to build bitcoin-wallet])
-AM_CONDITIONAL([BUILD_BITCOIN_WALLET], [test x$build_bitcoin_wallet = xyes])
-AC_MSG_RESULT($build_bitcoin_wallet)
+AC_MSG_CHECKING([whether to build elcash-wallet])
+AM_CONDITIONAL([BUILD_ELCASH_WALLET], [test x$build_elcash_wallet = xyes])
+AC_MSG_RESULT($build_elcash_wallet)
 
 AC_MSG_CHECKING([whether to build libraries])
-AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test x$build_bitcoin_libs = xyes])
-if test x$build_bitcoin_libs = xyes; then
+AM_CONDITIONAL([BUILD_ELCASH_LIBS], [test x$build_elcash_libs = xyes])
+if test x$build_elcash_libs = xyes; then
   AC_DEFINE(HAVE_CONSENSUS_LIB, 1, [Define this symbol if the consensus lib has been built])
   AC_CONFIG_FILES([libelcashconsensus.pc:libelcashconsensus.pc.in])
 fi
-AC_MSG_RESULT($build_bitcoin_libs)
+AC_MSG_RESULT($build_elcash_libs)
 
 AC_LANG_POP
 
@@ -1454,13 +1454,13 @@ fi
 
 dnl these are only used when qt is enabled
 BUILD_TEST_QT=""
-if test x$bitcoin_enable_qt != xno; then
+if test x$elcash_enable_qt != xno; then
   dnl enable dbus support
   AC_MSG_CHECKING([whether to build GUI with support for D-Bus])
-  if test x$bitcoin_enable_qt_dbus != xno; then
+  if test x$elcash_enable_qt_dbus != xno; then
     AC_DEFINE([USE_DBUS],[1],[Define if dbus support should be compiled in])
   fi
-  AC_MSG_RESULT($bitcoin_enable_qt_dbus)
+  AC_MSG_RESULT($elcash_enable_qt_dbus)
 
   dnl enable qr support
   AC_MSG_CHECKING([whether to build GUI with support for QR codes])
@@ -1482,7 +1482,7 @@ if test x$bitcoin_enable_qt != xno; then
   fi
 
   AC_MSG_CHECKING([whether to build test_elcash-qt])
-  if test x$use_gui_tests$bitcoin_enable_qt_test = xyesyes; then
+  if test x$use_gui_tests$elcash_enable_qt_test = xyesyes; then
     AC_MSG_RESULT([yes])
     BUILD_TEST_QT="yes"
   else
@@ -1508,7 +1508,7 @@ else
   AC_MSG_RESULT([no])
 fi
 
-if test x$build_bitcoin_wallet$build_elcash_cli$build_bitcoin_tx$build_bitcoin_libs$build_elcashd$bitcoin_enable_qt$use_bench$use_tests = xnononononononono; then
+if test x$build_elcash_wallet$build_elcash_cli$build_elcash_tx$build_elcash_libs$build_elcashd$elcash_enable_qt$use_bench$use_tests = xnononononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
 fi
 
@@ -1518,7 +1518,7 @@ AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
 AM_CONDITIONAL([ENABLE_FUZZ],[test x$enable_fuzz = xyes])
-AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
+AM_CONDITIONAL([ENABLE_QT],[test x$elcash_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
 AM_CONDITIONAL([ENABLE_BENCH],[test x$use_bench = xyes])
 AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
@@ -1552,11 +1552,11 @@ AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 AC_SUBST(COPYRIGHT_HOLDERS, "_COPYRIGHT_HOLDERS")
 AC_SUBST(COPYRIGHT_HOLDERS_SUBSTITUTION, "_COPYRIGHT_HOLDERS_SUBSTITUTION")
 AC_SUBST(COPYRIGHT_HOLDERS_FINAL, "_COPYRIGHT_HOLDERS_FINAL")
-AC_SUBST(BITCOIN_DAEMON_NAME)
-AC_SUBST(BITCOIN_GUI_NAME)
+AC_SUBST(ELCASH_DAEMON_NAME)
+AC_SUBST(ELCASH_GUI_NAME)
 AC_SUBST(ELCASH_CLI_NAME)
-AC_SUBST(BITCOIN_TX_NAME)
-AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
+AC_SUBST(ELCASH_TX_NAME)
+AC_SUBST(ELCASH_WALLET_TOOL_NAME)
 
 AC_SUBST(RELDFLAGS)
 AC_SUBST(DEBUG_CPPFLAGS)
@@ -1604,7 +1604,7 @@ AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([doc/Doxyfile])])
 AC_CONFIG_LINKS([contrib/filter-lcov.py:contrib/filter-lcov.py])
 AC_CONFIG_LINKS([test/functional/test_runner.py:test/functional/test_runner.py])
 AC_CONFIG_LINKS([test/fuzz/test_runner.py:test/fuzz/test_runner.py])
-AC_CONFIG_LINKS([test/util/bitcoin-util-test.py:test/util/bitcoin-util-test.py])
+AC_CONFIG_LINKS([test/util/elcash-util-test.py:test/util/elcash-util-test.py])
 AC_CONFIG_LINKS([test/util/rpcauth-test.py:test/util/rpcauth-test.py])
 
 dnl boost's m4 checks do something really nasty: they export these vars. As a
@@ -1650,8 +1650,8 @@ esac
 echo
 echo "Options used to compile and link:"
 echo "  with wallet   = $enable_wallet"
-echo "  with gui / qt = $bitcoin_enable_qt"
-if test x$bitcoin_enable_qt != xno; then
+echo "  with gui / qt = $elcash_enable_qt"
+if test x$elcash_enable_qt != xno; then
     echo "    with qr     = $use_qr"
 fi
 echo "  with zmq      = $use_zmq"

@@ -113,7 +113,7 @@
     <ClCompile Include="$(GeneratedFilesOutDir)\moc\moc_walletview.cpp" />
     <ClCompile Include="$(GeneratedFilesOutDir)\moc\moc_winshutdownmonitor.cpp" />
     <ClCompile Include="$(GeneratedFilesOutDir)\rcc\qrc_bitcoin.cpp" />
-    <ClCompile Include="$(GeneratedFilesOutDir)\rcc\qrc_bitcoin_locale.cpp" />
+    <ClCompile Include="$(GeneratedFilesOutDir)\rcc\qrc_elcash_locale.cpp" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />

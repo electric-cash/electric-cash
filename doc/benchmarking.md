@@ -8,12 +8,12 @@ thread queue, wallet balance.
 Running
 ---------------------
 
-For benchmarks purposes you only need to compile `bitcoin_bench`. Beware of configuring without `--enable-debug` as this would impact
+For benchmarks purposes you only need to compile `elcash_bench`. Beware of configuring without `--enable-debug` as this would impact
 benchmarking by unlatching log printers and lock analysis.
 
-    make -C src bitcoin_bench
+    make -C src elcash_bench
 
-After compiling bitcoin-core, the benchmarks can be run with:
+After compiling elcash-core, the benchmarks can be run with:
 
     src/bench/bench_elcash
 

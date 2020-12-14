@@ -22,17 +22,17 @@ Communication Channels
 ----------------------
 
 Most communication about Elecric Cash Core development happens on IRC, in the
-#bitcoin-core-dev channel on Freenode. The easiest way to participate on IRC is
+#elcash-core-dev channel on Freenode. The easiest way to participate on IRC is
 with the web client, [webchat.freenode.net](https://webchat.freenode.net/). Chat
 history logs can be found
-on [http://www.erisian.com.au/bitcoin-core-dev/](http://www.erisian.com.au/bitcoin-core-dev/)
-and [http://gnusha.org/bitcoin-core-dev/](http://gnusha.org/bitcoin-core-dev/).
+on [http://www.erisian.com.au/elcash-core-dev/](http://www.erisian.com.au/elcash-core-dev/)
+and [http://gnusha.org/elcash-core-dev/](http://gnusha.org/elcash-core-dev/).
 
 Discussion about code base improvements happens in GitHub issues and on pull
 requests.
 
 The developer
-[mailing list](https://lists.linuxfoundation.org/mailman/listinfo/bitcoin-dev)
+[mailing list](https://lists.linuxfoundation.org/mailman/listinfo/elcash-dev)
 should be used to discuss complicated or controversial changes before working on
 a patch set.
 
@@ -346,7 +346,7 @@ Have a look at [an example backport PR](
 https://github.com/electric-cash/electric-cash/pull/16189).
 
 Also see the [backport.py script](
-https://github.com/bitcoin-core/bitcoin-maintainer-tools#backport).
+https://github.com/elcash-core/elcash-maintainer-tools#backport).
 
 Release Policy
 --------------

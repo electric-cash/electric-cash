@@ -26,7 +26,7 @@ TEST_QT_H = \
   qt/test/util.h \
   qt/test/wallettests.h
 
-qt_test_test_elcash_qt_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(ELCASH_QT_INCLUDES) \
+qt_test_test_elcash_qt_CPPFLAGS = $(AM_CPPFLAGS) $(ELCASH_INCLUDES) $(ELCASH_QT_INCLUDES) \
   $(QT_INCLUDES) $(QT_TEST_INCLUDES)
 
 qt_test_test_elcash_qt_SOURCES = \
