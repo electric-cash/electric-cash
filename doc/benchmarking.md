@@ -15,7 +15,7 @@ benchmarking by unlatching log printers and lock analysis.
 
 After compiling bitcoin-core, the benchmarks can be run with:
 
-    src/bench/bench_bitcoin
+    src/bench/bench_elcash
 
 The output will look similar to:
 ```
@@ -27,7 +27,7 @@ AssembleBlock, 5, 700, 1.79954, 0.000510913, 0.000517018, 0.000514497
 Help
 ---------------------
 
-    src/bench/bench_bitcoin --help
+    src/bench/bench_elcash --help
 
 To print options like scaling factor or per-benchmark filter.
 
