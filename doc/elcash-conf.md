@@ -55,8 +55,8 @@ The `includeconf=<file>` option in the `elcash.conf` file can be used to include
 
 Operating System | Data Directory | Example Path
 -- | -- | --
-Windows | `%APPDATA%\Bitcoin\` | `C:\Users\username\AppData\Roaming\Bitcoin\elcash.conf`
-Linux | `$HOME/.bitcoin/` | `/home/username/.bitcoin/elcash.conf`
-macOS | `$HOME/Library/Application Support/Bitcoin/` | `/Users/username/Library/Application Support/Bitcoin/elcash.conf`
+Windows | `%APPDATA%\ElectricCash\` | `C:\Users\username\AppData\Roaming\ElectricCash\elcash.conf`
+Linux | `$HOME/.elcash/` | `/home/username/.elcash/elcash.conf`
+macOS | `$HOME/Library/Application Support/ElectricCash/` | `/Users/username/Library/Application Support/ElectricCash/elcash.conf`
 
 You can find an example elcash.conf file in [share/examples/elcash.conf](../share/examples/elcash.conf).

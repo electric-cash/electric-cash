@@ -84,9 +84,9 @@ OpenRC).
 ### macOS
 
 Binary:              `/usr/local/bin/elcashd`
-Configuration file:  `~/Library/Application Support/Bitcoin/elcash.conf`
+Configuration file:  `~/Library/Application Support/ElectricCash/elcash.conf`
 Data directory:      `~/Library/Application Support/Bitcoin`
-Lock file:           `~/Library/Application Support/Bitcoin/.lock`
+Lock file:           `~/Library/Application Support/ElectricCash/.lock`
 
 Installing Service Configuration
 -----------------------------------

@@ -22,9 +22,9 @@ The data directory is the default location where the Elecric Cash Core files are
 
 Platform | Data directory path
 ---------|--------------------
-Linux    | `$HOME/.bitcoin/`
-macOS    | `$HOME/Library/Application Support/Bitcoin/`
-Windows  | `%APPDATA%\Bitcoin\` <sup>[\[1\]](#note1)</sup>
+Linux    | `$HOME/.elcash/`
+macOS    | `$HOME/Library/Application Support/ElectricCash/`
+Windows  | `%APPDATA%\ElectricCash\` <sup>[\[1\]](#note1)</sup>
 
 2. The non-default data directory path can be specified by `-datadir` option.
 
