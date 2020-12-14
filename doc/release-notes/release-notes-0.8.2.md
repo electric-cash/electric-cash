@@ -5,7 +5,7 @@ This is a maintenance release that fixes many bugs and includes
 a few small new features.
 
 Please report bugs using the issue tracker at github:
-  https://github.com/bitcoin/bitcoin/issues
+  https://github.com/electric-cash/electric-cash/issues
 
 
 How to Upgrade

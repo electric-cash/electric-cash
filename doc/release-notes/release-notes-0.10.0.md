@@ -7,7 +7,7 @@ bug fixes.
 
 Please report bugs using the issue tracker at github:
 
-  https://github.com/bitcoin/bitcoin/issues
+  https://github.com/electric-cash/electric-cash/issues
 
 Upgrading and downgrading
 =========================
@@ -230,7 +230,7 @@ bindings such as [python-bitcoinlib](https://pypi.python.org/pypi/python-bitcoin
 alternative node implementations.
 
 This library is called `libbitcoinconsensus.so` (or, `.dll` for Windows).
-Its interface is defined in the C header [bitcoinconsensus.h](https://github.com/bitcoin/bitcoin/blob/0.10/src/script/bitcoinconsensus.h).
+Its interface is defined in the C header [bitcoinconsensus.h](https://github.com/electric-cash/electric-cash/blob/0.10/src/script/bitcoinconsensus.h).
 
 In its initial version the API includes two functions:
 

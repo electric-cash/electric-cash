@@ -26,7 +26,7 @@ Development Process
 -------------------
 
 The `master` branch is regularly built and tested, but is not guaranteed to be
-completely stable. [Tags](https://github.com/bitcoin/bitcoin/tags) are created
+completely stable. [Tags](https://github.com/electric-cash/electric-cash/tags) are created
 regularly to indicate new official, stable release versions of Bitcoin Core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md)

@@ -47,7 +47,7 @@ from the root of the repository.
 
 1. Clone the Bitcoin Core source code:
     ```shell
-    git clone https://github.com/bitcoin/bitcoin
+    git clone https://github.com/electric-cash/electric-cash
     cd bitcoin
     ```
 
@@ -113,4 +113,4 @@ tail -f $HOME/Library/Application\ Support/Bitcoin/debug.log
 ## Notes
 * Tested on OS X 10.12 Sierra through macOS 10.15 Catalina on 64-bit Intel
 processors only.
-* Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714).
+* Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/electric-cash/electric-cash/issues/7714).

@@ -1906,7 +1906,7 @@ void static ProcessOrphanTx(CConnman* connman, CTxMemPool& mempool, std::set<uin
                     orphan_state.GetResult() == TxValidationResult::TX_INPUTS_NOT_STANDARD) {
                 // Do not use rejection cache for witness transactions or
                 // witness-stripped transactions, as they can have been malleated.
-                // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
+                // See https://github.com/electric-cash/electric-cash/issues/8279 for details.
                 // However, if the transaction failed for TX_INPUTS_NOT_STANDARD,
                 // then we know that the witness was irrelevant to the policy
                 // failure, since this check depends only on the txid
@@ -2608,7 +2608,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                     state.GetResult() == TxValidationResult::TX_INPUTS_NOT_STANDARD) {
                 // Do not use rejection cache for witness transactions or
                 // witness-stripped transactions, as they can have been malleated.
-                // See https://github.com/bitcoin/bitcoin/issues/8279 for details.
+                // See https://github.com/electric-cash/electric-cash/issues/8279 for details.
                 // However, if the transaction failed for TX_INPUTS_NOT_STANDARD,
                 // then we know that the witness was irrelevant to the policy
                 // failure, since this check depends only on the txid

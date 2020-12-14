@@ -6,7 +6,7 @@ This release provides a minor bug fix for 0.17.0.
 
 Please report bugs using the issue tracker at GitHub:
 
-  <https://github.com/bitcoin/bitcoin/issues>
+  <https://github.com/electric-cash/electric-cash/issues>
 
 To receive security and update notifications, please subscribe to:
 

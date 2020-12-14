@@ -23,7 +23,7 @@ don't have test cases for.
 - The oldest supported Python version is specified in [doc/dependencies.md](/doc/dependencies.md).
   Consider using [pyenv](https://github.com/pyenv/pyenv), which checks [.python-version](/.python-version),
   to prevent accidentally introducing modern syntax from an unsupported Python version.
-  The Travis linter also checks this, but [possibly not in all cases](https://github.com/bitcoin/bitcoin/pull/14884#discussion_r239585126).
+  The Travis linter also checks this, but [possibly not in all cases](https://github.com/electric-cash/electric-cash/pull/14884#discussion_r239585126).
 - See [the python lint script](/test/lint/lint-python.sh) that checks for violations that
   could lead to bugs and issues in the test code.
 - Avoid wildcard imports

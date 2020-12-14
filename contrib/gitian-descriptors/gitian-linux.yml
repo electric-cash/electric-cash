@@ -33,7 +33,7 @@ packages:
 - "ca-certificates"
 - "python3"
 remotes:
-- "url": "https://github.com/bitcoin/bitcoin.git"
+- "url": "https://github.com/electric-cash/electric-cash.git"
   "dir": "bitcoin"
 files: []
 script: |

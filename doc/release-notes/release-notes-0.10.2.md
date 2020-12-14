@@ -7,7 +7,7 @@ updates. It is recommended to upgrade to this version.
 
 Please report bugs using the issue tracker at github:
 
-  <https://github.com/bitcoin/bitcoin/issues>
+  <https://github.com/electric-cash/electric-cash/issues>
 
 Upgrading and downgrading
 =========================
@@ -47,12 +47,12 @@ Notable changes
 ===============
 
 This fixes a serious problem on Windows with data directories that have non-ASCII
-characters (https://github.com/bitcoin/bitcoin/issues/6078).
+characters (https://github.com/electric-cash/electric-cash/issues/6078).
 
 For other platforms there are no notable changes.
 
 For the notable changes in 0.10, refer to the release notes
-at https://github.com/bitcoin/bitcoin/blob/v0.10.0/doc/release-notes.md
+at https://github.com/electric-cash/electric-cash/blob/v0.10.0/doc/release-notes.md
 
 0.10.2 Change log
 =================

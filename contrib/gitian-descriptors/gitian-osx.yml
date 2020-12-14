@@ -29,7 +29,7 @@ packages:
 - "python3-setuptools"
 - "fonts-tuffy"
 remotes:
-- "url": "https://github.com/bitcoin/bitcoin.git"
+- "url": "https://github.com/electric-cash/electric-cash.git"
   "dir": "bitcoin"
 files:
 - "MacOSX10.14.sdk.tar.gz"

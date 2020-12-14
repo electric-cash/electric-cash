@@ -4,7 +4,7 @@ http://sourceforge.net/projects/bitcoin/files/Bitcoin/bitcoin-0.5.2/
 This is a bugfix-only release based on 0.5.1.
 
 Please report bugs using the issue tracker at github:
-https://github.com/bitcoin/bitcoin/issues
+https://github.com/electric-cash/electric-cash/issues
 
 Stable source code is hosted at Gitorious:
 http://gitorious.org/bitcoin/bitcoind-stable/archive-tarball/v0.5.2#.tar.gz

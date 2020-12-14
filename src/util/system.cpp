@@ -216,7 +216,7 @@ static util::SettingsValue InterpretOption(std::string& section, std::string& ke
  *
  * TODO: Add more meaningful error checks here in the future
  * See "here's how the flags are meant to behave" in
- * https://github.com/bitcoin/bitcoin/pull/16097#issuecomment-514627823
+ * https://github.com/electric-cash/electric-cash/pull/16097#issuecomment-514627823
  */
 static bool CheckValid(const std::string& key, const util::SettingsValue& val, unsigned int flags, std::string& error)
 {
