@@ -2,8 +2,8 @@
 
 # backward compatibility for existing gentoo layout 
 #
-if [ -d "/var/lib/bitcoin/.bitcoin" ]; then
-	ELCASHD_DEFAULT_DATADIR="/var/lib/bitcoin/.bitcoin"
+if [ -d "/var/lib/bitcoin/.elcash" ]; then
+	ELCASHD_DEFAULT_DATADIR="/var/lib/bitcoin/.elcash"
 else
 	ELCASHD_DEFAULT_DATADIR="/var/lib/elcashd"
 fi

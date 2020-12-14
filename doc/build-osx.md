@@ -88,7 +88,7 @@ Elecric Cash Core is now available at `./src/elcashd`
 
 Before running, you may create an empty configuration file:
 ```shell
-mkdir -p "/Users/${USER}/Library/Application Support/Bitcoin"
+mkdir -p "/Users/${USER}/Library/Application Support/ElectricCash"
 
 touch "/Users/${USER}/Library/Application Support/ElectricCash/elcash.conf"
 
