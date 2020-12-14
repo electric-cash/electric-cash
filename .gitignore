@@ -9,7 +9,7 @@ src/bitcoin-tx
 src/bitcoin-wallet
 src/test/fuzz
 !src/test/fuzz/*.*
-src/test/test_bitcoin
+src/test/test_elcash
 src/qt/test/test_elcash-qt
 
 # autoreconf
@@ -115,7 +115,7 @@ releases
 *.gcno
 *.gcda
 /*.info
-test_bitcoin.coverage/
+test_elcash.coverage/
 total.coverage/
 coverage_percent.txt
 
