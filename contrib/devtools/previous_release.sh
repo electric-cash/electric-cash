@@ -120,7 +120,7 @@ pushd "$TARGET" || exit 1
           make
           # Move binaries, so they're in the same place as in the release download:
           mkdir bin
-          mv src/bitcoind src/bitcoin-cli src/bitcoin-tx bin
+          mv src/elcashd src/bitcoin-cli src/bitcoin-tx bin
           if [ "$FUNCTIONAL_TESTS" -eq "0" ]; then
             mv src/qt/bitcoin-qt bin
           fi

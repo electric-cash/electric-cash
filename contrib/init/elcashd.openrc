@@ -1,0 +1,92 @@
+#!/sbin/openrc-run
+
+# backward compatibility for existing gentoo layout 
+#
+if [ -d "/var/lib/bitcoin/.bitcoin" ]; then
+	ELCASHD_DEFAULT_DATADIR="/var/lib/bitcoin/.bitcoin"
+else
+	ELCASHD_DEFAULT_DATADIR="/var/lib/elcashd"
+fi
+
+ELCASHD_CONFIGFILE=${ELCASHD_CONFIGFILE:-/etc/bitcoin/bitcoin.conf}
+ELCASHD_PIDDIR=${ELCASHD_PIDDIR:-/var/run/elcashd}
+ELCASHD_PIDFILE=${ELCASHD_PIDFILE:-${ELCASHD_PIDDIR}/elcashd.pid}
+ELCASHD_DATADIR=${ELCASHD_DATADIR:-${ELCASHD_DEFAULT_DATADIR}}
+ELCASHD_USER=${ELCASHD_USER:-${BITCOIN_USER:-bitcoin}}
+ELCASHD_GROUP=${ELCASHD_GROUP:-bitcoin}
+ELCASHD_BIN=${ELCASHD_BIN:-/usr/bin/elcashd}
+ELCASHD_NICE=${ELCASHD_NICE:-${NICELEVEL:-0}}
+ELCASHD_OPTS="${ELCASHD_OPTS:-${BITCOIN_OPTS}}"
+
+name="Elecric Cash Core Daemon"
+description="Bitcoin cryptocurrency P2P network daemon"
+
+command="/usr/bin/elcashd"
+command_args="-pid=\"${ELCASHD_PIDFILE}\" \
+		-conf=\"${ELCASHD_CONFIGFILE}\" \
+		-datadir=\"${ELCASHD_DATADIR}\" \
+		-daemon \
+		${ELCASHD_OPTS}"
+
+required_files="${ELCASHD_CONFIGFILE}"
+start_stop_daemon_args="-u ${ELCASHD_USER} \
+			-N ${ELCASHD_NICE} -w 2000"
+pidfile="${ELCASHD_PIDFILE}"
+
+# The retry schedule to use when stopping the daemon. Could be either
+# a timeout in seconds or multiple signal/timeout pairs (like
+# "SIGKILL/180 SIGTERM/300")
+retry="${ELCASHD_SIGTERM_TIMEOUT}"
+
+depend() {
+	need localmount net
+}
+
+# verify
+# 1) that the datadir exists and is writable (or create it)
+# 2) that a directory for the pid exists and is writable
+# 3) ownership and permissions on the config file
+start_pre() {
+	checkpath \
+	-d \
+	--mode 0750 \
+	--owner "${ELCASHD_USER}:${ELCASHD_GROUP}" \
+	"${ELCASHD_DATADIR}"
+
+	checkpath \
+	-d \
+	--mode 0755 \
+	--owner "${ELCASHD_USER}:${ELCASHD_GROUP}" \
+	"${ELCASHD_PIDDIR}"
+
+	checkpath -f \
+	-o ${ELCASHD_USER}:${ELCASHD_GROUP} \
+	-m 0660 \
+	${ELCASHD_CONFIGFILE}
+
+	checkconfig || return 1
+}
+
+checkconfig()
+{
+	if ! grep -qs '^rpcpassword=' "${ELCASHD_CONFIGFILE}" ; then
+		eerror ""
+		eerror "ERROR: You must set a secure rpcpassword to run elcashd."
+		eerror "The setting must appear in ${ELCASHD_CONFIGFILE}"
+		eerror ""
+		eerror "This password is security critical to securing wallets "
+		eerror "and must not be the same as the rpcuser setting."
+		eerror "You can generate a suitable random password using the following "
+		eerror "command from the shell:"
+		eerror ""
+		eerror "bash -c 'tr -dc a-zA-Z0-9 < /dev/urandom | head -c32 && echo'"
+		eerror ""
+		eerror "It is recommended that you also set alertnotify so you are "
+		eerror "notified of problems:"
+		eerror ""
+		eerror "ie: alertnotify=echo %%s | mail -s \"Bitcoin Alert\"" \
+			"admin@foo.com"
+		eerror ""
+		return 1
+	fi
+}

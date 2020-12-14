@@ -1,7 +1,7 @@
 dist_man1_MANS=
 
-if BUILD_BITCOIND
-  dist_man1_MANS+=bitcoind.1
+if BUILD_ELCASHD
+  dist_man1_MANS+=elcashd.1
 endif
 
 if ENABLE_QT

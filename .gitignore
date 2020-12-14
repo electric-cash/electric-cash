@@ -3,7 +3,7 @@
 *.exe
 *.pdb
 src/bitcoin
-src/bitcoind
+src/elcashd
 src/bitcoin-cli
 src/bitcoin-tx
 src/bitcoin-wallet

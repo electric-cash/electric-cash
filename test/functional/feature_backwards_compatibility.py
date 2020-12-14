@@ -60,11 +60,11 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
             180100,
             170100
         ], binary=[
-            self.options.bitcoind,
-            self.options.bitcoind,
-            releases_path + "/v0.19.0.1/bin/bitcoind",
-            releases_path + "/v0.18.1/bin/bitcoind",
-            releases_path + "/v0.17.1/bin/bitcoind"
+            self.options.elcashd,
+            self.options.elcashd,
+            releases_path + "/v0.19.0.1/bin/elcashd",
+            releases_path + "/v0.18.1/bin/elcashd",
+            releases_path + "/v0.17.1/bin/elcashd"
         ], binary_cli=[
             self.options.bitcoincli,
             self.options.bitcoincli,
@@ -306,7 +306,7 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         assert info['private_keys_enabled'] == False
         assert info['keypoolsize'] == 0
 
-        # RPC loadwallet failure causes bitcoind to exit, in addition to the RPC
+        # RPC loadwallet failure causes elcashd to exit, in addition to the RPC
         # call failure, so the following test won't work:
         # assert_raises_rpc_error(-4, "Wallet loading failed.", node_v17.loadwallet, 'w3_v18')
 
