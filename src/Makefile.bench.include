@@ -46,12 +46,12 @@ nodist_bench_bench_elcash_SOURCES = $(GENERATED_BENCH_FILES)
 bench_bench_elcash_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS) -I$(builddir)/bench/
 bench_bench_elcash_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 bench_bench_elcash_LDADD = \
-  $(LIBBITCOIN_SERVER) \
-  $(LIBBITCOIN_WALLET) \
-  $(LIBBITCOIN_COMMON) \
-  $(LIBBITCOIN_UTIL) \
-  $(LIBBITCOIN_CONSENSUS) \
-  $(LIBBITCOIN_CRYPTO) \
+  $(LIBELCASH_SERVER) \
+  $(LIBELCASH_WALLET) \
+  $(LIBELCASH_COMMON) \
+  $(LIBELCASH_UTIL) \
+  $(LIBELCASH_CONSENSUS) \
+  $(LIBELCASH_CRYPTO) \
   $(LIBTEST_UTIL) \
   $(LIBLEVELDB) \
   $(LIBLEVELDB_SSE42) \
@@ -62,7 +62,7 @@ bench_bench_elcash_LDADD = \
   $(EVENT_LIBS)
 
 if ENABLE_ZMQ
-bench_bench_elcash_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+bench_bench_elcash_LDADD += $(LIBELCASH_ZMQ) $(ZMQ_LIBS)
 endif
 
 if ENABLE_WALLET

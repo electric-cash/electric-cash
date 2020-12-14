@@ -130,7 +130,7 @@ test/cache/*
 
 /doc/doxygen/
 
-libbitcoinconsensus.pc
+libelcashconsensus.pc
 contrib/devtools/split-debug.sh
 
 # Output from running db4 installation

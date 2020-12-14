@@ -13,13 +13,13 @@ DEFAULT_PLATFORM_TOOLSET = R'v141'
 
 libs = [
     'libelcash_cli',
-    'libbitcoin_common',
-    'libbitcoin_crypto',
-    'libbitcoin_server',
-    'libbitcoin_util',
-    'libbitcoin_wallet_tool',
-    'libbitcoin_wallet',
-    'libbitcoin_zmq',
+    'libelcash_common',
+    'libelcash_crypto',
+    'libelcash_server',
+    'libelcash_util',
+    'libelcash_wallet_tool',
+    'libelcash_wallet',
+    'libelcash_zmq',
     'bench_elcash',
     'libtest_util',
 ]
