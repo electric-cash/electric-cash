@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_OPTIONSMODEL_H
-#define BITCOIN_QT_OPTIONSMODEL_H
+#ifndef ELCASH_QT_OPTIONSMODEL_H
+#define ELCASH_QT_OPTIONSMODEL_H
 
 #include <amount.h>
 #include <qt/guiconstants.h>
@@ -117,4 +117,4 @@ Q_SIGNALS:
     void hideTrayIconChanged(bool);
 };
 
-#endif // BITCOIN_QT_OPTIONSMODEL_H
+#endif // ELCASH_QT_OPTIONSMODEL_H

@@ -45,7 +45,7 @@ Some prebuilt x64 versions of Qt can be downloaded from [here](https://github.co
 
 To determine which Qt prebuilt version to download open the `.appveyor.yml` file and note the `QT_DOWNLOAD_URL`. When extracting the zip file the destination path must be set to `C:\`. This is due to the way that Qt includes, libraries and tools use internal paths.
 
-To build Elecric Cash Core without Qt unload or disable the `bitcoin-qt`, `libbitcoin_qt` and `test_bitcoin-qt` projects.
+To build Elecric Cash Core without Qt unload or disable the `elcash-qt`, `libelcash_qt` and `test_elcash-qt` projects.
 
 Building
 ---------------------

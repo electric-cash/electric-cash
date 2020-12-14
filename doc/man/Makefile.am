@@ -5,7 +5,7 @@ if BUILD_ELCASHD
 endif
 
 if ENABLE_QT
-  dist_man1_MANS+=bitcoin-qt.1
+  dist_man1_MANS+=elcash-qt.1
 endif
 
 if BUILD_ELCASH_CLI

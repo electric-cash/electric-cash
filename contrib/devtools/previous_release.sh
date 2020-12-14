@@ -122,7 +122,7 @@ pushd "$TARGET" || exit 1
           mkdir bin
           mv src/elcashd src/elcash-cli src/bitcoin-tx bin
           if [ "$FUNCTIONAL_TESTS" -eq "0" ]; then
-            mv src/qt/bitcoin-qt bin
+            mv src/qt/elcash-qt bin
           fi
         }
         popd || exit 1

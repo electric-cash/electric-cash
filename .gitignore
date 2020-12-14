@@ -10,7 +10,7 @@ src/bitcoin-wallet
 src/test/fuzz
 !src/test/fuzz/*.*
 src/test/test_bitcoin
-src/qt/test/test_bitcoin-qt
+src/qt/test/test_elcash-qt
 
 # autoreconf
 Makefile.in
@@ -49,11 +49,11 @@ src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp
 
-src/qt/bitcoin-qt.config
-src/qt/bitcoin-qt.creator
-src/qt/bitcoin-qt.creator.user
-src/qt/bitcoin-qt.files
-src/qt/bitcoin-qt.includes
+src/qt/elcash-qt.config
+src/qt/elcash-qt.creator
+src/qt/elcash-qt.creator.user
+src/qt/elcash-qt.files
+src/qt/elcash-qt.includes
 
 .deps
 .dirstamp
@@ -90,7 +90,7 @@ src/qt/bitcoin-qt.includes
 *.qm
 Makefile
 !depends/Makefile
-src/qt/bitcoin-qt
+src/qt/elcash-qt
 Bitcoin-Qt.app
 background.tiff*
 
@@ -99,7 +99,7 @@ Makefile.am.user
 
 # Unit-tests
 Makefile.test
-bitcoin-qt_test
+elcash-qt_test
 
 # Resources cpp
 qrc_*.cpp

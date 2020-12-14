@@ -14,7 +14,7 @@ ELCASHD=${ELCASHD:-$BINDIR/elcashd}
 BITCOINCLI=${BITCOINCLI:-$BINDIR/elcash-cli}
 BITCOINTX=${BITCOINTX:-$BINDIR/bitcoin-tx}
 WALLET_TOOL=${WALLET_TOOL:-$BINDIR/bitcoin-wallet}
-BITCOINQT=${BITCOINQT:-$BINDIR/qt/bitcoin-qt}
+BITCOINQT=${BITCOINQT:-$BINDIR/qt/elcash-qt}
 
 [ ! -x $ELCASHD ] && echo "$ELCASHD not found or not executable." && exit 1
 
@@ -23,7 +23,7 @@ read -r -a BTCVER <<< "$($BITCOINCLI --version | head -n1 | awk -F'[ -]' '{ prin
 
 # Create a footer file with copyright content.
 # This gets autodetected fine for elcashd if --version-string is not set,
-# but has different outcomes for bitcoin-qt and elcash-cli.
+# but has different outcomes for elcash-qt and elcash-cli.
 echo "[COPYRIGHT]" > footer.h2m
 $ELCASHD --version | sed -n '1!p' >> footer.h2m
 

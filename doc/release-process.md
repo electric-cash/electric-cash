@@ -328,7 +328,7 @@ bitcoin.org (see below for bitcoin.org update instructions).
 
   - Update packaging repo
 
-      - Push the flatpak to flathub, e.g. https://github.com/flathub/org.bitcoincore.bitcoin-qt/pull/2
+      - Push the flatpak to flathub, e.g. https://github.com/flathub/org.bitcoincore.elcash-qt/pull/2
 
       - Push the latest version to master (if applicable), e.g. https://github.com/bitcoin-core/packaging/pull/32
 
