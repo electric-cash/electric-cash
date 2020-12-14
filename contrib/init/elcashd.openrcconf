@@ -1,7 +1,7 @@
 # /etc/conf.d/elcashd: config file for /etc/init.d/elcashd
 
 # Config file location
-#ELCASHD_CONFIGFILE="/etc/bitcoin/bitcoin.conf"
+#ELCASHD_CONFIGFILE="/etc/bitcoin/elcash.conf"
 
 # What directory to write pidfile to?  (created and owned by $ELCASHD_USER)
 #ELCASHD_PIDDIR="/var/run/elcashd"

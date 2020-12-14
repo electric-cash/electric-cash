@@ -6,7 +6,7 @@
 #define ELCASH_QT_SENDCOINSRECIPIENT_H
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/elcash-config.h>
 #endif
 
 #include <amount.h>

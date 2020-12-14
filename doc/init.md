@@ -44,7 +44,7 @@ This allows for running elcashd without having to do any manual configuration.
 relative to the data directory. `wallet` *only* supports relative paths.
 
 For an example configuration file that describes the configuration settings,
-see `share/examples/bitcoin.conf`.
+see `share/examples/elcash.conf`.
 
 Paths
 ---------------------------------
@@ -54,7 +54,7 @@ Paths
 All three configurations assume several paths that might need to be adjusted.
 
 Binary:              `/usr/bin/elcashd`
-Configuration file:  `/etc/bitcoin/bitcoin.conf`
+Configuration file:  `/etc/bitcoin/elcash.conf`
 Data directory:      `/var/lib/elcashd`
 PID file:            `/var/run/elcashd/elcashd.pid` (OpenRC and Upstart) or `/run/elcashd/elcashd.pid` (systemd)
 Lock file:           `/var/lock/subsys/elcashd` (CentOS)
@@ -73,10 +73,10 @@ bitcoin group to do so (e.g. when `-sysperms` is specified). This does not allow
 for the listing of files under the directory.
 
 NOTE: It is not currently possible to override `datadir` in
-`/etc/bitcoin/bitcoin.conf` with the current systemd, OpenRC, and Upstart init
+`/etc/bitcoin/elcash.conf` with the current systemd, OpenRC, and Upstart init
 files out-of-the-box. This is because the command line options specified in the
 init files take precedence over the configurations in
-`/etc/bitcoin/bitcoin.conf`. However, some init systems have their own
+`/etc/bitcoin/elcash.conf`. However, some init systems have their own
 configuration mechanisms that would allow for overriding the command line
 options specified in the init files (e.g. setting `ELCASHD_DATADIR` for
 OpenRC).
@@ -84,7 +84,7 @@ OpenRC).
 ### macOS
 
 Binary:              `/usr/local/bin/elcashd`
-Configuration file:  `~/Library/Application Support/Bitcoin/bitcoin.conf`
+Configuration file:  `~/Library/Application Support/Bitcoin/elcash.conf`
 Data directory:      `~/Library/Application Support/Bitcoin`
 Lock file:           `~/Library/Application Support/Bitcoin/.lock`
 
