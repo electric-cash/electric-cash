@@ -19,7 +19,7 @@ time-machine() {
                       -- "$@"
 }
 
-# Deterministically build Bitcoin Core for HOSTs (overriable by environment)
+# Deterministically build Elecric Cash Core for HOSTs (overriable by environment)
 for host in ${HOSTS=x86_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu riscv64-linux-gnu}; do
 
     # Display proper warning when the user interrupts the build

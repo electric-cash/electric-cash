@@ -3,7 +3,7 @@ Reduce Traffic
 
 Some node operators need to deal with bandwidth caps imposed by their ISPs.
 
-By default, Bitcoin Core allows up to 125 connections to different peers, 10 of
+By default, Elecric Cash Core allows up to 125 connections to different peers, 10 of
 which are outbound. You can therefore, have at most 115 inbound connections.
 Of the 10 outbound peers, there can be 8 full-relay connections and 2
 block-relay-only ones.
