@@ -36,10 +36,10 @@ class CreateWalletWatchonlyTest(BitcoinTestFramework):
         wo_wallet.importpubkey(pubkey=def_wallet.getaddressinfo(wo_addr)['pubkey'])
         wo_wallet.importpubkey(pubkey=def_wallet.getaddressinfo(wo_change)['pubkey'])
 
-        # generate some btc for testing
+        # generate some elcash for testing
         node.generatetoaddress(101, a1)
 
-        # send 1 btc to our watch-only address
+        # send 1 elcash to our watch-only address
         txid = def_wallet.sendtoaddress(wo_addr, 1)
         self.nodes[0].generate(1)
 
