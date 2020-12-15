@@ -1,7 +1,7 @@
 Translation Strings Policy
 ===========================
 
-This document provides guidelines for internationalization of the Bitcoin Core software.
+This document provides guidelines for internationalization of the Elecric Cash Core software.
 
 How to translate?
 ------------------
@@ -96,4 +96,4 @@ The second example reduces the number of pluralized words that translators have 
 
 During a string freeze (often before a major release), no translation strings are to be added, modified or removed.
 
-This can be checked by executing `make translate` in the `src` directory, then verifying that `bitcoin_en.ts` remains unchanged.
+This can be checked by executing `make translate` in the `src` directory, then verifying that `elcash_en.ts` remains unchanged.

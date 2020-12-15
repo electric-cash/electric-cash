@@ -1,0 +1,33 @@
+# /etc/conf.d/elcashd: config file for /etc/init.d/elcashd
+
+# Config file location
+#ELCASHD_CONFIGFILE="/etc/bitcoin/elcash.conf"
+
+# What directory to write pidfile to?  (created and owned by $ELCASHD_USER)
+#ELCASHD_PIDDIR="/var/run/elcashd"
+
+# What filename to give the pidfile
+#ELCASHD_PIDFILE="${ELCASHD_PIDDIR}/elcashd.pid"
+
+# Where to write elcashd data (be mindful that the blockchain is large)
+#ELCASHD_DATADIR="/var/lib/elcashd"
+
+# User and group to own elcashd process
+#ELCASHD_USER="bitcoin"
+#ELCASHD_GROUP="bitcoin"
+
+# Path to elcashd executable
+#ELCASHD_BIN="/usr/bin/elcashd"
+
+# Nice value to run elcashd under
+#ELCASHD_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+#ELCASHD_OPTS=""
+
+# The timeout in seconds OpenRC will wait for elcashd to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+ELCASHD_SIGTERM_TIMEOUT=600

@@ -5,8 +5,8 @@
 /**
  * Functionality for communicating with Tor.
  */
-#ifndef BITCOIN_TORCONTROL_H
-#define BITCOIN_TORCONTROL_H
+#ifndef ELCASH_TORCONTROL_H
+#define ELCASH_TORCONTROL_H
 
 
 extern const std::string DEFAULT_TOR_CONTROL;
@@ -16,4 +16,4 @@ void StartTorControl();
 void InterruptTorControl();
 void StopTorControl();
 
-#endif /* BITCOIN_TORCONTROL_H */
+#endif /* ELCASH_TORCONTROL_H */

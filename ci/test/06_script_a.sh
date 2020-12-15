@@ -6,7 +6,7 @@
 
 export LC_ALL=C.UTF-8
 
-BITCOIN_CONFIG_ALL="--disable-dependency-tracking --prefix=$DEPENDS_DIR/$HOST --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
+ELCASH_CONFIG_ALL="--disable-dependency-tracking --prefix=$DEPENDS_DIR/$HOST --bindir=$BASE_OUTDIR/bin --libdir=$BASE_OUTDIR/lib"
 if [ -z "$NO_DEPENDS" ]; then
   DOCKER_EXEC ccache --max-size=$CCACHE_SIZE
 fi
@@ -23,19 +23,19 @@ DOCKER_EXEC mkdir -p build
 export P_CI_DIR="$P_CI_DIR/build"
 
 BEGIN_FOLD configure
-DOCKER_EXEC ../configure --cache-file=config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( (DOCKER_EXEC cat config.log) && false)
+DOCKER_EXEC ../configure --cache-file=config.cache $ELCASH_CONFIG_ALL $ELCASH_CONFIG || ( (DOCKER_EXEC cat config.log) && false)
 END_FOLD
 
 BEGIN_FOLD distdir
 # Create folder on host and docker, so that `cd` works
-mkdir -p "bitcoin-$HOST"
+mkdir -p "elcash-$HOST"
 DOCKER_EXEC make distdir VERSION=$HOST
 END_FOLD
 
-export P_CI_DIR="$P_CI_DIR/bitcoin-$HOST"
+export P_CI_DIR="$P_CI_DIR/elcash-$HOST"
 
 BEGIN_FOLD configure
-DOCKER_EXEC ./configure --cache-file=../config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( (DOCKER_EXEC cat config.log) && false)
+DOCKER_EXEC ./configure --cache-file=../config.cache $ELCASH_CONFIG_ALL $ELCASH_CONFIG || ( (DOCKER_EXEC cat config.log) && false)
 END_FOLD
 
 set -o errtrace

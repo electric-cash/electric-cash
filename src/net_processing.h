@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_NET_PROCESSING_H
-#define BITCOIN_NET_PROCESSING_H
+#ifndef ELCASH_NET_PROCESSING_H
+#define ELCASH_NET_PROCESSING_H
 
 #include <consensus/params.h>
 #include <net.h>
@@ -94,4 +94,4 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
 /** Relay transaction to every node */
 void RelayTransaction(const uint256&, const CConnman& connman);
 
-#endif // BITCOIN_NET_PROCESSING_H
+#endif // ELCASH_NET_PROCESSING_H

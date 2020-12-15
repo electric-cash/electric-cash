@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_ADDRMAN_H
-#define BITCOIN_ADDRMAN_H
+#ifndef ELCASH_ADDRMAN_H
+#define ELCASH_ADDRMAN_H
 
 #include <clientversion.h>
 #include <netaddress.h>
@@ -669,4 +669,4 @@ public:
 
 };
 
-#endif // BITCOIN_ADDRMAN_H
+#endif // ELCASH_ADDRMAN_H

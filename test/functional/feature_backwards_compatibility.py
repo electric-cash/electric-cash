@@ -60,17 +60,17 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
             180100,
             170100
         ], binary=[
-            self.options.bitcoind,
-            self.options.bitcoind,
-            releases_path + "/v0.19.0.1/bin/bitcoind",
-            releases_path + "/v0.18.1/bin/bitcoind",
-            releases_path + "/v0.17.1/bin/bitcoind"
+            self.options.elcashd,
+            self.options.elcashd,
+            releases_path + "/v0.19.0.1/bin/elcashd",
+            releases_path + "/v0.18.1/bin/elcashd",
+            releases_path + "/v0.17.1/bin/elcashd"
         ], binary_cli=[
-            self.options.bitcoincli,
-            self.options.bitcoincli,
-            releases_path + "/v0.19.0.1/bin/bitcoin-cli",
-            releases_path + "/v0.18.1/bin/bitcoin-cli",
-            releases_path + "/v0.17.1/bin/bitcoin-cli"
+            self.options.elcashcli,
+            self.options.elcashcli,
+            releases_path + "/v0.19.0.1/bin/elcash-cli",
+            releases_path + "/v0.18.1/bin/elcash-cli",
+            releases_path + "/v0.17.1/bin/elcash-cli"
         ])
 
         self.start_nodes()
@@ -306,14 +306,14 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         assert info['private_keys_enabled'] == False
         assert info['keypoolsize'] == 0
 
-        # RPC loadwallet failure causes bitcoind to exit, in addition to the RPC
+        # RPC loadwallet failure causes elcashd to exit, in addition to the RPC
         # call failure, so the following test won't work:
         # assert_raises_rpc_error(-4, "Wallet loading failed.", node_v17.loadwallet, 'w3_v18')
 
         # Instead, we stop node and try to launch it with the wallet:
         self.stop_node(self.num_nodes - 1)
-        node_v17.assert_start_raises_init_error(["-wallet=w3_v18"], "Error: Error loading w3_v18: Wallet requires newer version of Bitcoin Core")
-        node_v17.assert_start_raises_init_error(["-wallet=w3"], "Error: Error loading w3: Wallet requires newer version of Bitcoin Core")
+        node_v17.assert_start_raises_init_error(["-wallet=w3_v18"], "Error: Error loading w3_v18: Wallet requires newer version of Elecric Cash Core")
+        node_v17.assert_start_raises_init_error(["-wallet=w3"], "Error: Error loading w3: Wallet requires newer version of Elecric Cash Core")
         self.start_node(self.num_nodes - 1)
 
         self.log.info("Test wallet upgrade path...")
@@ -325,7 +325,7 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         hdkeypath = info["hdkeypath"]
         pubkey = info["pubkey"]
 
-        # Copy the 0.17 wallet to the last Bitcoin Core version and open it:
+        # Copy the 0.17 wallet to the last Elecric Cash Core version and open it:
         node_v17.unloadwallet("u1_v17")
         shutil.copytree(
             os.path.join(node_v17_wallets_dir, "u1_v17"),
@@ -337,7 +337,7 @@ class BackwardsCompatibilityTest(BitcoinTestFramework):
         descriptor = "wpkh([" + info["hdmasterfingerprint"] + hdkeypath[1:] + "]" + pubkey + ")"
         assert_equal(info["desc"], descsum_create(descriptor))
 
-        # Copy the 0.19 wallet to the last Bitcoin Core version and open it:
+        # Copy the 0.19 wallet to the last Elecric Cash Core version and open it:
         shutil.copytree(
             os.path.join(node_v19_wallets_dir, "w1_v19"),
             os.path.join(node_master_wallets_dir, "w1_v19")

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+#  elcashd The electric cash core server.
+#
+#
+# chkconfig: 345 80 20
+# description: elcashd
+# processname: elcashd
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/elcashd, see below
+if [ -f /etc/sysconfig/elcashd ]; then
+        . /etc/sysconfig/elcashd
+fi
+
+RETVAL=0
+
+prog=elcashd
+# you can override the lockfile via ELCASHD_LOCKFILE in /etc/sysconfig/elcashd
+lockfile=${ELCASHD_LOCKFILE-/var/lock/subsys/elcashd}
+
+# elcashd defaults to /usr/bin/elcashd, override with ELCASHD_BIN
+elcashd=${ELCASHD_BIN-/usr/bin/elcashd}
+
+# elcashd opts default to -disablewallet, override with ELCASHD_OPTS
+elcashd_opts=${ELCASHD_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $elcashd $elcashd_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog -t600
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

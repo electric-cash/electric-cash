@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_RPC_PROTOCOL_H
-#define BITCOIN_RPC_PROTOCOL_H
+#ifndef ELCASH_RPC_PROTOCOL_H
+#define ELCASH_RPC_PROTOCOL_H
 
 //! HTTP status codes
 enum HTTPStatusCode
@@ -30,7 +30,7 @@ enum RPCErrorCode
     // It should not be used for application-layer errors.
     RPC_METHOD_NOT_FOUND = -32601,
     RPC_INVALID_PARAMS   = -32602,
-    // RPC_INTERNAL_ERROR should only be used for genuine errors in bitcoind
+    // RPC_INTERNAL_ERROR should only be used for genuine errors in elcashd
     // (for example datadir corruption).
     RPC_INTERNAL_ERROR   = -32603,
     RPC_PARSE_ERROR      = -32700,
@@ -86,4 +86,4 @@ enum RPCErrorCode
     RPC_FORBIDDEN_BY_SAFE_MODE      = -2,  //!< Server is in safe mode, and command is not allowed in safe mode
 };
 
-#endif // BITCOIN_RPC_PROTOCOL_H
+#endif // ELCASH_RPC_PROTOCOL_H

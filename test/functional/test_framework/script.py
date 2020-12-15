@@ -26,7 +26,7 @@ def hash160(s):
     return hashlib.new('ripemd160', sha256(s)).digest()
 
 def bn2vch(v):
-    """Convert number to bitcoin-specific little endian format."""
+    """Convert number to elcash-specific little endian format."""
     # We need v.bit_length() bits, plus a sign bit for every nonzero number.
     n_bits = v.bit_length() + (v != 0)
     # The number of bytes for that is:

@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_UTIL_SETTINGS_H
-#define BITCOIN_UTIL_SETTINGS_H
+#ifndef ELCASH_UTIL_SETTINGS_H
+#define ELCASH_UTIL_SETTINGS_H
 
 #include <map>
 #include <string>
@@ -21,7 +21,7 @@ namespace util {
 //!       get_int64(), get_bool(), isNum(), isBool(), isFalse(), isTrue() and
 //!       isNull() methods can be substituted if there's a need to move away
 //!       from UniValue. (An implementation with boost::variant was posted at
-//!       https://github.com/bitcoin/bitcoin/pull/15934/files#r337691812)
+//!       https://github.com/electric-cash/electric-cash/pull/15934/files#r337691812)
 using SettingsValue = UniValue;
 
 //! Stored bitcoin settings. This struct combines settings from the command line
@@ -91,4 +91,4 @@ auto FindKey(Map&& map, Key&& key) -> decltype(&map.at(key))
 
 } // namespace util
 
-#endif // BITCOIN_UTIL_SETTINGS_H
+#endif // ELCASH_UTIL_SETTINGS_H
