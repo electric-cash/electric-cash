@@ -257,7 +257,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-
+        
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
 
@@ -275,10 +275,10 @@ public:
 
         UpdateActivationParametersFromArgs(args);
 
-        genesis = CreateGenesisBlock(1608150731, 2, 0x207fffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1606780800, 326, 0x1f7fffff, 1, 500 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x70300187b29d84916d84aef58b34d1e185f8d93a0c10741c6436407550504381"));
-        assert(genesis.hashMerkleRoot == uint256S("0x4bdf49cd728fa4baa417991b75db4aed4ce05dd8081beff1d61e5c29f9e9a42e"));
+        assert(consensus.hashGenesisBlock == uint256S("0x067c0a429d3a573fe8e15c0fa70c5f6e78d1ab1c4c830dd39362ebc02b3b943"));
+        assert(genesis.hashMerkleRoot == uint256S("0xd3133f9c8d4261f44fbd2a8029c56d5d97106adfef11c652d971796cc75dd967"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
@@ -290,7 +290,7 @@ public:
 
         checkpointData = {
             {
-                {0, uint256S("0x002caeebd113416b5578bdbd39d50722788b6b3a93893121db870031cb627854")},
+                {0, uint256S("0x067c0a429d3a573fe8e15c0fa70c5f6e78d1ab1c4c830dd39362ebc02b3b943")},
             }
         };
 

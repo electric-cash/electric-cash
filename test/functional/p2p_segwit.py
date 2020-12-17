@@ -86,7 +86,7 @@ VB_WITNESS_BIT = 1
 VB_PERIOD = 144
 VB_TOP_BITS = 0x20000000
 
-MAX_SIGOP_COST = 80000
+MAX_SIGOP_COST = 640000
 
 SEGWIT_HEIGHT = 120
 
@@ -857,7 +857,7 @@ class SegWitTest(BitcoinTestFramework):
         add_witness_commitment(block)
         block.solve()
 
-        block.vtx[0].wit.vtxinwit[0].scriptWitness.stack.append(b'a' * 5000000)
+        block.vtx[0].wit.vtxinwit[0].scriptWitness.stack.append(b'a' * 35_000_000)
         assert get_virtual_size(block) > MAX_BLOCK_BASE_SIZE
 
         # We can't send over the p2p network, because this is too big to relay
@@ -902,7 +902,7 @@ class SegWitTest(BitcoinTestFramework):
         # This should give us plenty of room to tweak the spending tx's
         # virtual size.
         NUM_DROPS = 200  # 201 max ops per script!
-        NUM_OUTPUTS = 50
+        NUM_OUTPUTS = 390
 
         witness_program = CScript([OP_2DROP] * NUM_DROPS + [OP_TRUE])
         witness_hash = uint256_from_str(sha256(witness_program))
@@ -947,7 +947,7 @@ class SegWitTest(BitcoinTestFramework):
         assert_equal(vsize, MAX_BLOCK_BASE_SIZE + 1)
         # Make sure that our test case would exceed the old max-network-message
         # limit
-        assert len(block.serialize()) > 2 * 1024 * 1024
+        assert len(block.serialize()) > 64 * 1024 * 1024
 
         test_witness_block(self.nodes[0], self.test_node, block, accepted=False)
 

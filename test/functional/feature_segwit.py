@@ -103,9 +103,9 @@ class SegWitTest(BitcoinTestFramework):
         self.log.info("Verify sigops are counted in GBT with pre-BIP141 rules before the fork")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         tmpl = self.nodes[0].getblocktemplate({'rules': ['segwit']})
-        assert tmpl['sizelimit'] == 1000000
+        assert tmpl['sizelimit'] == 8000000
         assert 'weightlimit' not in tmpl
-        assert tmpl['sigoplimit'] == 20000
+        assert tmpl['sigoplimit'] == 160000
         assert tmpl['transactions'][0]['hash'] == txid
         assert tmpl['transactions'][0]['sigops'] == 2
         assert '!segwit' not in tmpl['rules']
@@ -203,9 +203,9 @@ class SegWitTest(BitcoinTestFramework):
         self.log.info("Verify sigops are counted in GBT with BIP141 rules after the fork")
         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
         tmpl = self.nodes[0].getblocktemplate({'rules': ['segwit']})
-        assert tmpl['sizelimit'] >= 3999577  # actual maximum size is lower due to minimum mandatory non-witness data
-        assert tmpl['weightlimit'] == 4000000
-        assert tmpl['sigoplimit'] == 80000
+        assert tmpl['sizelimit'] >= 31999577  # actual maximum size is lower due to minimum mandatory non-witness data
+        assert tmpl['weightlimit'] == 32000000
+        assert tmpl['sigoplimit'] == 640000
         assert tmpl['transactions'][0]['txid'] == txid
         assert tmpl['transactions'][0]['sigops'] == 8
         assert '!segwit' in tmpl['rules']
@@ -290,9 +290,9 @@ class SegWitTest(BitcoinTestFramework):
 
         # Import a compressed key and an uncompressed key, generate some multisig addresses
         self.nodes[0].importprivkey("92e6XLo5jVAVwrQKPNTs93oQco8f8sDNBcpv73Dsrs397fQtFQn")
-        uncompressed_spendable_address = ["mvozP4UwyGD2mGZU4D2eMvMLPB9WkMmMQu"]
+        uncompressed_spendable_address = ["TRGF64mhJxtj9L9Uvuhz49q9RyJ7zRZruV"]
         self.nodes[0].importprivkey("cNC8eQ5dg3mFAVePDX4ddmPYpPbw41r9bm2jd1nLJT77e6RrzTRR")
-        compressed_spendable_address = ["mmWQubrDomqpgSYekvsU7HWEVjLFHAakLe"]
+        compressed_spendable_address = ["TFxfcc8y9UXX4W8fddYooWz3YXUrZs8aGK"]
         assert not self.nodes[0].getaddressinfo(uncompressed_spendable_address[0])['iscompressed']
         assert self.nodes[0].getaddressinfo(compressed_spendable_address[0])['iscompressed']
 
@@ -457,9 +457,9 @@ class SegWitTest(BitcoinTestFramework):
         # Repeat some tests. This time we don't add witness scripts with importaddress
         # Import a compressed key and an uncompressed key, generate some multisig addresses
         self.nodes[0].importprivkey("927pw6RW8ZekycnXqBQ2JS5nPyo1yRfGNN8oq74HeddWSpafDJH")
-        uncompressed_spendable_address = ["mguN2vNSCEUh6rJaXoAVwY3YZwZvEmf5xi"]
+        uncompressed_spendable_address = ["TBMcjvfBXwAPUutbQVqqdmXMcjiXSw8XMY"]
         self.nodes[0].importprivkey("cMcrXaaUC48ZKpcyydfFo8PxHAjpsYLhdsp6nmtB3E2ER9UUHWnw")
-        compressed_spendable_address = ["n1UNmpmbVUJ9ytXYXiurmGPQ3TRrXqPWKL"]
+        compressed_spendable_address = ["TVvdUq4LqAyrMx7ZQRbCTVsD6FaTs3856r"]
 
         self.nodes[0].importpubkey(pubkeys[5])
         compressed_solvable_address = [key_to_p2pkh(pubkeys[5])]
