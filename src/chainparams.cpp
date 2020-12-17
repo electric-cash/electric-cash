@@ -88,7 +88,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x01");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256();
+        consensus.defaultAssumeValid = uint256S("0x00");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -178,7 +178,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x01");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256();
+        consensus.defaultAssumeValid = uint256S("0x00");
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
@@ -219,6 +219,8 @@ public:
 
         checkpointData = {
             {
+                //TODO: replace this when new testnet is ready
+                {546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")},
             }
         };
 
@@ -262,7 +264,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x00");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256();
+        consensus.defaultAssumeValid = uint256S("0x00");
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
@@ -275,9 +277,9 @@ public:
 
         UpdateActivationParametersFromArgs(args);
 
-        genesis = CreateGenesisBlock(1606780800, 326, 0x1f7fffff, 1, 500 * COIN);
+        genesis = CreateGenesisBlock(1600000000, 4, 0x207fffff, 1, 500 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x067c0a429d3a573fe8e15c0fa70c5f6e78d1ab1c4c830dd39362ebc02b3b943"));
+        assert(consensus.hashGenesisBlock == uint256S("0x4dc8472d9478d135f8f63bcf266ba819ba3a35546d388ee55659233a8d065089"));
         assert(genesis.hashMerkleRoot == uint256S("0xd3133f9c8d4261f44fbd2a8029c56d5d97106adfef11c652d971796cc75dd967"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
@@ -290,7 +292,7 @@ public:
 
         checkpointData = {
             {
-                {0, uint256S("0x067c0a429d3a573fe8e15c0fa70c5f6e78d1ab1c4c830dd39362ebc02b3b943")},
+                {0, uint256S("0x4dc8472d9478d135f8f63bcf266ba819ba3a35546d388ee55659233a8d065089")},
             }
         };
 

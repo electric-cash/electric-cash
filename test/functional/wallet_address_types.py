@@ -344,6 +344,7 @@ class AddressTypeTest(BitcoinTestFramework):
         to_address_bech32_2 = self.nodes[3].getnewaddress()
 
         # Fund node 4:
+        print(self.nodes[5].getbalance())
         self.nodes[5].sendtoaddress(self.nodes[4].getnewaddress(), Decimal("1"))
         self.nodes[5].generate(1)
         self.sync_blocks()

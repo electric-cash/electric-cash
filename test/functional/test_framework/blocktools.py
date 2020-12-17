@@ -44,7 +44,7 @@ from io import BytesIO
 MAX_BLOCK_SIGOPS = 160000
 
 # Genesis block time (regtest)
-TIME_GENESIS_BLOCK = 1608150731
+TIME_GENESIS_BLOCK = 1600000000
 
 # From BIP141
 WITNESS_COMMITMENT_HEADER = b"\xaa\x21\xa9\xed"

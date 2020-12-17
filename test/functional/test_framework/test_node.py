@@ -133,8 +133,8 @@ class TestNode():
             AddressKeyPair('TMyMSQpgJR4QL6z6u5zz2dLWudi1x5Fobw', 'cUxsWyKyZ9MAQTaAhUQWJmBbSvHMwSmuv59KgxQV7oZQU3PXN3KE'),
             AddressKeyPair('THG2uNG2VASsFWK4DmpZZpkwKtC5Qjkyoo', 'cTrh7dkEAeJd6b3MRX9bZK8eRmNqVCMH3LSUkE3dSFDyzjU38QxK'),
             AddressKeyPair('TKmAXb9sZaic2wUR6dAN4WXEWw4AwjKkA1', 'cVuKKa7gbehEQvVq717hYcbE9Dqmq7KEBKqWgWrYBa2CKKrhtRim'),
-            AddressKeyPair('msYac7Rvd5ywm6pEmkjyxhbCDKqWsVeYws', 'cQDCBuKcjanpXDpCqacNSjYfxeQj8G6CAtH1Dsk3cXyqLNC4RPuh'),
-            AddressKeyPair('TMzqK7ifxnfe9AQFeTRKew51G7z8G7n66i', 'cQakmfPSLSqKHyMFGwAqKHgWUiofJCagVGhiB4KCainaeCSxeyYq'),
+            AddressKeyPair('TMzqK7ifxnfe9AQFeTRKew51G7z8G7n66i', 'cQDCBuKcjanpXDpCqacNSjYfxeQj8G6CAtH1Dsk3cXyqLNC4RPuh'),
+            AddressKeyPair('TXK3cV5ggPDY3DLkuTRGBzcE7yhvMQrc47', 'cQakmfPSLSqKHyMFGwAqKHgWUiofJCagVGhiB4KCainaeCSxeyYq'),
             AddressKeyPair('TUTA6xihDMjdJLaFnh511NrU5DpYooAazF', 'cQMpDLJwA8DBe9NcQbdoSb1BhmFxVjWD5gRyrLZCtpuF9Zi3a9RK'),
             AddressKeyPair('TQECAaedwev5rwXnCsrhk9pxr4aVX4mVqs', 'cSXmRKXVcoouhNNVpcNKFfxsTsToY5pvB9DVsFksF1ENunTzRKsy'),
             AddressKeyPair('TJwNHGjShSytwkBWywn4FvLjxBSLrrAasS', 'cSoXt6tm3pqy43UMabY6eUTmR3eSUYFtB2iNQDGgb3VUnRsQys2k'),
@@ -163,7 +163,6 @@ class TestNode():
             # Should only happen on test failure
             # Avoid using logger, as that may have already been shutdown when
             # this destructor is called.
-            print(self._node_msg("Cleaning up leftover process"))
             self.process.kill()
 
     def __getattr__(self, name):
