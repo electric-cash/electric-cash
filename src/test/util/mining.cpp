@@ -40,13 +40,12 @@ CTxIn MineBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
 std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
 {
     assert(node.mempool);
-    auto block = std::make_shared<CBlock>(
-        BlockAssembler{*node.mempool, Params()}
-            .CreateNewBlock(coinbase_scriptPubKey)
-            ->block);
-
+    CBlock pblock = BlockAssembler{*node.mempool, Params()}.CreateNewBlock(coinbase_scriptPubKey)->block;
+    pblock.nTime = ::ChainActive().Tip()->GetBlockTime() + Params().GetConsensus().nPowTargetSpacing;
+    int nBits = GetNextWorkRequired(::ChainActive().Tip(), &pblock, Params().GetConsensus());
+    auto block = std::make_shared<CBlock>(pblock);
     LOCK(cs_main);
-    block->nTime = ::ChainActive().Tip()->GetMedianTimePast() + 1;
+    block->nBits = nBits;
     block->hashMerkleRoot = BlockMerkleRoot(*block);
 
     return block;
