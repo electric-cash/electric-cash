@@ -15,35 +15,19 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     assert(pindexLast != nullptr);
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
-    // Only change once per difficulty adjustment interval
-    if ((pindexLast->nHeight+1) % params.DifficultyAdjustmentInterval() != 0)
+    if (params.fPowAllowMinDifficultyBlocks)
     {
-        if (params.fPowAllowMinDifficultyBlocks)
-        {
-            // Special difficulty rule for testnet:
-            // If the new block's timestamp is more than 2* 10 minutes
-            // then allow mining of a min-difficulty block.
-            if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing*2)
-                return nProofOfWorkLimit;
-            else
-            {
-                // Return the last non-special-min-difficulty-rules-block
-                const CBlockIndex* pindex = pindexLast;
-                while (pindex->pprev && pindex->nHeight % params.DifficultyAdjustmentInterval() != 0 && pindex->nBits == nProofOfWorkLimit)
-                    pindex = pindex->pprev;
-                return pindex->nBits;
-            }
-        }
-        return pindexLast->nBits;
+    // Special difficulty rule for testnet:
+    // If the new block's timestamp is more than 2* 10 minutes
+    // then allow mining of a min-difficulty block.
+        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing*2)
+            return nProofOfWorkLimit;
     }
 
-    // Go back by what we want to be 14 days worth of blocks
-    int nHeightFirst = pindexLast->nHeight - (params.DifficultyAdjustmentInterval()-1);
-    assert(nHeightFirst >= 0);
-    const CBlockIndex* pindexFirst = pindexLast->GetAncestor(nHeightFirst);
-    assert(pindexFirst);
-
-    return CalculateNextWorkRequired(pindexLast, pindexFirst->GetBlockTime(), params);
+    if (params.fPowNoRetargeting)
+        return pindexLast->nBits;
+        
+    return LwmaCalculateNextWorkRequired(pindexLast, params);
 }
 
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
@@ -89,3 +73,65 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
     return true;
 }
+
+
+// LWMA-1 for BTC/Zcash clones
+// Algorithm by Zawy, a modification of WT-144 by Tom Harding
+// https://github.com/zawy12/difficulty-algorithms/issues/3#issuecomment-442129791
+
+unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
+{
+    const int64_t T = params.nPowTargetSpacing;
+
+   // For T=600, 300, 150 use approximately N=60, 90, 120
+    const int64_t N = params.nLwmaAveragingWindow;  
+
+    // Define a k that will be used to get a proper average after weighting the solvetimes.
+    const int64_t k = N * (N + 1) * T / 2; 
+
+    const int64_t height = pindexLast->nHeight;
+    const arith_uint256 powLimit = UintToArith256(params.powLimit);
+
+   // New coins should just give away first N blocks before using this algorithm.
+    if (height < N) { return powLimit.GetCompact(); }
+
+    arith_uint256 avgTarget, nextTarget;
+    int64_t thisTimestamp, previousTimestamp;
+    int64_t sumWeightedSolvetimes = 0, j = 0;
+
+    const CBlockIndex* blockPreviousTimestamp = pindexLast->GetAncestor(height - N);
+    previousTimestamp = blockPreviousTimestamp->GetBlockTime();
+
+    // Loop through N most recent blocks. 
+    for (int64_t i = height - N + 1; i <= height; i++) {
+        const CBlockIndex* block = pindexLast->GetAncestor(i);
+
+        // Prevent solvetimes from being negative in a safe way. It must be done like this. 
+        // In particular, do not attempt anything like  if(solvetime < 0) {solvetime=0;}
+        // The +1 ensures new coins do not calculate nextTarget = 0.
+        thisTimestamp = (block->GetBlockTime() > previousTimestamp) ? 
+                            block->GetBlockTime() : previousTimestamp + 1;
+
+         int64_t solvetime = thisTimestamp - previousTimestamp; 
+
+       // The following is part of "preventing negative solvetimes". 
+        previousTimestamp = thisTimestamp;
+
+       // Give linearly higher weight to more recent solvetimes.
+        j++;
+        sumWeightedSolvetimes += solvetime * j; 
+
+        arith_uint256 target;
+        target.SetCompact(block->nBits);
+        avgTarget += target / N / k; // Dividing by k here prevents an overflow below.
+    }
+
+   // Desired equation in next line was nextTarget = avgTarget * sumWeightSolvetimes / k
+   // but 1/k was moved to line above to prevent overflow in new coins
+
+    nextTarget = avgTarget * sumWeightedSolvetimes; 
+
+    if (nextTarget > powLimit) { nextTarget = powLimit; }
+
+    return nextTarget.GetCompact();
+} 

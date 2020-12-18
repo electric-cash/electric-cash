@@ -70,7 +70,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     auto ptemplate = BlockAssembler(*m_node.mempool, Params()).CreateNewBlock(pubKey);
     auto pblock = std::make_shared<CBlock>(ptemplate->block);
     pblock->hashPrevBlock = prev_hash;
-    pblock->nTime = ++time;
+    time += Params().GetConsensus().nPowTargetSpacing;
+    pblock->nTime = time;
 
     pubKey.clear();
     {
