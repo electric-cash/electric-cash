@@ -422,6 +422,8 @@ libelcash_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
+  consensus/block_rewards.cpp \
+  consensus/block_rewards.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \

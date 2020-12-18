@@ -107,9 +107,7 @@ def create_coinbase(height, pubkey=None):
     coinbase = CTransaction()
     coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff), script_BIP34_coinbase_height(height), 0xffffffff))
     coinbaseoutput = CTxOut()
-    coinbaseoutput.nValue = 50 * COIN
-    halvings = int(height / 150)  # regtest
-    coinbaseoutput.nValue >>= halvings
+    coinbaseoutput.nValue = 500 * COIN if height < 4200 else 75 * COIN # valid until block 56700
     if (pubkey is not None):
         coinbaseoutput.scriptPubKey = CScript([pubkey, OP_CHECKSIG])
     else:
