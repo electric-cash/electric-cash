@@ -200,11 +200,9 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        // nodes with support for servicebits filtering should be at the top
         
-
-        // uncomment when ready
-        // vSeeds.emplace_back("testnet-seed.electriccash.global");
+        vSeeds.emplace_back("54.154.56.101");
+        vSeeds.emplace_back("54.74.104.93");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,92);
