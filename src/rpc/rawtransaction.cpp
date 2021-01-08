@@ -20,6 +20,7 @@
 #include <psbt.h>
 #include <random.h>
 #include <rpc/blockchain.h>
+#include <rpc/rawtransaction.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
 #include <rpc/util.h>
@@ -46,7 +47,7 @@
  */
 static const CFeeRate DEFAULT_MAX_RAW_TX_FEE_RATE{COIN / 10};
 
-static void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
     // Call into TxToUniv() in elcash-common to decode the transaction hex.
     //

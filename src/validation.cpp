@@ -6,6 +6,7 @@
 #include <validation.h>
 
 #include <arith_uint256.h>
+#include <auxpow.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <checkqueue.h>
@@ -1112,6 +1113,35 @@ bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus
 // CBlock and CBlockIndex
 //
 
+bool CheckProofOfWork(const CBlockHeader& block, const Consensus::Params& params) {
+	 if (block.IsAuxPow() && block.GetBaseVersion() == VERSIONBITS_BASE_BLOCK_VERSION
+	 && params.fStrictChainId && block.GetChainId() != params.nAuxpowChainId)
+		 return error("%s: block does not have our chain ID (got %d, expected %d, full nVersion %d)",
+				 	  __func__, block.GetChainId(), params.nAuxpowChainId, block.nVersion);
+
+	 /* If there is no auxpow, just check the block hash. */
+	 if (!block.auxHeader) {
+		 if (block.IsAuxPow())
+			 return error("%s : no auxpow on block with auxpow version", __func__);
+
+		 if (!CheckProofOfWork(block.GetHash(), block.nBits, params))
+			 return error("%s : non-AUX proof of work failed", __func__);
+
+		 return true;
+	 }
+
+	 /* We have auxpow. Check it. */
+	 if (!block.IsAuxPow())
+		 return error("%s : auxpow on block with non-auxpow version", __func__);
+
+	 if (!CheckProofOfWork(block.auxHeader->getParentBlockHash(), block.nBits, params))
+		 return error("%s : AUX proof of work failed", __func__);
+	 if (!CAuxPow::check(*block.auxHeader, block.GetHash(), block.GetChainId(), params))
+		 return error("%s : AUX POW is not valid", __func__);
+
+	 return true;
+}
+
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
     // Open history file to append
@@ -1151,7 +1181,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -2417,7 +2447,7 @@ void static UpdateTip(const CBlockIndex* pindexNew, const CChainParams& chainPar
         for (int i = 0; i < 100 && pindex != nullptr; i++)
         {
             int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus());
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
+            if (pindex->GetBaseVersion() > VERSIONBITS_BASE_BLOCK_VERSION && (pindex->GetBaseVersion() & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
@@ -3263,7 +3293,7 @@ static bool FindUndoPos(BlockValidationState &state, int nFile, FlatFilePos &pos
 static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !CheckProofOfWork(block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
 
     return true;
@@ -3437,9 +3467,9 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
 {
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
+    const Consensus::Params& consensusParams = params.GetConsensus();
 
     // Check proof of work
-    const Consensus::Params& consensusParams = params.GetConsensus();
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 

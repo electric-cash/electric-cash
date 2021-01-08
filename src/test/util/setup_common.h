@@ -151,4 +151,8 @@ CBlock getBlock13b8a();
 // define an implicit conversion here so that uint256 may be used directly in BOOST_CHECK_*
 std::ostream& operator<<(std::ostream& os, const uint256& num);
 
+namespace merkle_tests {
+	std::vector<uint256> BlockMerkleBranch(const CBlock& block, uint32_t position);
+}
+
 #endif
