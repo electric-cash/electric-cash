@@ -1,0 +1,12 @@
+.git
+.dockerignore
+.gitignore
+.github
+.vscode
+#doc
+build
+node_modules
+provisioning
+.editorconfig
+.idea
+README.md

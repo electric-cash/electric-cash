@@ -1,0 +1,43 @@
+# set maximum BIP141 block weight
+blockmaxweight=4000000
+
+datadir=/elcash/blockchain
+
+{{if .Env.ELCASHD_SERVER}}
+server={{ .Env.ELCASHD_SERVER }}
+{{end}}
+
+{{if .Env.ELCASHD_TXINDEX}}
+txindex={{ .Env.ELCASHD_TXINDEX }}
+{{end}}
+
+rpcport=8332
+rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
+rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
+
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_FIRST "127.0.0.0/24" }}
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_SECOND "10.0.0.0/8" }}
+rpcbind=0.0.0.0
+
+zmqpubrawblock=tcp://0.0.0.0:8331
+zmqpubrawtx=tcp://0.0.0.0:8331
+zmqpubhashtx=tcp://0.0.0.0:8331
+zmqpubhashblock=tcp://0.0.0.0:8331
+
+{{if .Env.ELCASHD_NET_BAN_SCORE}}
+banscore={{ .Env.ELCASHD_NET_BAN_SCORE }}
+{{end}}
+{{if .Env.ELCASHD_NET_BAN_TIME}}
+bantime={{ .Env.ELCASHD_NET_BAN_TIME }}
+{{end}}
+
+{{ if eq .Env.ELCASHD_TESTNET_ENABLED "1" }}
+testnet=1
+
+[test]
+rpcallowip=0.0.0.0/0
+rpcbind=0.0.0.0
+rpcport=8332
+rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
+rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
+{{end}}
