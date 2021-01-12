@@ -28,4 +28,4 @@ jobs:
           CCACHE_DIR: "/tmp/ccache_dir"
         run: |
           ccache --max-size=${CCACHE_SIZE}
-          ./ci/test_run_all.sh
+          sudo ./ci/test_run_all.sh

@@ -54,7 +54,8 @@ ENV ELCASHD_NET_BAN_TIME 60
 ENV ELCASHD_COMMIT $GIT_COMMIT
 
 COPY --from=builder /usr/local/bin/elcashd /usr/local/bin/elcashd
-
+# https://github.com/moby/moby/issues/37965
+RUN true
 COPY ci/docker/logrotate-elcash /etc/logrotate.d/elcash
 COPY ci/docker/*.tmpl /templates/
 COPY ci/docker/entrypoint.sh /elcash/
