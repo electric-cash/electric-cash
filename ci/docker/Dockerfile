@@ -34,7 +34,6 @@ RUN apt-get update && \
 FROM base AS builder
 WORKDIR /code
 COPY . .
-RUN ls -la /code
 RUN env CFLAGS=-O2 CXXFLAGS=-O2 ./autogen.sh \
     && ./configure --disable-bench --disable-tests --disable-wallet --with-gui=no \
     && make -j`nproc` \
