@@ -1,6 +1,8 @@
 Elecric Cash Core integration/staging tree
 =====================================
 
+![Release](https://github.com/electric-cash/electric-cash/workflows/Release/badge.svg)
+
 https://bitcoincore.org
 
 What is Bitcoin?
