@@ -142,8 +142,8 @@ class BlockchainTest(BitcoinTestFramework):
                         'period': 144,
                         'threshold': 108,
                         'elapsed': 57,
-                        'count': 57,
-                        'possible': True,
+                        'count': 0,
+                        'possible': False,
                     },
                 },
                 'active': False}
