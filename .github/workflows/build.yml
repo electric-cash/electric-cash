@@ -1,0 +1,19 @@
+name: "Build"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v2
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+      - name: Builder image
+        run: docker build -t elcash-build-github-$GITHUB_ACTION --build-arg GIT_COMMIT=$GITHUB_REF-$GITHUB_SHA -f ci/docker/Dockerfile .

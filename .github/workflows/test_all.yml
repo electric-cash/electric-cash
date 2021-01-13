@@ -1,0 +1,29 @@
+name: "Tests"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install ccache
+          sudo apt-get install -yq libsecp256k1-0
+          pip install flake8
+      - name: Run tests
+        timeout-minutes: 60
+        env:
+          MAKEJOBS: "-j9"
+          DANGER_RUN_CI_ON_HOST: "1"
+          CCACHE_SIZE: "200M"
+          CCACHE_DIR: "/tmp/ccache_dir"
+        run: |
+          ccache --max-size=${CCACHE_SIZE}
+          sudo ./ci/test_run_all.sh
