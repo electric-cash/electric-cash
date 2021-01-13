@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.21.4 (2021-01-13)
+### Fix
+* **ci:** Again fixing build command ([`5a050e0`](https://github.com/electric-cash/electric-cash/commit/5a050e0da2315c49d1ae7a34637124d23d47465b))
+
 ## v0.21.3 (2021-01-13)
 ### Fix
 * **ci:** Update builds for generate proper version during release ([`d9fe253`](https://github.com/electric-cash/electric-cash/commit/d9fe2533184f60b3895f6e3117652aed0425abac))
