@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.21.6 (2021-01-13)
+### Fix
+* **ci:** On release job, do notexpect to upload package to github release directly ([`b3868ea`](https://github.com/electric-cash/electric-cash/commit/b3868eacc268195627b046e3ca93ee926f89207a))
+
 ## v0.21.5 (2021-01-13)
 ### Fix
 * **ci:** Fixing build command in github action release step ([`83e4969`](https://github.com/electric-cash/electric-cash/commit/83e49695a72eb76c3a9892bdfe4febca75f69a25))
