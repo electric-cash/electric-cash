@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.21.5 (2021-01-13)
+### Fix
+* **ci:** Fixing build command in github action release step ([`83e4969`](https://github.com/electric-cash/electric-cash/commit/83e49695a72eb76c3a9892bdfe4febca75f69a25))
+
 ## v0.21.4 (2021-01-13)
 ### Fix
 * **ci:** Again fixing build command ([`5a050e0`](https://github.com/electric-cash/electric-cash/commit/5a050e0da2315c49d1ae7a34637124d23d47465b))
