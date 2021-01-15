@@ -8,9 +8,31 @@
 #include <hash.h>
 #include <tinyformat.h>
 
-uint256 CBlockHeader::GetHash() const
+uint256 CPureBlockHeader::GetHash() const
 {
     return SerializeHash(*this);
+}
+
+void CBlockHeader::SetAuxBlockHeader(std::unique_ptr<CAuxBlockHeader> auxBlockHeader)
+{
+	if (auxBlockHeader) {
+		auxHeader.reset(auxBlockHeader.release());
+		SetBlockHeaderVersion(true);
+	} else {
+		auxHeader.reset();
+		SetBlockHeaderVersion(false);
+	}
+}
+
+std::string CAuxBlockHeader::ToString() const {
+	std::stringstream s;
+	s << strprintf("CAuxBlockHeader(coinbase=%s, vMerkleBranchSize=%u, vChainMerkleBranchSize=%u, nChainId=%u, parentBlock=%s)\n",
+		coinbaseTx->ToString(),
+		vMerkleBranch.size(),
+		vChainMerkleBranch.size(),
+		nChainIndex,
+		CBlock(parentBlock).ToString());
+	return s.str();
 }
 
 std::string CBlock::ToString() const

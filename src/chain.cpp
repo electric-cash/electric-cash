@@ -4,6 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <chainparams.h>
+#include <validation.h>
 
 /**
  * CChain implementation
@@ -46,6 +48,27 @@ CBlockLocator CChain::GetLocator(const CBlockIndex *pindex) const {
     }
 
     return CBlockLocator(vHave);
+}
+
+CBlockHeader CBlockIndex::GetBlockHeader() const {
+    CBlock block;
+    block.nVersion       = nVersion;
+
+    /* The CBlockIndex object's block header is missing the auxpow.
+     * So if this is an auxpow block, read it from disk instead. We only
+     * have to read the actual *header*, not the full block. */
+    if (block.IsAuxPow()) {
+    	ReadBlockFromDisk(block, this, Params().GetConsensus());
+    	return block.GetBlockHeader();
+    }
+
+    if (pprev)
+        block.hashPrevBlock = pprev->GetBlockHash();
+    block.hashMerkleRoot = hashMerkleRoot;
+    block.nTime          = nTime;
+    block.nBits          = nBits;
+    block.nNonce         = nNonce;
+    return block.GetBlockHeader();
 }
 
 const CBlockIndex *CChain::FindFork(const CBlockIndex *pindex) const {

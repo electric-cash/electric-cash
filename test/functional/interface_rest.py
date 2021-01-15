@@ -22,24 +22,30 @@ from test_framework.util import (
     hex_str_to_bytes,
 )
 
+from test_framework.auxpow_testing import mineAuxpowBlock
 from test_framework.messages import BLOCK_HEADER_SIZE
+
 
 class ReqType(Enum):
     JSON = 1
     BIN = 2
     HEX = 3
 
+
 class RetType(Enum):
     OBJ = 1
     BYTES = 2
     JSON = 3
+
 
 def filter_output_indices_by_value(vouts, value):
     for vout in vouts:
         if vout['value'] == value:
             yield vout['n']
 
+
 class RESTTest (BitcoinTestFramework):
+
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
@@ -100,7 +106,7 @@ class RESTTest (BitcoinTestFramework):
         # Check hex format response
         hex_response = self.test_rest_request("/tx/{}".format(txid), req_type=ReqType.HEX, ret_type=RetType.OBJ)
         assert_greater_than_or_equal(int(hex_response.getheader('content-length')),
-                                     json_obj['size']*2)
+                                     json_obj['size'] * 2)
 
         spent = (json_obj['vin'][0]['txid'], json_obj['vin'][0]['vout'])  # get the vin to later check for utxo (should be spent by then)
         # get n of 0.1 outpoint
@@ -205,7 +211,7 @@ class RESTTest (BitcoinTestFramework):
         long_uri = '/'.join(['{}-{}'.format(txid, n_) for n_ in range(15)])
         self.test_rest_request("/getutxos/checkmempool/{}".format(long_uri), http_method='POST', status=200)
 
-        self.nodes[0].generate(1)  # generate block to not affect upcoming tests
+        mineAuxpowBlock(self.nodes[0])  # generate block to not affect upcoming tests
         self.sync_all()
 
         self.log.info("Test the /block, /blockhashbyheight and /headers URIs")
@@ -228,20 +234,21 @@ class RESTTest (BitcoinTestFramework):
 
         # Compare with block header
         response_header = self.test_rest_request("/headers/1/{}".format(bb_hash), req_type=ReqType.BIN, ret_type=RetType.OBJ)
-        assert_equal(int(response_header.getheader('content-length')), BLOCK_HEADER_SIZE)
+        headerLen = int(response_header.getheader('content-length'))
+        assert_greater_than(int(response_header.getheader('content-length')), BLOCK_HEADER_SIZE)
         response_header_bytes = response_header.read()
-        assert_equal(response_bytes[:BLOCK_HEADER_SIZE], response_header_bytes)
+        assert_equal(response_bytes[:headerLen], response_header_bytes)
 
         # Check block hex format
         response_hex = self.test_rest_request("/block/{}".format(bb_hash), req_type=ReqType.HEX, ret_type=RetType.OBJ)
-        assert_greater_than(int(response_hex.getheader('content-length')), BLOCK_HEADER_SIZE*2)
+        assert_greater_than(int(response_hex.getheader('content-length')), BLOCK_HEADER_SIZE * 2)
         response_hex_bytes = response_hex.read().strip(b'\n')
         assert_equal(binascii.hexlify(response_bytes), response_hex_bytes)
 
         # Compare with hex block header
         response_header_hex = self.test_rest_request("/headers/1/{}".format(bb_hash), req_type=ReqType.HEX, ret_type=RetType.OBJ)
-        assert_greater_than(int(response_header_hex.getheader('content-length')), BLOCK_HEADER_SIZE*2)
-        response_header_hex_bytes = response_header_hex.read(BLOCK_HEADER_SIZE*2)
+        assert_greater_than(int(response_header_hex.getheader('content-length')), BLOCK_HEADER_SIZE * 2)
+        response_header_hex_bytes = response_header_hex.read(BLOCK_HEADER_SIZE * 2)
         assert_equal(binascii.hexlify(response_bytes[:BLOCK_HEADER_SIZE]), response_header_hex_bytes)
 
         # Check json format
@@ -324,6 +331,7 @@ class RESTTest (BitcoinTestFramework):
 
         json_obj = self.test_rest_request("/chaininfo")
         assert_equal(json_obj['bestblockhash'], bb_hash)
+
 
 if __name__ == '__main__':
     RESTTest().main()

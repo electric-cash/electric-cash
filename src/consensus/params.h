@@ -82,6 +82,11 @@ struct Params {
     uint256 nMinimumChainWork;
     uint256 defaultAssumeValid;
     int64_t nLwmaAveragingWindow;
+
+    /** Auxpow parameters */
+    int32_t nAuxpowChainId;
+    int nAuxpowStartHeight;
+    bool fStrictChainId;
 };
 } // namespace Consensus
 

@@ -92,6 +92,11 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
+        // AUX POW Parameters
+        consensus.nAuxpowChainId = 0x2137;
+        consensus.nAuxpowStartHeight = 0;
+        consensus.fStrictChainId = true;
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -184,6 +189,11 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
 
+        // AUX POW Parameters
+        consensus.nAuxpowChainId = 0x2137;
+        consensus.nAuxpowStartHeight = 1;
+        consensus.fStrictChainId = false;
+
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;
@@ -268,6 +278,11 @@ public:
 
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
+
+        // AUX POW Parameters
+        consensus.nAuxpowChainId = 0x2137;
+        consensus.nAuxpowStartHeight = 100;
+        consensus.fStrictChainId = true;
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;

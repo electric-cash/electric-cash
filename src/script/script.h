@@ -44,6 +44,8 @@ static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20
 // SEQUENCE_FINAL).
 static const uint32_t LOCKTIME_MAX = 0xFFFFFFFFU;
 
+using valtype = std::vector<unsigned char>;
+
 template <typename T>
 std::vector<unsigned char> ToByteVector(const T& in)
 {

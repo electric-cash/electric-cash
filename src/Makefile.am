@@ -103,6 +103,7 @@ ELCASH_CORE_H = \
   addrdb.h \
   addrman.h \
   attributes.h \
+  auxpow.h \
   banman.h \
   base58.h \
   bech32.h \
@@ -178,6 +179,7 @@ ELCASH_CORE_H = \
   random.h \
   randomenv.h \
   reverse_iterator.h \
+  rpc/auxpow_miner.h \
   rpc/blockchain.h \
   rpc/client.h \
   rpc/protocol.h \
@@ -271,6 +273,7 @@ libelcash_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libelcash_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  auxpow.cpp \
   banman.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
@@ -300,6 +303,7 @@ libelcash_server_a_SOURCES = \
   policy/settings.cpp \
   pow.cpp \
   rest.cpp \
+  rpc/auxpow_miner.cpp \
   rpc/blockchain.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \

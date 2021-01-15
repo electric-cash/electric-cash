@@ -791,7 +791,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block with a transaction with outputs > inputs")
         self.move_tip(57)
         b59 = self.next_block(59)
-        tx = self.create_and_sign_transaction(out[17], 51 * COIN)
+        tx = self.create_and_sign_transaction(out[17], 501 * COIN)
         b59 = self.update_block(59, [tx])
         self.send_blocks([b59], success=False, reject_reason='bad-txns-in-belowout', reconnect=True)
 
@@ -1244,14 +1244,14 @@ class FullBlockTest(BitcoinTestFramework):
         b89a = self.update_block("89a", [tx])
         self.send_blocks([b89a], success=False, reject_reason='bad-txns-inputs-missingorspent', reconnect=True)
 
-        self.log.info("Test a re-org of one week's worth of blocks (1088 blocks)")
+        self.log.info("Test a re-org of one day's worth of blocks (144 blocks)")
 
         self.move_tip(88)
-        LARGE_REORG_SIZE = 1088
+        LARGE_REORG_SIZE = 144
         blocks = []
         spend = out[32]
         for i in range(89, LARGE_REORG_SIZE + 89):
-            b = self.next_block(i, spend, version=4)
+            b = self.next_block(i, spend)
             tx = CTransaction()
             script_length = MAX_BLOCK_BASE_SIZE - len(b.serialize()) - 69
             script_output = CScript([b'\x00' * script_length])
@@ -1270,26 +1270,31 @@ class FullBlockTest(BitcoinTestFramework):
         self.move_tip(88)
         blocks2 = []
         for i in range(89, LARGE_REORG_SIZE + 89):
-            blocks2.append(self.next_block("alt" + str(i), version=4))
+            blocks2.append(self.next_block("alt" + str(i)))
         self.send_blocks(blocks2, False, force_send=True)
 
         # extend alt chain to trigger re-org
-        block = self.next_block("alt" + str(chain1_tip + 1), version=4)
+        block = self.next_block("alt" + str(chain1_tip + 1))
         self.send_blocks([block], True, timeout=2440)
 
         # ... and re-org back to the first chain
         self.move_tip(chain1_tip)
-        block = self.next_block(chain1_tip + 1, version=4)
+        block = self.next_block(chain1_tip + 1)
         self.send_blocks([block], False, force_send=True)
-        block = self.next_block(chain1_tip + 2, version=4)
+        block = self.next_block(chain1_tip + 2)
         self.send_blocks([block], True, timeout=2440)
 
         self.log.info("Reject a block with an invalid block header version")
+        for i in range(300): # just to make sure that chain is longer than bip34Height
+            b = self.next_block("temp" + str(i + 1))
+            self.send_blocks([b], True, timeout=15)
+        self.move_tip("temp300")
+            
         b_v1 = self.next_block('b_v1', version=1)
-        self.send_blocks([b_v1], success=False, force_send=True, reject_reason='bad-version(0x00000001)', reconnect=True)
+        self.send_blocks([b_v1], success=False, force_send=True, reject_reason='bad-version(0x21370001)', reconnect=True)
 
-        self.move_tip(chain1_tip + 2)
-        b_cb34 = self.next_block('b_cb34', version=4)
+        self.move_tip("temp300")
+        b_cb34 = self.next_block('b_cb34')
         b_cb34.vtx[0].vin[0].scriptSig = b_cb34.vtx[0].vin[0].scriptSig[:-1]
         b_cb34.vtx[0].rehash()
         b_cb34.hashMerkleRoot = b_cb34.calc_merkle_root()
@@ -1323,7 +1328,7 @@ class FullBlockTest(BitcoinTestFramework):
         tx.rehash()
         return tx
 
-    def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), *, version=1):
+    def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), *, version=4):
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
