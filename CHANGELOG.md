@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.22.0 (2021-01-15)
+### Feature
+* **ci:** New ECR registry ([`d1ac58d`](https://github.com/electric-cash/electric-cash/commit/d1ac58d6f7208ca3dd7b7e0f6a8e6fdbcdf61bab))
+
 ## v0.21.6 (2021-01-13)
 ### Fix
 * **ci:** On release job, do notexpect to upload package to github release directly ([`b3868ea`](https://github.com/electric-cash/electric-cash/commit/b3868eacc268195627b046e3ca93ee926f89207a))
