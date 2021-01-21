@@ -3531,7 +3531,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
         }
     }
     // Check if the coinbase goes to the licensed addresses.
-	if (consensusParams.fddms && fCheckDdms) {
+	if (consensusParams.fddms && fCheckDdms && consensusParams.hashGenesisBlock != block.GetHash()) {
 	   CTransactionRef cb = block.vtx[0];
 	   for (uint32_t i = 0; i < cb->vout.size(); ++i) {
 			   if (i != GetWitnessCommitmentIndex(block) && !DdmsVerifyCoinbaseOutput(cb, i)) {
