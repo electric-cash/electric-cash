@@ -11,7 +11,7 @@ server={{ .Env.ELCASHD_SERVER }}
 txindex={{ .Env.ELCASHD_TXINDEX }}
 {{end}}
 
-rpcport=8332
+rpcport={{ default .Env.ELCASHD_RPC_PORT "8332" }}
 rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
 rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
 
@@ -35,9 +35,10 @@ bantime={{ .Env.ELCASHD_NET_BAN_TIME }}
 testnet=1
 
 [test]
-rpcallowip=0.0.0.0/0
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_FIRST "127.0.0.0/24" }}
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_SECOND "10.0.0.0/8" }}
 rpcbind=0.0.0.0
-rpcport=8332
+rpcport={{ default .Env.ELCASHD_RPC_PORT "8332" }}
 rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
 rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
 {{end}}
