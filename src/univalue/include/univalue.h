@@ -82,6 +82,7 @@ public:
     bool isNum() const { return (typ == VNUM); }
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
+    bool isEmpty() const { return isNull() || (isStr() && get_str().empty()); }
 
     bool push_back(const UniValue& val);
     bool push_back(const std::string& val_) {
