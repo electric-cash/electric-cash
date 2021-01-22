@@ -122,8 +122,7 @@ public:
         // service bits we want, but we should get them updated to support all service bits wanted by any
         // release ASAP to avoid it where possible.
 
-        // TODO: uncomment this when ready
-        // vSeeds.emplace_back("seed.electriccash.global");
+        vSeeds.emplace_back("seed.electriccash.global");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,33);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,87);
@@ -211,8 +210,7 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         
-        vSeeds.emplace_back("54.154.56.101");
-        vSeeds.emplace_back("54.74.104.93");
+        vSeeds.emplace_back("seed.testnet.electriccash.global");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,92);
