@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.22.1 (2021-01-22)
+### Fix
+* **config:** Configure RPC port for testnet ([`04dbe23`](https://github.com/electric-cash/electric-cash/commit/04dbe2312b72a6d61dd201e9fd28c663ada0c240))
+
 ## v0.22.0 (2021-01-15)
 ### Feature
 * **ci:** New ECR registry ([`d1ac58d`](https://github.com/electric-cash/electric-cash/commit/d1ac58d6f7208ca3dd7b7e0f6a8e6fdbcdf61bab))
