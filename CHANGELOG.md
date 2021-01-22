@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.23.0 (2021-01-22)
+### Feature
+* Set seed URLs for testnet and mainnet ([#14](https://github.com/electric-cash/electric-cash/issues/14)) ([`180ef8f`](https://github.com/electric-cash/electric-cash/commit/180ef8f2ea2a59f8005e147b98934196637081d5))
+
 ## v0.22.1 (2021-01-22)
 ### Fix
 * **config:** Configure RPC port for testnet ([`04dbe23`](https://github.com/electric-cash/electric-cash/commit/04dbe2312b72a6d61dd201e9fd28c663ada0c240))
