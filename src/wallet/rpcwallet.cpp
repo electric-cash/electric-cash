@@ -838,6 +838,7 @@ static UniValue sendmany(const JSONRPCRequest& request)
             "       \"UNSET\"\n"
             "       \"ECONOMICAL\"\n"
             "       \"CONSERVATIVE\""},
+                    {"change_address", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "Change address."},
                 },
                  RPCResult{
                      RPCResult::Type::STR_HEX, "txid", "The transaction id for the send. Only 1 transaction is created regardless of\n"
@@ -872,22 +873,30 @@ static UniValue sendmany(const JSONRPCRequest& request)
         mapValue["comment"] = request.params[3].get_str();
 
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (!request.params[4].isNull())
+    if (!request.params[4].isEmpty())
         subtractFeeFromAmount = request.params[4].get_array();
 
     CCoinControl coin_control;
-    if (!request.params[5].isNull()) {
+    if (!request.params[5].isEmpty()) {
         coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
     }
 
-    if (!request.params[6].isNull()) {
+    if (!request.params[6].isEmpty()) {
         coin_control.m_confirm_target = ParseConfirmTarget(request.params[6], pwallet->chain().estimateMaxBlocks());
     }
 
-    if (!request.params[7].isNull()) {
+    if (!request.params[7].isEmpty()) {
         if (!FeeModeFromString(request.params[7].get_str(), coin_control.m_fee_mode)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid estimate_mode parameter");
         }
+    }
+
+    if (!request.params[8].isEmpty()) {
+        CTxDestination changeDest = DecodeDestination(request.params[8].get_str());
+            if (!IsValidDestination(changeDest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid change address");
+            }
+        coin_control.destChange = changeDest;
     }
 
     std::set<CTxDestination> destinations;
@@ -4319,7 +4328,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "lockunspent",                      &lockunspent,                   {"unlock","transactions"} },
     { "wallet",             "removeprunedfunds",                &removeprunedfunds,             {"txid"} },
     { "wallet",             "rescanblockchain",                 &rescanblockchain,              {"start_height", "stop_height"} },
-    { "wallet",             "sendmany",                         &sendmany,                      {"dummy","amounts","minconf","comment","subtractfeefrom","replaceable","conf_target","estimate_mode"} },
+    { "wallet",             "sendmany",                         &sendmany,                      {"dummy","amounts","minconf","comment","subtractfeefrom","replaceable","conf_target","estimate_mode","change_address"} },
     { "wallet",             "sendtoaddress",                    &sendtoaddress,                 {"address","amount","comment","comment_to","subtractfeefromamount","replaceable","conf_target","estimate_mode","change_address","avoid_reuse"} },
     { "wallet",             "sethdseed",                        &sethdseed,                     {"newkeypool","seed"} },
     { "wallet",             "setlabel",                         &setlabel,                      {"address","label"} },
