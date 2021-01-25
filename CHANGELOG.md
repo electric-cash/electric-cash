@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.24.0 (2021-01-25)
+### Feature
+* RPC add changeaddress param to sendtoaddress and sendmany ([#12](https://github.com/electric-cash/electric-cash/issues/12)) ([`001bb44`](https://github.com/electric-cash/electric-cash/commit/001bb44a195aaf76bf4d6639581cbe65142e5151))
+
 ## v0.23.0 (2021-01-22)
 ### Feature
 * Set seed URLs for testnet and mainnet ([#14](https://github.com/electric-cash/electric-cash/issues/14)) ([`180ef8f`](https://github.com/electric-cash/electric-cash/commit/180ef8f2ea2a59f8005e147b98934196637081d5))
