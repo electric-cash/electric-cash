@@ -1,22 +1,31 @@
-Elecric Cash Core integration/staging tree
-=====================================
+https://electriccash.global
 
-![Release](https://github.com/electric-cash/electric-cash/workflows/Release/badge.svg)
-
-https://bitcoincore.org
-
-What is Bitcoin?
+What is Electric Cash?
 ----------------
+Electric Cash is a payment protocol based on Bitcoin. It focuses on reducing transaction fees to facilitate everyday payments.   
+Its comprehensive ecosystem aims to solve a major cryptocurrency industry problem concerning the blockchain fees and performance.  
+|||
+| --------------------- | ---------------------------------- |
+| Coin name             | ELCASH                             | 
+| Pre-mining | ELCASH 2,100,000  *(pre-mined 10 percent of total supply will be allocated to activities including project development, marketing, promotional efforts and more.)*                                          | 
+| Total number of coins | ELCASH 21,000,000                  | 
+| Initial block reward  | ELCASH 500 ([full schedule](MINING.md)) |
+| Average block time    | 10 min                             |
+| Algorithm             | SHA256 PoW                         |
 
-Bitcoin is an experimental digital currency that enables instant payments to
-anyone, anywhere in the world. Bitcoin uses peer-to-peer technology to operate
-with no central authority: managing transactions and issuing money are carried
-out collectively by the network. Elecric Cash Core is the name of open source
-software which enables the use of this currency.
+The core of Elecric Cash protocol
+---------------------------------
 
-For more information, as well as an immediately usable, binary version of
-the Elecric Cash Core software, see https://bitcoincore.org/en/download/, or read the
-[original whitepaper](https://bitcoincore.org/bitcoin.pdf).
+### Staking
+Staking process to get Governance Power and earn additional benefits like free transactions and staking rewards. 
+
+### Governance
+Community-driven governance system on the network. Every user who has Governance Power can vote on the future development of the ecosystem.  
+
+### Improved transactions
+Fast and free transactions secured by the Proof of Work consensus. 
+
+For more information, read the original [whitepaper](#).
 
 License
 -------
@@ -37,11 +46,6 @@ and useful hints for developers can be found in [doc/developer-notes.md](doc/dev
 Testing
 -------
 
-Testing and code review is the bottleneck for development; we get more pull
-requests than we can review and test on short notice. Please be patient and help out by testing
-other people's pull requests, and remember this is a security-critical project where any mistake might cost people
-lots of money.
-
 ### Automated Testing
 
 Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
@@ -53,25 +57,9 @@ There are also [regression and integration tests](/test), written
 in Python, that are run automatically on the build server.
 These tests can be run (if the [test dependencies](/test) are installed) with: `test/functional/test_runner.py`
 
-The Travis CI system makes sure that every pull request is built for Windows, Linux, and macOS, and that unit/sanity tests are run automatically.
-
 ### Manual Quality Assurance (QA) Testing
 
 Changes should be tested by somebody other than the developer who wrote the
 code. This is especially important for large or high-risk changes. It is useful
 to add a test plan to the pull request description if testing the changes is
 not straightforward.
-
-Translations
-------------
-
-Changes to translations as well as new translations can be submitted to
-[Elecric Cash Core's Transifex page](https://www.transifex.com/bitcoin/bitcoin/).
-
-Translations are periodically pulled from Transifex and merged into the git repository. See the
-[translation process](doc/translation_process.md) for details on how this works.
-
-**Important**: We do not accept translation changes as GitHub pull requests because the next
-pull from Transifex would automatically overwrite them again.
-
-Translators should also subscribe to the [mailing list](https://groups.google.com/forum/#!forum/elcash-translators).
