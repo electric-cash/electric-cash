@@ -1,3 +1,6 @@
+Electric Cash mining
+====================
+
 The total supply of Electric Cash is currently capped at 21,000,000 coins.  
 A fixed supply helps to minimize potential inflation and dilution. 
 Electric Cash (ELCASH) mining is launched from a fresh genesis block. 
@@ -15,6 +18,8 @@ Pre-mining is planned to continue until 10 percent of the supply is mined and al
 During the following period, the block reward will amount to 75. Each subsequent period it will gradually decrease.
 Electric Cash has been designed with a community governance system, so all parameters can be changed if required. 
 
+Detailed mining schedule
+------------------------
 
 | Period | Date          | Blocks  | Reward        |
 | :----: | ------------- | ------: | ------------- |
