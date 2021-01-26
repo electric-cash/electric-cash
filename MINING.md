@@ -16,10 +16,10 @@ During the following period, the block reward will amount to 75. Each subsequent
 Electric Cash has been designed with a community governance system, so all parameters can be changed if required. 
 
 
-| Period | Date          | Blocks | Reward        |
-| :----: | ------------- | ------ | ------------- |
+| Period | Date          | Blocks  | Reward        |
+| :----: | ------------- | ------: | ------------- |
 | 1      | December 2020 | 4,200   | 500           |
-| 2      | January 2021  | 56,700 | 75            |
+| 2      | January 2021  | 56,700  | 75            |
 | 3      | January 2022  | 109,200 | 65            |
 | 4      | January 2023  | 161,700 | 55            |
 | 5      | January 2024  | 214,200 | 40            |
