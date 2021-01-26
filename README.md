@@ -9,7 +9,7 @@ Its comprehensive ecosystem aims to solve a major cryptocurrency industry proble
 | Coin name             | ELCASH                             | 
 | Pre-mining | ELCASH 2,100,000  *(pre-mined 10 percent of total supply will be allocated to activities including project development, marketing, promotional efforts and more.)*                                          | 
 | Total number of coins | ELCASH 21,000,000                  | 
-| Initial block reward  | ELCASH 500 [full schedule](MINING.md) |
+| Initial block reward  | ELCASH 500 ([full schedule](MINING.md)) |
 | Average block time    | 10 min                             |
 | Algorithm             | SHA256 PoW                         |
 
