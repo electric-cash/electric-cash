@@ -12,7 +12,9 @@ Pre-mining is planned to continue until 10 percent of the supply is mined and al
 -	Software budget 
 
 
-During the following period, the block reward will amount to 75. Each subsequent period it will gradually decrease. 
+During the following period, the block reward will amount to 75. Each subsequent period it will gradually decrease.
+Electric Cash has been designed with a community governance system, so all parameters can be changed if required. 
+
 
 | Period | Date          | Blocks | Reward        |
 | :----: | ------------- | ------ | ------------- |
@@ -54,39 +56,3 @@ During the following period, the block reward will amount to 75. Each subsequent
 | 36     | January 2055  | 1,841,700 | 0.00000003    |
 | 37     | January 2056  | 1,894,200 | 0.00000002    |
 | 38     | January 2057  | 1,946,700 | 0.00000001    |
-
-Electric Cash has been designed with a community governance system, so all parameters can be changed if required. 
-
-
-4200
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
