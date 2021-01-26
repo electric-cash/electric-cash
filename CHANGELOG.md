@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.25.0 (2021-01-26)
+### Feature
+* Readme ([#15](https://github.com/electric-cash/electric-cash/issues/15)) ([`0f257d1`](https://github.com/electric-cash/electric-cash/commit/0f257d116f231ae5728edc3fc1e3c13389ee514c))
+
+### Fix
+* **ci:** New ECR registry ([`55dc65b`](https://github.com/electric-cash/electric-cash/commit/55dc65b8d5839b761ffc82910ca0bc4297976ea8))
+
 ## v0.24.0 (2021-01-25)
 ### Feature
 * RPC add changeaddress param to sendtoaddress and sendmany ([#12](https://github.com/electric-cash/electric-cash/issues/12)) ([`001bb44`](https://github.com/electric-cash/electric-cash/commit/001bb44a195aaf76bf4d6639581cbe65142e5151))
