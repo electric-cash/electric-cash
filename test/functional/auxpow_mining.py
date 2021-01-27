@@ -72,7 +72,7 @@ class AuxpowMiningTest (BitcoinTestFramework):
     # Invalidate the block again, send a transaction and query for the
     # auxblock to solve that contains the transaction.
     self.nodes[0].generate (1)
-    addr = self.nodes[1].getnewaddress ()
+    addr = "THG2uNG2VASsFWK4DmpZZpkwKtC5Qjkyoo"
     txid = self.nodes[0].sendtoaddress (addr, 1)
     self.sync_all ()
     assert_equal (self.nodes[1].getrawmempool (), [txid])
@@ -146,7 +146,7 @@ class AuxpowMiningTest (BitcoinTestFramework):
                              "this_an_invalid_address")
 
     # Fix a coinbase address and construct methods for it.
-    coinbaseAddr = self.nodes[0].getnewaddress ()
+    coinbaseAddr = "TDv1D3WV2gFK87ucb8bDG7KGjNh5HCPZPi"
     def create ():
       return self.nodes[0].createauxblock (coinbaseAddr)
     submit = self.nodes[0].submitauxblock
@@ -164,8 +164,8 @@ class AuxpowMiningTest (BitcoinTestFramework):
     assert_equal (addr2, coinbaseAddr)
 
     # Ensure that different payout addresses will generate different auxblocks
-    auxblock1 = self.nodes[0].createauxblock(self.nodes[0].getnewaddress ())
-    auxblock2 = self.nodes[0].createauxblock(self.nodes[0].getnewaddress ())
+    auxblock1 = self.nodes[0].createauxblock("TMyMSQpgJR4QL6z6u5zz2dLWudi1x5Fobw")
+    auxblock2 = self.nodes[0].createauxblock("THG2uNG2VASsFWK4DmpZZpkwKtC5Qjkyoo")
     assert auxblock1['hash'] != auxblock2['hash']
 
 if __name__ == '__main__':
