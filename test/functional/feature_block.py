@@ -1284,16 +1284,13 @@ class FullBlockTest(BitcoinTestFramework):
         block = self.next_block(chain1_tip + 2)
         self.send_blocks([block], True, timeout=2440)
 
-        self.log.info("Reject a block with an invalid block header version")
+        self.log.info("Reject a block with an invalid block height in coinbase")
         for i in range(300): # just to make sure that chain is longer than bip34Height
             b = self.next_block("temp" + str(i + 1))
             self.send_blocks([b], True, timeout=15)
         self.move_tip("temp300")
-            
-        b_v1 = self.next_block('b_v1', version=1)
-        self.send_blocks([b_v1], success=False, force_send=True, reject_reason='bad-version(0x21370001)', reconnect=True)
 
-        self.move_tip("temp300")
+
         b_cb34 = self.next_block('b_cb34')
         b_cb34.vtx[0].vin[0].scriptSig = b_cb34.vtx[0].vin[0].scriptSig[:-1]
         b_cb34.vtx[0].rehash()
