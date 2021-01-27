@@ -19,5 +19,5 @@ jobs:
         run: docker build -t elcash-build-github-builder --target=builder --build-arg GIT_COMMIT=$GITHUB_REF-$GITHUB_SHA --build-arg CONFIGURE_PARAMS="--disable-bench --with-gui=no" -f ci/docker/Dockerfile .
       - name: Unit tests
         run: docker run --rm -i --entrypoint test_elcash elcash-build-github-builder --log_level=error -- DEBUG_LOG_OUT
-      - name: Regression tests
+      - name: Functional tests
         run: docker run --rm -i -e LANG=C.UTF-8 --entrypoint python3 elcash-build-github-builder test/functional/test_runner.py
