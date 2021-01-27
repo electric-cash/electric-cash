@@ -32,10 +32,11 @@ RUN apt-get update && \
 
 # --- Compilation ---
 FROM base AS builder
+ARG CONFIGURE_PARAMS="--disable-bench --disable-wallet --with-gui=no --disable-tests"
 WORKDIR /code
 COPY . .
 RUN env CFLAGS=-O2 CXXFLAGS=-O2 ./autogen.sh \
-    && ./configure --disable-bench --disable-tests --disable-wallet --with-gui=no \
+    && ./configure ${CONFIGURE_PARAMS} \
     && make -j`nproc` \
     && make install
 

@@ -5,15 +5,15 @@ Elcash
 
 | name | default value | notes |
 |------|-------|-------|
-| `BVAULTD_RPC_PASSWORD` | `xxxx` | RPC password for bvaultd 
-| `BVAULTD_RPC_USER` | `root` | RPC username for bvaultd 
-| `BVAULTD_RPC_ALLOW_IP_FIRST` | `127.0.0.0/24` | `rpcallowip` parameter first iteration 
-| `BVAULTD_RPC_ALLOW_IP_SECOND` | `10.0.0.0/8` | `rpcallowip` parameter second iteration 
-| `BVAULTD_NET_BAN_SCORE` | `100000` | `banscore` parameter, to disable, set to empty string 
-| `BVAULTD_NET_BAN_TIME` | `60` | `bantime` parameter, to disable, set to empty string 
-| `BVAULTD_TESTNET_ENABLED` | undefined | Allowed: `1`, so set if you want to run in testnet
-| `BVAULTD_SERVER` | `1` | Allowed: `1` `server` parameter
-| `BVAULTD_TXINDEX` | undefined | Allowed: `1` `txindex` parameter
+| `ELCASHD_RPC_PASSWORD` | `xxxx` | RPC password for bvaultd 
+| `ELCASHD_RPC_USER` | `root` | RPC username for bvaultd 
+| `ELCASHD_RPC_ALLOW_IP_FIRST` | `127.0.0.0/24` | `rpcallowip` parameter first iteration 
+| `ELCASHD_RPC_ALLOW_IP_SECOND` | `10.0.0.0/8` | `rpcallowip` parameter second iteration 
+| `ELCASHD_NET_BAN_SCORE` | `100000` | `banscore` parameter, to disable, set to empty string 
+| `ELCASHD_NET_BAN_TIME` | `60` | `bantime` parameter, to disable, set to empty string 
+| `ELCASHD_TESTNET_ENABLED` | undefined | Allowed: `1`, so set if you want to run in testnet
+| `ELCASHD_SERVER` | `1` | Allowed: `1` `server` parameter
+| `ELCASHD_TXINDEX` | undefined | Allowed: `1` `txindex` parameter
 
 
 For more information how config is generated see template: `templates/elcashd.conf.tmpl`
