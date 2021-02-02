@@ -21,7 +21,7 @@ Electric Cash has been designed with a community governance system, so all param
 Detailed mining schedule
 ------------------------
 
-| Period | Date          | Blocks  | Reward        |
+| Period | Date          | Up to a block  | Reward        |
 | :----: | ------------- | ------: | ------------- |
 | 1      | December 2020 | 4,200   | 500           |
 | 2      | January 2021  | 56,700  | 75            |
