@@ -32,7 +32,7 @@ RUN apt-get update && \
 
 # --- Compilation ---
 FROM base AS builder
-ARG CONFIGURE_PARAMS="--disable-bench --disable-wallet --with-gui=no --disable-tests"
+ARG CONFIGURE_PARAMS="--disable-bench --with-gui=no"
 WORKDIR /code
 COPY . .
 RUN env CFLAGS=-O2 CXXFLAGS=-O2 ./autogen.sh \
@@ -49,6 +49,7 @@ LABEL revision=$GIT_COMMIT
 
 ENV ELCASHD_SERVER 1
 ENV ELCASHD_TESTNET_ENABLED 0
+ENV ELCASHD_REGTEST_ENABLED 0
 ENV ELCASHD_NET_BAN_SCORE 100000
 ENV ELCASHD_NET_BAN_TIME 60
 ENV ELCASHD_COMMIT $GIT_COMMIT
