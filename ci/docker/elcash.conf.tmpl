@@ -42,3 +42,15 @@ rpcport={{ default .Env.ELCASHD_RPC_PORT "8332" }}
 rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
 rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
 {{end}}
+
+{{ if eq .Env.ELCASHD_REGTEST_ENABLED "1" }}
+regtest=1
+
+[regtest]
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_FIRST "127.0.0.0/24" }}
+rpcallowip={{ default .Env.ELCASHD_RPC_ALLOW_IP_SECOND "10.0.0.0/8" }}
+rpcbind=0.0.0.0
+rpcport={{ default .Env.ELCASHD_RPC_PORT "18443" }}
+rpcuser={{ default .Env.ELCASHD_RPC_USER "root" }}
+rpcpassword={{ default .Env.ELCASHD_RPC_PASSWORD "b4f4e487e7c2179f05daad1f6f30756b" }}
+{{end}}
