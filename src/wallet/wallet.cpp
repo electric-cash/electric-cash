@@ -2805,6 +2805,7 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
 
             nFeeRet = 0;
             bool pick_new_inputs = true;
+            int no_new_inputs_loop_iterations = 0;
             CAmount nValueIn = 0;
 
             // BnB selector is the only selector used when this is true.
@@ -2976,6 +2977,24 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                         nFeeRet -= extraFeePaid;
                     }
                     break; // Done, enough fee included.
+                }
+                else if (!pick_new_inputs) {
+                    // This shouldn't happen, we should have had enough excess
+                    // fee to pay for the new output and still meet nFeeNeeded
+                    // Or we should have just subtracted fee from recipients and
+                    // nFeeNeeded should not have changed
+                    // This however hits a border case, when fee subtraction from outputs is enabled
+                    // and coin chooser switch from bnb to knapsack happens after 1st loop iteration.
+                    // This case should be resolved by allowing one loop iteration with `pick_new_inputs` disabled.
+                    if (no_new_inputs_loop_iterations > 0) {
+                        strFailReason = _("Transaction fee and change calculation failed").translated;
+                        return false;
+                    }
+                    else {
+                        ++no_new_inputs_loop_iterations;
+                    }
+
+
                 }
 
                 // Try to reduce change to include necessary fee
