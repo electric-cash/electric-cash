@@ -1251,7 +1251,7 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
 
 CAmount GetBlockSubsidy(int nHeight)
 {
-    return GetBlockRewardForHeight(nHeight);
+    return GetBlockRewardForHeight(nHeight) - GetStakingRewardForHeight(nHeight);
 }
 
 CoinsViews::CoinsViews(

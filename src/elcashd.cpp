@@ -20,6 +20,7 @@
 #include <util/system.h>
 #include <util/threadnames.h>
 #include <util/translation.h>
+#include "staking/staking_pool.h"
 
 #include <functional>
 
@@ -150,6 +151,7 @@ static bool AppInit(int argc, char* argv[])
     } catch (...) {
         PrintExceptionContinue(nullptr, "AppInit()");
     }
+    StakingPool::getInstance();
 
     if (!fRet)
     {
