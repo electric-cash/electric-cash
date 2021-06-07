@@ -24,10 +24,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "staking/staking_pool.h"
-#include "consensus/block_rewards.h"
-
-
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
     int64_t nOldTime = pblock->nTime;
