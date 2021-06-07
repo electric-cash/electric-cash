@@ -1,24 +1,41 @@
-#include "staking_pool.h"
+#include <staking/staking_pool.h>
 #include <cassert>
+#include <consensus/block_rewards.h>
 
 
-StakingPool* StakingPool::getInstance() {
+CStakingPool* CStakingPool::getInstance() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (srpInstance == nullptr)
-        srpInstance = new StakingPool();
+        srpInstance = new CStakingPool();
     return srpInstance;
 }
 
-void StakingPool::increaseBalance(CAmount amount) {
+CStakingPool* CStakingPool::getInstance(CAmount balance) {
+    CStakingPool* instance = CStakingPool::getInstance();
+    instance->balance = balance;
+    return instance;
+}
+
+void CStakingPool::increaseBalance(CAmount amount) {
     balance += amount;
 }
 
-void StakingPool::decreaseBalance(CAmount amount) {
+void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
+    balance += GetStakingRewardForHeight(nHeight);
+}
+
+void CStakingPool::decreaseBalance(CAmount amount) {
     assert((balance - amount) > 0);
     balance -= amount;
 }
 
-CAmount StakingPool::getBalance() {
+CAmount CStakingPool::getBalance() {
     return balance;
 }
 
-StakingPool* StakingPool::srpInstance = nullptr;
+void CStakingPool::setBalance(CAmount balance) {
+    this->balance = balance;
+}
+
+CStakingPool* CStakingPool::srpInstance = nullptr;
+std::mutex CStakingPool::mutex_;

@@ -35,7 +35,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
-#include "staking/staking_pool.h"
+#include <staking/staking_pool.h>
 
 #include <stdint.h>
 
@@ -2413,7 +2413,7 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
-    results.pushKV("staking_pool", StakingPool::getInstance()->getBalance());
+    results.pushKV("staking_pool", CStakingPool::getInstance()->getBalance());
 // TODO: remove dummy variables when ready
     results.pushKV("num_stakers", -1);
     results.pushKV("total_staked", -1);
@@ -2452,7 +2452,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
 
     /* Staking methods*/
-    { "blockchain",         "getstakinginfo",         &getstakinginfo,          {} },
+    { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

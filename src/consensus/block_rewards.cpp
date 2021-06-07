@@ -16,6 +16,6 @@ CAmount GetBlockRewardForHeight(uint32_t height)
 
 CAmount GetStakingRewardForHeight(uint32_t height)
 {
-    return (CAmount) floor(FRACTION_OF_STAKING_REWARD * GetBlockRewardForHeight(height));
+    return static_cast<CAmount> (floor(FRACTION_OF_STAKING_REWARD * GetBlockRewardForHeight(height)));
 
 }

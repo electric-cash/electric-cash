@@ -42,12 +42,12 @@
 #include <script/sigcache.h>
 #include <script/standard.h>
 #include <shutdown.h>
+#include <staking/staking_pool.h>
 #include <timedata.h>
 #include <torcontrol.h>
 #include <txdb.h>
 #include <txmempool.h>
 #include <ui_interface.h>
-#include <util/asmap.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/threadnames.h>
@@ -70,9 +70,7 @@
 #include <sys/stat.h>
 #endif
 
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/algorithm/string/split.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread.hpp>
 
@@ -610,6 +608,12 @@ static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex
     }
 }
 #endif
+
+static void StakingPoolCallback(bool initialSync, const CBlockIndex *pBlockIndex) {
+    if (initialSync || !pBlockIndex)
+        return;
+    CStakingPool::getInstance()->increaseBalanceForNewBlock(pBlockIndex->nHeight);
+}
 
 static bool fHaveGenesis = false;
 static Mutex g_genesis_wait_mutex;
@@ -1754,6 +1758,7 @@ bool AppInitMain(NodeContext& node)
         return false;
     }
 
+    uiInterface.NotifyBlockTip_connect(StakingPoolCallback);
     // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
     // No locking, as this happens before any background thread is started.
     boost::signals2::connection block_notify_genesis_wait_connection;
