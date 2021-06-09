@@ -24,7 +24,7 @@
  * A UTXO entry.
  *
  * Serialized format:
- * - VARINT((coinbase ? 1 : 0) | (height << 1))
+ * - VARINT((coinbase ? 1 : 0) | (height << 1) | (stake ? 1 : 0 << 31))
  * - the non-spent CTxOut (via CTxOutCompressor)
  */
 class Coin
@@ -36,30 +36,38 @@ public:
     //! whether containing transaction was a coinbase
     unsigned int fCoinBase : 1;
 
+    //! whether containing transaction was a staking deposit
+    unsigned int fStake : 1;
+
     //! at which height this containing transaction was included in the active block chain
     uint32_t nHeight : 31;
 
-    //! construct a Coin from a CTxOut and height/coinbase information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn) {}
-    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn),nHeight(nHeightIn) {}
+    //! construct a Coin from a CTxOut and height/coinbase/stake information.
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fStakeIn = false) : out(std::move(outIn)), fCoinBase(fCoinBaseIn),fStake(fStakeIn), nHeight(nHeightIn) {}
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fStakeIn = false) : out(outIn), fCoinBase(fCoinBaseIn), fStake(fStakeIn), nHeight(nHeightIn) {}
 
     void Clear() {
         out.SetNull();
         fCoinBase = false;
+        fStake = false;
         nHeight = 0;
     }
 
     //! empty constructor
-    Coin() : fCoinBase(false), nHeight(0) { }
+    Coin() : fCoinBase(false), fStake(false), nHeight(0) { }
 
     bool IsCoinBase() const {
         return fCoinBase;
     }
 
+    bool IsStake() const {
+        return fStake;
+    }
+
     template<typename Stream>
     void Serialize(Stream &s) const {
         assert(!IsSpent());
-        uint32_t code = nHeight * uint32_t{2} + fCoinBase;
+        uint32_t code = fStake * uint32_t{0x80000000} + nHeight * uint32_t{2} + fCoinBase;
         ::Serialize(s, VARINT(code));
         ::Serialize(s, Using<TxOutCompression>(out));
     }
@@ -70,6 +78,7 @@ public:
         ::Unserialize(s, VARINT(code));
         nHeight = code >> 1;
         fCoinBase = code & 1;
+        fStake = code >> 31;
         ::Unserialize(s, Using<TxOutCompression>(out));
     }
 

@@ -315,7 +315,6 @@ libelcash_server_a_SOURCES = \
   script/sigcache.cpp \
   shutdown.cpp \
   staking/staking_pool.cpp \
-  staking/transaction.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -492,6 +491,7 @@ libelcash_common_a_SOURCES = \
   script/sign.cpp \
   script/signingprovider.cpp \
   script/standard.cpp \
+  staking/transaction.cpp \
   versionbitsinfo.cpp \
   warnings.cpp \
   $(ELCASH_CORE_H)

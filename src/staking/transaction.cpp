@@ -3,27 +3,32 @@
 #include <iostream>
 
 
+CStakingTransactionHandler::CStakingTransactionHandler(CTransactionRef txIn) {
+    tx = txIn;
+    txType = ProcessTransaction();
+}
 
-StakingTransactionType CStakingTransactionHandler::GetStakingTxType(const CTransaction &tx) {
-    if (tx.vout.empty()) {
+
+StakingTransactionType CStakingTransactionHandler::ProcessTransaction() {
+    if (tx->vout.empty()) {
         return StakingTransactionType::NONE;
     }
-    const CScript& txHeaderScript = tx.vout[0].scriptPubKey;
+    const CScript& txHeaderScript = tx->vout[0].scriptPubKey;
     if (!IsStakingTxHeader(txHeaderScript)) {
         return StakingTransactionType::NONE;
     }
     if (IsStakingDepositTxSubHeader(txHeaderScript)) {
-        return CStakingTransactionHandler::ValidateStakingDepositTx(tx);
+        return CStakingTransactionHandler::ValidateStakingDepositTx();
     } else if (IsStakingBurnTxSubHeader(txHeaderScript)) {
-        return CStakingTransactionHandler::ValidateStakingBurnTx(tx);
+        return CStakingTransactionHandler::ValidateStakingBurnTx();
     } else {
         return StakingTransactionType::NONE;
     }
 }
 
-StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx(const CTransaction &tx) {
+StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx() {
     CDataStream ds(0,0);
-    tx.vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
+    tx->vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
     ser_readdata8(ds); // read the size
     const uint8_t op = ser_readdata8(ds);
     const uint8_t header = ser_readdata8(ds);
@@ -40,12 +45,12 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx(cons
     } catch(...) {
         return StakingTransactionType::NONE;
     }
-    if (outputIndex == 0 || outputIndex >= tx.vout.size() || tx.vout[outputIndex].nValue < MIN_STAKING_AMOUNT) {
+    if (outputIndex == 0 || outputIndex >= tx->vout.size() || tx->vout[outputIndex].nValue < MIN_STAKING_AMOUNT) {
         return StakingTransactionType::NONE;
     }
 
     // Read and validate staking period index
-    size_t stakingPeriod;
+    uint8_t stakingPeriod;
     try {
         stakingPeriod = ser_readdata8(ds);
     } catch (...) {
@@ -54,12 +59,13 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx(cons
     if (stakingPeriod >= STAKING_PERIOD.size()) {
         return StakingTransactionType::NONE;
     }
+    stakingTxMetadata.depositTxMetadata = CStakingDepositTxMetadata(outputIndex, stakingPeriod);
     return StakingTransactionType::DEPOSIT;
 }
 
-StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx(const CTransaction &tx) {
+StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx() {
     CDataStream ds(0,0);
-    tx.vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
+    tx->vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
     ser_readdata8(ds); // read the size
     const uint8_t op = ser_readdata8(ds);
     const uint8_t header = ser_readdata8(ds);
@@ -74,6 +80,8 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx(const C
     } catch(...) {
         return StakingTransactionType::NONE;
     }
+
+    stakingTxMetadata.burnTxMetadata = CStakingBurnTxMetadata(amount);
     return StakingTransactionType::BURN;
 }
 
@@ -97,5 +105,16 @@ bool CStakingTransactionHandler::IsStakingBurnTxSubHeader(const CScript &script)
     return (script.size() >= STAKING_HEADER_SIZE && script[2] == STAKING_TX_BURN_SUBHEADER);
 }
 
+StakingTransactionType CStakingTransactionHandler::GetStakingTxType() const {
+    return txType;
+}
 
+CStakingDepositTxMetadata CStakingTransactionHandler::GetStakingDepositTxMetadata() const {
+    assert(txType == StakingTransactionType::DEPOSIT);
+    return stakingTxMetadata.depositTxMetadata;
+}
 
+CStakingBurnTxMetadata CStakingTransactionHandler::GetStakingBurnTxMetadata() const {
+    assert(txType == StakingTransactionType::BURN);
+    return stakingTxMetadata.burnTxMetadata;
+}

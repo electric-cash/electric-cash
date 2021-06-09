@@ -22,20 +22,43 @@ constexpr size_t STAKING_DEPOSIT_TX_HEADER_MIN_SIZE = STAKING_HEADER_SIZE + 1 + 
 constexpr size_t STAKING_BURN_TX_HEADER_SIZE = STAKING_HEADER_SIZE + 8; // HEADER + UINT64
 
 
+struct CStakingDepositTxMetadata {
+    CStakingDepositTxMetadata() = default;
+    CStakingDepositTxMetadata(uint64_t nOutputIndexIn, uint8_t nPeriodIn) : nOutputIndex(nOutputIndexIn), nPeriod(nPeriodIn) {}
+    uint64_t nOutputIndex;
+    uint8_t nPeriod;
+};
+
+struct CStakingBurnTxMetadata {
+    CStakingBurnTxMetadata() = default;
+    explicit CStakingBurnTxMetadata(uint64_t nAmountIn) : nAmount(nAmountIn) {}
+    uint64_t nAmount;
+};
+
+union UStakingTxMetadata {
+    CStakingDepositTxMetadata depositTxMetadata;
+    CStakingBurnTxMetadata burnTxMetadata;
+    ~UStakingTxMetadata() {}
+};
+
 class CStakingTransactionHandler {
 public:
-    static StakingTransactionType GetStakingTxType(const CTransaction& tx);
+    explicit CStakingTransactionHandler(CTransactionRef txIn);
+    StakingTransactionType GetStakingTxType() const;
+    CStakingDepositTxMetadata GetStakingDepositTxMetadata() const;
+    CStakingBurnTxMetadata GetStakingBurnTxMetadata() const;
+private:
+    CTransactionRef tx;
+    UStakingTxMetadata stakingTxMetadata;
+    StakingTransactionType txType;
+    StakingTransactionType ProcessTransaction();
+    StakingTransactionType ValidateStakingDepositTx();
+    StakingTransactionType ValidateStakingBurnTx();
     static bool IsStakingTxHeader(const CScript& script);
     static bool IsStakingDepositTxHeader(const CScript& script);
     static bool IsStakingBurnTxHeader(const CScript& script);
     static bool IsStakingDepositTxSubHeader(const CScript& script);
     static bool IsStakingBurnTxSubHeader(const CScript& script);
-private:
-    static StakingTransactionType ValidateStakingDepositTx(const CTransaction& tx);
-    static StakingTransactionType ValidateStakingBurnTx(const CTransaction& tx);
-
-
-
 
 
 };

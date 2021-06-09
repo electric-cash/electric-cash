@@ -8,6 +8,7 @@
 #include <logging.h>
 #include <random.h>
 #include <version.h>
+#include <staking/transaction.h>
 
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
 uint256 CCoinsView::GetBestBlock() const { return uint256(); }
@@ -89,11 +90,19 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
 void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check) {
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
+
+    // Check if the transaction is a staking deposit. If so, mark appropriate output as a stake.
+    size_t nStakeOutputNumber = 0;
+    CStakingTransactionHandler stakingHandler(MakeTransactionRef(tx));
+    bool fStake = stakingHandler.GetStakingTxType() == StakingTransactionType::DEPOSIT;
+    if (fStake) {
+        nStakeOutputNumber = stakingHandler.GetStakingDepositTxMetadata().nOutputIndex;
+    }
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         bool overwrite = check ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
         // Always set the possible_overwrite flag to AddCoin for coinbase txn, in order to correctly
         // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
-        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase), overwrite);
+        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, fStake && i == nStakeOutputNumber), overwrite);
     }
 }
 
