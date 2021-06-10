@@ -33,6 +33,8 @@
 #include <reverse_iterator.h>
 #include <script/script.h>
 #include <script/sigcache.h>
+#include <staking/transaction.h>
+#include <staking/staking_pool.h>
 #include <shutdown.h>
 #include <staking/staking_pool.h>
 #include <timedata.h>
@@ -2107,6 +2109,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     std::vector<int> prevheights;
     CAmount nFees = 0;
+    CAmount stakingBurns = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2128,7 +2131,16 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
                 return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
             }
+
+            // TODO: double parsing of the transaction. Should be done more efficiently.
+            CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(tx));
+            if (stakingTxHandler.GetStakingTxType() == StakingTransactionType::BURN)
+            {
+                stakingBurns += stakingTxHandler.GetStakingBurnTxMetadata().nAmount;
+            }
+
             nFees += txfee;
+
             if (!MoneyRange(nFees)) {
                 LogPrintf("ERROR: %s: accumulated fee in the block out of range.\n", __func__);
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-accumulated-fee-outofrange");
@@ -2180,6 +2192,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
+
+    StakingPool::getInstance()->increaseBalance(stakingBurns);
+
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 

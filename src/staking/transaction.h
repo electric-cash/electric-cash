@@ -31,8 +31,8 @@ struct CStakingDepositTxMetadata {
 
 struct CStakingBurnTxMetadata {
     CStakingBurnTxMetadata() = default;
-    explicit CStakingBurnTxMetadata(uint64_t nAmountIn) : nAmount(nAmountIn) {}
-    uint64_t nAmount;
+    explicit CStakingBurnTxMetadata(CAmount nAmountIn) : nAmount(nAmountIn) {}
+    CAmount nAmount;
 };
 
 union UStakingTxMetadata {

@@ -63,6 +63,10 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx() {
     return StakingTransactionType::DEPOSIT;
 }
 
+
+/* NOTE: The following method has no access to the value of transaction inputs, so it only validates the syntax.
+ * Validation of values must be done separately
+ */
 StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx() {
     CDataStream ds(0,0);
     tx->vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.

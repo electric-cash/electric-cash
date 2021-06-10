@@ -8,6 +8,7 @@
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <consensus/validation.h>
+#include <staking/transaction.h>
 
 // TODO remove the following dependencies
 #include <chain.h>
@@ -181,9 +182,29 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
+
+        if (coin.IsStake()) {
+            /* TODO: Receive the information about staking reward or penalty from stakers DB or coin object and modify nValueIn. Something along these lines:
+             if (coin.IsMatureStake()) {
+                  CAmount stakingReward = getReward();
+                  nValueIn += stakingReward;
+             else (
+                  CAmount stakingPenalty = getPenalty();
+                  nValueIn -= stakingPenalty;
+             }
+             */
+        }
     }
 
-    const CAmount value_out = tx.GetValueOut();
+    CAmount value_out = tx.GetValueOut();
+
+    // Check if the transaction is a staking burn transaction. Modify value_out accordingly.
+    CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(tx));
+    if (stakingTxHandler.GetStakingTxType() == StakingTransactionType::BURN)
+    {
+        value_out += stakingTxHandler.GetStakingBurnTxMetadata().nAmount;
+    }
+
     if (nValueIn < value_out) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
             strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));
