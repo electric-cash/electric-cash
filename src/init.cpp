@@ -42,7 +42,6 @@
 #include <script/sigcache.h>
 #include <script/standard.h>
 #include <shutdown.h>
-#include <staking/staking_pool.h>
 #include <timedata.h>
 #include <torcontrol.h>
 #include <txdb.h>
