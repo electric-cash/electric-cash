@@ -1,5 +1,5 @@
 #include <staking/staking_pool.h>
-#include <cassert>
+#include <logging.h>
 #include <consensus/block_rewards.h>
 
 
@@ -25,8 +25,15 @@ void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
 }
 
 void CStakingPool::decreaseBalance(CAmount amount) {
-    assert((balance - amount) > 0);
-    balance -= amount;
+    if ((balance - amount) > 0)
+        balance -= amount;
+    else
+        LogPrintf("Current staking pool balance %d can not be decreased by %d", balance, amount);
+}
+
+void CStakingPool::decreaseBalanceForHeight(int nHeight) {
+    CAmount amount = GetStakingRewardForHeight(nHeight);
+    this->decreaseBalance(amount);
 }
 
 CAmount CStakingPool::getBalance() {

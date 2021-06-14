@@ -609,12 +609,6 @@ static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex
 }
 #endif
 
-static void StakingPoolCallback(bool initialSync, const CBlockIndex *pBlockIndex) {
-    if (initialSync || !pBlockIndex)
-        return;
-    CStakingPool::getInstance()->increaseBalanceForNewBlock(pBlockIndex->nHeight);
-}
-
 static bool fHaveGenesis = false;
 static Mutex g_genesis_wait_mutex;
 static std::condition_variable g_genesis_wait_cv;
@@ -1758,7 +1752,6 @@ bool AppInitMain(NodeContext& node)
         return false;
     }
 
-    uiInterface.NotifyBlockTip_connect(StakingPoolCallback);
     // Either install a handler to notify us when genesis activates, or set fHaveGenesis directly.
     // No locking, as this happens before any background thread is started.
     boost::signals2::connection block_notify_genesis_wait_connection;

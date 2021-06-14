@@ -19,6 +19,7 @@ public:
     void increaseBalance(CAmount amount);
     void increaseBalanceForNewBlock(int nHeight);
     void decreaseBalance(CAmount amount);
+    void decreaseBalanceForHeight(int nHeight);
     CAmount getBalance();
     void setBalance(CAmount balance);
 };

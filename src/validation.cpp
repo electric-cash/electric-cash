@@ -34,6 +34,7 @@
 #include <script/script.h>
 #include <script/sigcache.h>
 #include <shutdown.h>
+#include <staking/staking_pool.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <txdb.h>
@@ -1758,6 +1759,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
 
+    // Undo staking pool rewards
+    CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
+
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
 
@@ -2212,6 +2216,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint(BCLog::BENCH, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
+
+    // Update staking pool
+    CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
+    LogPrintf("Staking Pool updated\n");
 
     return true;
 }
