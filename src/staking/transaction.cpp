@@ -78,10 +78,14 @@ StakingTransactionType CStakingTransactionParser::ValidateStakingBurnTx() {
     if (ds.size() < STAKING_BURN_TX_HEADER_SIZE - STAKING_HEADER_SIZE) {
         return StakingTransactionType::NONE;
     }
-    uint64_t amount;
+    CAmount amount;
     try {
-        amount = ser_readdata64(ds);
+        amount = static_cast<CAmount>(ser_readdata64(ds));
     } catch(...) {
+        return StakingTransactionType::NONE;
+    }
+
+    if (!MoneyRange(amount)) {
         return StakingTransactionType::NONE;
     }
 
