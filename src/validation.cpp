@@ -1740,14 +1740,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 }
             }
         }
-        bool fStakingActive = chainparams
-        if (fStakingActive) {
-            CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
-            if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
-            {
-                stakingBurns += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
-            }
-        }
         // restore inputs
         if (i > 0) { // not coinbases
             CTxUndo &txundo = blockUndo.vtxundo[i-1];
@@ -2203,7 +2195,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
     }
 
-    StakingPool::getInstance()->increaseBalance(stakingBurns);
+    CStakingPool::getInstance()->increaseBalance(stakingBurns);
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
