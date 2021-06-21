@@ -97,6 +97,9 @@ public:
         consensus.nAuxpowStartHeight = 1;
         consensus.fStrictChainId = true;
 
+        // Staking parameters
+        consensus.nStakingStartHeight = 999999; // To be set later
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -193,6 +196,9 @@ public:
         consensus.nAuxpowStartHeight = 1;
         consensus.fStrictChainId = false;
 
+        // Staking parameters
+        consensus.nStakingStartHeight = 999999; // To be set later
+
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;
@@ -281,6 +287,9 @@ public:
         consensus.nAuxpowChainId = 0x2137;
         consensus.nAuxpowStartHeight = 100;
         consensus.fStrictChainId = true;
+
+        // Staking parameters
+        consensus.nStakingStartHeight = 101;
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;

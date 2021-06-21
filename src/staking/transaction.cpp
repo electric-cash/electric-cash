@@ -3,13 +3,13 @@
 #include <iostream>
 
 
-CStakingTransactionHandler::CStakingTransactionHandler(CTransactionRef txIn) {
+CStakingTransactionParser::CStakingTransactionParser(CTransactionRef txIn) {
     tx = txIn;
     txType = ProcessTransaction();
 }
 
 
-StakingTransactionType CStakingTransactionHandler::ProcessTransaction() {
+StakingTransactionType CStakingTransactionParser::ProcessTransaction() {
     if (tx->vout.empty()) {
         return StakingTransactionType::NONE;
     }
@@ -18,15 +18,15 @@ StakingTransactionType CStakingTransactionHandler::ProcessTransaction() {
         return StakingTransactionType::NONE;
     }
     if (IsStakingDepositTxSubHeader(txHeaderScript)) {
-        return CStakingTransactionHandler::ValidateStakingDepositTx();
+        return CStakingTransactionParser::ValidateStakingDepositTx();
     } else if (IsStakingBurnTxSubHeader(txHeaderScript)) {
-        return CStakingTransactionHandler::ValidateStakingBurnTx();
+        return CStakingTransactionParser::ValidateStakingBurnTx();
     } else {
         return StakingTransactionType::NONE;
     }
 }
 
-StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx() {
+StakingTransactionType CStakingTransactionParser::ValidateStakingDepositTx() {
     CDataStream ds(0,0);
     tx->vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
     ser_readdata8(ds); // read the size
@@ -67,7 +67,7 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingDepositTx() {
 /* NOTE: The following method has no access to the value of transaction inputs, so it only validates the syntax.
  * Validation of values must be done separately
  */
-StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx() {
+StakingTransactionType CStakingTransactionParser::ValidateStakingBurnTx() {
     CDataStream ds(0,0);
     tx->vout[0].scriptPubKey.Serialize(ds); // TODO: doing memcpy instead of serializing would be more efficient.
     ser_readdata8(ds); // read the size
@@ -89,36 +89,36 @@ StakingTransactionType CStakingTransactionHandler::ValidateStakingBurnTx() {
     return StakingTransactionType::BURN;
 }
 
-bool CStakingTransactionHandler::IsStakingTxHeader(const CScript &script) {
+bool CStakingTransactionParser::IsStakingTxHeader(const CScript &script) {
     return (script.size() >= STAKING_HEADER_SIZE && script[0] == OP_RETURN && script[1] == STAKING_TX_HEADER);
 }
 
-bool CStakingTransactionHandler::IsStakingDepositTxHeader(const CScript &script) {
+bool CStakingTransactionParser::IsStakingDepositTxHeader(const CScript &script) {
     return (IsStakingTxHeader(script) && IsStakingDepositTxSubHeader(script));
 }
 
-bool CStakingTransactionHandler::IsStakingBurnTxHeader(const CScript &script) {
+bool CStakingTransactionParser::IsStakingBurnTxHeader(const CScript &script) {
     return (IsStakingTxHeader(script) && IsStakingBurnTxSubHeader(script));
 }
 
-bool CStakingTransactionHandler::IsStakingDepositTxSubHeader(const CScript &script) {
+bool CStakingTransactionParser::IsStakingDepositTxSubHeader(const CScript &script) {
     return (script.size() >= STAKING_HEADER_SIZE && script[2] == STAKING_TX_DEPOSIT_SUBHEADER);
 }
 
-bool CStakingTransactionHandler::IsStakingBurnTxSubHeader(const CScript &script) {
+bool CStakingTransactionParser::IsStakingBurnTxSubHeader(const CScript &script) {
     return (script.size() >= STAKING_HEADER_SIZE && script[2] == STAKING_TX_BURN_SUBHEADER);
 }
 
-StakingTransactionType CStakingTransactionHandler::GetStakingTxType() const {
+StakingTransactionType CStakingTransactionParser::GetStakingTxType() const {
     return txType;
 }
 
-CStakingDepositTxMetadata CStakingTransactionHandler::GetStakingDepositTxMetadata() const {
+CStakingDepositTxMetadata CStakingTransactionParser::GetStakingDepositTxMetadata() const {
     assert(txType == StakingTransactionType::DEPOSIT);
     return stakingTxMetadata.depositTxMetadata;
 }
 
-CStakingBurnTxMetadata CStakingTransactionHandler::GetStakingBurnTxMetadata() const {
+CStakingBurnTxMetadata CStakingTransactionParser::GetStakingBurnTxMetadata() const {
     assert(txType == StakingTransactionType::BURN);
     return stakingTxMetadata.burnTxMetadata;
 }

@@ -29,8 +29,8 @@ BOOST_AUTO_TEST_CASE(recognize_valid_deposit_tx)
     depositTx.vout[0].scriptPubKey = stakingTxHeader;
     depositTx.vout[1].nValue = 10 * COIN;
     depositTx.vout[1].scriptPubKey = stakingDepositScript;
-    CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-    StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+    CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+    StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
     BOOST_CHECK(txType == StakingTransactionType::DEPOSIT);
 }
@@ -49,8 +49,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
 
@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -88,8 +88,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -108,8 +108,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -128,8 +128,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -148,8 +148,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -168,8 +168,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 10 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -188,8 +188,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 3 * COIN;
         depositTx.vout[1].scriptPubKey = stakingDepositScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
@@ -208,8 +208,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 3 * COIN;
         depositTx.vout[1].scriptPubKey = dummyScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::BURN);
     }
@@ -228,8 +228,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         depositTx.vout[0].scriptPubKey = stakingTxHeader;
         depositTx.vout[1].nValue = 3 * COIN;
         depositTx.vout[1].scriptPubKey = dummyScript;
-        CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(CTransaction(depositTx)));
-        StakingTransactionType txType = stakingTxHandler.GetStakingTxType();
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(CTransaction(depositTx)));
+        StakingTransactionType txType = stakingTxParser.GetStakingTxType();
         BOOST_CHECK(txType == StakingTransactionType::NONE);
     }
 

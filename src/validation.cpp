@@ -1451,7 +1451,7 @@ void CChainState::InvalidBlockFound(CBlockIndex *pindex, const BlockValidationSt
     }
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
+void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, bool fStakingActive = false)
 {
     // mark inputs spent
     if (!tx.IsCoinBase()) {
@@ -1463,13 +1463,13 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
         }
     }
     // add outputs
-    AddCoins(inputs, tx, nHeight);
+    AddCoins(inputs, tx, nHeight, false, fStakingActive);
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight)
+void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, bool fStakingActive)
 {
     CTxUndo txundo;
-    UpdateCoins(tx, inputs, txundo, nHeight);
+    UpdateCoins(tx, inputs, txundo, nHeight, fStakingActive);
 }
 
 bool CScriptCheck::operator()() {
@@ -1740,7 +1740,14 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 }
             }
         }
-
+        bool fStakingActive = chainparams
+        if (fStakingActive) {
+            CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+            if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
+            {
+                stakingBurns += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
+            }
+        }
         // restore inputs
         if (i > 0) { // not coinbases
             CTxUndo &txundo = blockUndo.vtxundo[i-1];
@@ -2107,6 +2114,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && g_parallel_script_checks ? &scriptcheckqueue : nullptr);
 
+    bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
+
     std::vector<int> prevheights;
     CAmount nFees = 0;
     CAmount stakingBurns = 0;
@@ -2133,12 +2142,13 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             }
 
             // TODO: double parsing of the transaction. Should be done more efficiently.
-            CStakingTransactionHandler stakingTxHandler(MakeTransactionRef(tx));
-            if (stakingTxHandler.GetStakingTxType() == StakingTransactionType::BURN)
-            {
-                stakingBurns += stakingTxHandler.GetStakingBurnTxMetadata().nAmount;
+            if (fStakingActive) {
+                CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+                if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
+                {
+                    stakingBurns += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
+                }
             }
-
             nFees += txfee;
 
             if (!MoneyRange(nFees)) {
@@ -2190,7 +2200,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
+        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
     }
 
     StakingPool::getInstance()->increaseBalance(stakingBurns);
@@ -4370,7 +4380,7 @@ bool CChainState::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& i
             }
         }
         // Pass check = true as every addition may be an overwrite.
-        AddCoins(inputs, *tx, pindex->nHeight, true);
+        AddCoins(inputs, *tx, pindex->nHeight, true, pindex->nHeight >= params.GetConsensus().nStakingStartHeight);
     }
     return true;
 }

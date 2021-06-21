@@ -9,7 +9,6 @@
 enum class StakingTransactionType {
     NONE,
     DEPOSIT,
-    WITHDRAWAL,
     BURN
 };
 
@@ -18,7 +17,6 @@ constexpr uint8_t STAKING_TX_DEPOSIT_SUBHEADER = 0x44;
 constexpr uint8_t STAKING_TX_BURN_SUBHEADER = 0x42;
 
 constexpr size_t STAKING_HEADER_SIZE = 1 + 2; // OP_RETURN + HEADER + SUBHEADER
-constexpr size_t STAKING_DEPOSIT_TX_HEADER_MIN_SIZE = STAKING_HEADER_SIZE + 1 + 1; // HEADER + VARINT + UINT8
 constexpr size_t STAKING_BURN_TX_HEADER_SIZE = STAKING_HEADER_SIZE + 8; // HEADER + UINT64
 
 
@@ -41,9 +39,9 @@ union UStakingTxMetadata {
     ~UStakingTxMetadata() {}
 };
 
-class CStakingTransactionHandler {
+class CStakingTransactionParser {
 public:
-    explicit CStakingTransactionHandler(CTransactionRef txIn);
+    explicit CStakingTransactionParser(CTransactionRef txIn);
     StakingTransactionType GetStakingTxType() const;
     CStakingDepositTxMetadata GetStakingDepositTxMetadata() const;
     CStakingBurnTxMetadata GetStakingBurnTxMetadata() const;
