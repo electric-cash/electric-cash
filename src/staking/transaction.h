@@ -16,7 +16,7 @@ constexpr uint8_t STAKING_TX_HEADER = 0x53;
 constexpr uint8_t STAKING_TX_DEPOSIT_SUBHEADER = 0x44;
 constexpr uint8_t STAKING_TX_BURN_SUBHEADER = 0x42;
 
-constexpr size_t STAKING_HEADER_SIZE = 1 + 2; // OP_RETURN + HEADER + SUBHEADER
+constexpr size_t STAKING_HEADER_SIZE = 1 + 1 + 2; // OP_RETURN + push_size HEADER + SUBHEADER
 constexpr size_t STAKING_BURN_TX_HEADER_SIZE = STAKING_HEADER_SIZE + 8; // HEADER + UINT64
 
 

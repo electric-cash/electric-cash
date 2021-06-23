@@ -199,10 +199,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     CAmount value_out = tx.GetValueOut();
 
     // Check if the transaction is a staking burn transaction. Modify value_out accordingly.
-    CStakingTransactionParser stakingTxHandler(MakeTransactionRef(tx));
-    if (stakingTxHandler.GetStakingTxType() == StakingTransactionType::BURN)
+    CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+    if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
     {
-        value_out += stakingTxHandler.GetStakingBurnTxMetadata().nAmount;
+        value_out += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
     }
 
     if (nValueIn < value_out) {

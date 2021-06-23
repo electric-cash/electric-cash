@@ -2211,9 +2211,6 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         }
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
     }
-    if (fStakingActive) {
-        CStakingPool::getInstance()->increaseBalance(stakingBurns);
-    }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
@@ -2253,7 +2250,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     LogPrint(BCLog::BENCH, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
 
     // Update staking pool
-    CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
+    if (fStakingActive) {
+        CStakingPool::getInstance()->increaseBalance(stakingBurns);
+        CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
+    }
     LogPrintf("Staking Pool updated\n");
 
     return true;

@@ -17,8 +17,8 @@ BOOST_FIXTURE_TEST_SUITE(staking_tests, BasicTestingSetup)
  */
 BOOST_AUTO_TEST_CASE(recognize_valid_deposit_tx)
 {
-    const size_t stakingHeaderSize = 5;
-    const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
+    const size_t stakingHeaderSize = 6;
+    const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
     CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
     CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -37,8 +37,8 @@ BOOST_AUTO_TEST_CASE(recognize_valid_deposit_tx)
 
 BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0xfe, 0x01};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0xfe, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -56,8 +56,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_no_period)
     {
-        const size_t stakingHeaderSize = 4;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01};
+        const size_t stakingHeaderSize = 5;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -76,8 +76,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_invalid_period)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x04};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x04};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -96,8 +96,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_invalid_header)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, 0x01, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, 0x01, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -116,8 +116,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_correct_header_no_data)
     {
-        const size_t stakingHeaderSize = 3;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER};
+        const size_t stakingHeaderSize = 4;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -136,8 +136,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_output_index_too_small)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x00, 0x01};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x00, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -156,8 +156,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_output_index_too_big)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x02, 0x01};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x02, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -176,8 +176,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_amount_too_small)
     {
-        const size_t stakingHeaderSize = 5;
-        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
+        const size_t stakingHeaderSize = 6;
+        const unsigned char stakingDepHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x01};
         CScript stakingTxHeader = CScript(stakingDepHeader, stakingDepHeader + stakingHeaderSize);
         CScript stakingDepositScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -196,8 +196,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_valid_burn_tx)
     {
-        const size_t stakingHeaderSize = 11;
-        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}; // 42.94967296 ELC to be burned
+        const size_t stakingHeaderSize = 12;
+        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}; // 42.94967296 ELC to be burned
         CScript stakingTxHeader = CScript(stakingBurnHeader, stakingBurnHeader + stakingHeaderSize);
         CScript dummyScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -212,12 +212,13 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
         StakingTransactionType txType = stakingTxParser.GetStakingTxType();
 
         BOOST_CHECK(txType == StakingTransactionType::BURN);
+        BOOST_CHECK(stakingTxParser.GetStakingBurnTxMetadata().nAmount == 4294967296);
     }
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_burn_tx_invalid_amount)
     {
-        const size_t stakingHeaderSize = 11;
-        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00}; // 22.5 M ELC to burn
+        const size_t stakingHeaderSize = 12;
+        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00}; // 22.5 M ELC to burn
         CScript stakingTxHeader = CScript(stakingBurnHeader, stakingBurnHeader + stakingHeaderSize);
         CScript dummyScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
@@ -235,8 +236,8 @@ BOOST_AUTO_TEST_CASE(recognize_invalid_deposit_tx_corrupted_varint)
 
     BOOST_AUTO_TEST_CASE(recognize_invalid_burn_tx_corrupted_amount)
     {
-        const size_t stakingHeaderSize = 10;
-        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}; // script too short
+        const size_t stakingHeaderSize = 11;
+        const unsigned char stakingBurnHeader[stakingHeaderSize] = {OP_RETURN, stakingHeaderSize - 2, STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00}; // script too short
         CScript stakingTxHeader = CScript(stakingBurnHeader, stakingBurnHeader + stakingHeaderSize);
         CScript dummyScript = CScript() << OP_DUP << OP_HASH160 << ToByteVector(dummyPubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
 
