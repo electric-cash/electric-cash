@@ -36,13 +36,17 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
     const auto chainParams = CreateChainParams(CBaseChainParams::MAIN);
     CAmount nSum = 0;
+    CAmount stakingBalance = 0;
     for (int nHeight = 0; nHeight < 2000000; nHeight += 100) {
         CAmount nSubsidy = GetBlockSubsidy(nHeight);
+        CAmount stakingReward = GetStakingRewardForHeight(nHeight);
         BOOST_CHECK(nSubsidy <= 500 * COIN);
+        BOOST_CHECK(stakingReward <= FRACTION_OF_STAKING_REWARD * GetBlockRewardForHeight(nHeight));
         nSum += nSubsidy * 100;
+        stakingBalance += stakingReward * 100;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, CAmount{2100000000000000});
+    BOOST_CHECK_EQUAL(nSum, CAmount{2100000000000000} - stakingBalance);
 }
 
 static bool ReturnFalse() { return false; }

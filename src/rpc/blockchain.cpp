@@ -35,6 +35,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
+#include <staking/staking_pool.h>
 
 #include <stdint.h>
 
@@ -2390,6 +2391,35 @@ UniValue dumptxoutset(const JSONRPCRequest& request)
     return result;
 }
 
+
+static UniValue getstakinginfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakinginfo",
+               "\nReturns the basic stats about staking.\n",
+               {},
+               RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM, "staking_pool", "current staking pool balance"},
+                            {RPCResult::Type::NUM, "num_stakers", "current number of stakers"},
+                            {RPCResult::Type::NUM, "total_staked", "total staked amount (network-wide)"},
+                        }
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakinginfo", "")
+                       + HelpExampleRpc("getstakinginfo", "")
+               },
+    }.Check(request);
+
+    LOCK(cs_main);
+    UniValue results(UniValue::VOBJ);
+    results.pushKV("staking_pool", CStakingPool::getInstance()->getBalance());
+// TODO: remove dummy variables when ready
+    results.pushKV("num_stakers", -1);
+    results.pushKV("total_staked", -1);
+    return results;
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2420,6 +2450,9 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
     { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
+
+    /* Staking methods*/
+    { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },
