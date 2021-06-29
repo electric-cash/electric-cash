@@ -230,8 +230,9 @@ BASE_SCRIPTS = [
     'auxpow_invalidpow.py',
     'auxpow_zerohash.py',
 
-    # staking pool test
+    # staking tests
     'feature_staking_pool.py',
+    'feature_staking_burn.py',
     
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time

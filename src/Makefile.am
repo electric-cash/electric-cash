@@ -197,6 +197,7 @@ ELCASH_CORE_H = \
   script/standard.h \
   shutdown.h \
   staking/staking_pool.h \
+  staking/transaction.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -490,6 +491,7 @@ libelcash_common_a_SOURCES = \
   script/sign.cpp \
   script/signingprovider.cpp \
   script/standard.cpp \
+  staking/transaction.cpp \
   versionbitsinfo.cpp \
   warnings.cpp \
   $(ELCASH_CORE_H)

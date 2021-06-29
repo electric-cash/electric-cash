@@ -87,6 +87,9 @@ struct Params {
     int32_t nAuxpowChainId;
     int nAuxpowStartHeight;
     bool fStrictChainId;
+
+    /** Staking parameters */
+    int nStakingStartHeight;
 };
 } // namespace Consensus
 
