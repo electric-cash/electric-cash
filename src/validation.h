@@ -17,6 +17,7 @@
 #include <policy/feerate.h>
 #include <protocol.h> // For CMessageHeader::MessageStartChars
 #include <script/script_error.h>
+#include <staking/stakes_db.h>
 #include <sync.h>
 #include <txmempool.h> // For CTxMemPool::cs
 #include <txdb.h>
@@ -597,6 +598,9 @@ private:
     //! Manages the UTXO set, which is a reflection of the contents of `m_chain`.
     std::unique_ptr<CoinsViews> m_coins_views;
 
+    //! stake DB view
+    std::unique_ptr<CStakesDB> m_stakes_view;
+
 public:
     CChainState(BlockManager& blockman) : m_blockman(blockman) {}
     CChainState();
@@ -622,6 +626,13 @@ public:
     bool CanFlushToDisk() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         return m_coins_views && m_coins_views->m_cacheview;
     }
+
+    void InitStakesDB(
+            size_t cache_size_bytes,
+            bool in_memory,
+            bool should_wipe,
+            std::string leveldb_name = "stakes");
+
 
     //! The current chain of blockheaders we consult and build on.
     //! @see CChain, CBlockIndex.

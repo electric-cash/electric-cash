@@ -1,7 +1,10 @@
 #include <dbwrapper.h>
-#include <staking/staker_db.h>
+#include <staking/stakes_db.h>
 #include <test/util/setup_common.h>
 #include <boost/test/unit_test.hpp>
+
+const size_t DEFAULT_CACHE_SIZE = 1000;
+const std::string DEFAULT_DB_NAME = "stakes";
 
 
 void script_fixture(CScript& script) {
@@ -13,9 +16,9 @@ void script_fixture(CScript& script) {
     script << ToByteVector(pubkey) << OP_CHECKSIG;
 }
 
-BOOST_FIXTURE_TEST_SUITE(stakerdb_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(stakes_db_tests, BasicTestingSetup)
 
-void check_entry_equals(CStakerDbEntry input, CStakerDbEntry output) {
+void check_entry_equals(CStakesDbEntry input, CStakesDbEntry output) {
     BOOST_CHECK(input.getAmount() == output.getAmount());
     BOOST_CHECK(input.getReward() == output.getReward());
     BOOST_CHECK(input.isComplete() == output.isComplete());
@@ -25,13 +28,13 @@ void check_entry_equals(CStakerDbEntry input, CStakerDbEntry output) {
     BOOST_CHECK(input.getKey() == output.getKey());
 }
 
-BOOST_AUTO_TEST_CASE(staker_db_entry_serialization) {
+BOOST_AUTO_TEST_CASE(stakes_db_entry_serialization) {
     CScript script;
     script_fixture(script);
-    CStakerDbEntry input(InsecureRand256(), 10, 15, 20, 25, 30, script);
-    CStakerDbEntry output;
+    CStakesDbEntry input(InsecureRand256(), 10, 15, 20, 25, 30, script);
+    CStakesDbEntry output;
 
-    fs::path ph = GetDataDir() / "test_staker_db";
+    fs::path ph = GetDataDir() / "test_stakes_db";
     CDBWrapper dbw(ph, (1 << 20), true, false, false);
 
     BOOST_CHECK(dbw.Write(input.getKey(), input));
@@ -40,48 +43,48 @@ BOOST_AUTO_TEST_CASE(staker_db_entry_serialization) {
     check_entry_equals(input, output);
 }
 
-BOOST_AUTO_TEST_CASE(staker_db_crud_operation) {
+BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     CScript script;
     script_fixture(script);
     uint256 key = InsecureRand256();
-    CStakerDbEntry input(key, 10, 15, 20, 25, 30, script);
-    CStakerDbEntry output;
-    CStakerDB db;
+    CStakesDbEntry input(key, 10, 15, 20, 25, 30, script);
+    CStakesDbEntry output;
+    CStakesDB db(DEFAULT_CACHE_SIZE, false, false, DEFAULT_DB_NAME);
 
     // test agains cache crud
-    BOOST_CHECK(db.addStakerEntry(input));
-    output = db.getStakerDbEntry(key);
+    BOOST_CHECK(db.addStakeEntry(input));
+    output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.removeStakerEntry(key));
-    output = db.getStakerDbEntry(key);
+    BOOST_CHECK(db.removeStakeEntry(key));
+    output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 
     // test against levedb crud
-    BOOST_CHECK(db.addStakerEntry(input));
+    BOOST_CHECK(db.addStakeEntry(input));
     db.flushDB();
-    output = db.getStakerDbEntry(key);
+    output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.removeStakerEntry(key));
-    output = db.getStakerDbEntry(key);
+    BOOST_CHECK(db.removeStakeEntry(key));
+    output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 
 }
 
 BOOST_AUTO_TEST_CASE(address_mapping) {
-    CStakerDB db;
+    CStakesDB db(DEFAULT_CACHE_SIZE, false, false, DEFAULT_DB_NAME);
     std::set<uint256> list_of_ids;
     std::string address = "wallet_address";
     uint256 txid1, txid2 = InsecureRand256(), InsecureRand256();
     db.addAddressToMap(address, txid1);
     db.addAddressToMap(address, txid1);
-    list_of_ids = db.getStakerIdsForAddress(address);
+    list_of_ids = db.getStakeIdsForAddress(address);
     BOOST_CHECK(list_of_ids.size() == 1);
 
     db.addAddressToMap(address, txid2);
-    list_of_ids = db.getStakerIdsForAddress(address);
+    list_of_ids = db.getStakeIdsForAddress(address);
     BOOST_CHECK(list_of_ids.size() == 2);
 
-    list_of_ids = db.getStakerIdsForAddress("not existing address");
+    list_of_ids = db.getStakeIdsForAddress("not existing address");
     BOOST_CHECK(list_of_ids.size() == 0);
 }
 

@@ -196,7 +196,7 @@ ELCASH_CORE_H = \
   script/signingprovider.h \
   script/standard.h \
   shutdown.h \
-  staking/staker_db.h \
+  staking/stakes_db.h \
   staking/staking_pool.h \
   staking/transaction.h \
   streams.h \
@@ -315,7 +315,7 @@ libelcash_server_a_SOURCES = \
   rpc/server.cpp \
   script/sigcache.cpp \
   shutdown.cpp \
-  staking/staker_db.cpp \
+  staking/stakes_db.cpp \
   staking/staking_pool.cpp \
   timedata.cpp \
   torcontrol.cpp \
