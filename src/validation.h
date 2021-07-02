@@ -503,6 +503,12 @@ public:
         CBlockIndex** ppindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 };
 
+class StakesView {
+public:
+    CStakesDB m_dbview GUARDED_BY(cs_main);
+    StakesView(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+};
+
 /**
  * A convenience class for constructing the CCoinsView* hierarchy used
  * to facilitate access to the UTXO set.
@@ -599,7 +605,7 @@ private:
     std::unique_ptr<CoinsViews> m_coins_views;
 
     //! stake DB view
-    std::unique_ptr<CStakesDB> m_stakes_view;
+    std::unique_ptr<StakesView> m_stakes_view;
 
 public:
     CChainState(BlockManager& blockman) : m_blockman(blockman) {}
@@ -663,6 +669,11 @@ public:
     CCoinsViewErrorCatcher& CoinsErrorCatcher() EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     {
         return m_coins_views->m_catcherview;
+    }
+
+    CStakesDB& GetStakesDB()
+    {
+        return m_stakes_view->m_dbview;
     }
 
     //! Destructs all objects related to accessing the UTXO set.

@@ -15,20 +15,22 @@ private:
     bool complete = false;
     uint256 txid;
     CScript script;
+    bool valid = false;
 public:
     CStakesDbEntry() {};
-    CStakesDbEntry(uint256 txid, CAmount amount, CAmount reward, unsigned int period, unsigned int completeBlock, unsigned int numOutput, CScript script);
-    CAmount getAmount() { return amount; }
-    void setReward(CAmount reward);
-    CAmount getReward() { return reward; }
+    CStakesDbEntry(const uint256 txidIn, CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn);
+    CAmount getAmount() const { return amount; }
+    void setReward(const CAmount rewardIn);
+    CAmount getReward() const { return reward; }
     void setComplete(bool completeFlag);
-    bool isComplete() { return complete; }
-    unsigned int getCompleteBlock() { return completeBlock; }
-    unsigned int getNumOutput() { return numOutput; }
-    uint256 getKey() { return txid; }
-    std::string getKeyHex() { return txid.GetHex(); }
-    CScript getScript() { return script; }
-    void setKey(uint256 txid) { this->txid = txid; }
+    bool isComplete() const { return complete; }
+    unsigned int getCompleteBlock() const { return completeBlock; }
+    unsigned int getNumOutput() const { return numOutput; }
+    uint256 getKey() const { return txid; }
+    std::string getKeyHex() const { return txid.GetHex(); }
+    CScript getScript() const { return script; }
+    void setKey(const uint256 txidIn) { txid = txidIn; }
+    bool isValid() const {return valid; }
 
     template<typename Stream>
     void Serialize(Stream &s) const {
@@ -61,7 +63,7 @@ class CStakesDB {
 private:
     size_t current_cache_size {};
     // TODO set up max size param
-    size_t max_cache_size {1000};
+    static const size_t max_cache_size {1000};
     // TODO check db params
     CDBWrapper db_wrapper;
     StakesMap stakes_map {};
@@ -69,7 +71,7 @@ private:
 public:
     CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
     CStakesDB(const CStakesDB& other) = delete;
-    bool addStakeEntry(CStakesDbEntry& entry);
+    bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
     bool removeStakeEntry(uint256 txid);

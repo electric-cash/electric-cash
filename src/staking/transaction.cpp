@@ -46,7 +46,7 @@ StakingTransactionType CStakingTransactionParser::ValidateStakingDepositTx() {
     } catch(...) {
         return StakingTransactionType::NONE;
     }
-    if (outputIndex == 0 || outputIndex >= tx->vout.size() || tx->vout[outputIndex].nValue < MIN_STAKING_AMOUNT) {
+    if (outputIndex == 0 || outputIndex >= tx->vout.size() || tx->vout[outputIndex].nValue < stakingParams::MIN_STAKING_AMOUNT) {
         return StakingTransactionType::NONE;
     }
 
@@ -57,7 +57,7 @@ StakingTransactionType CStakingTransactionParser::ValidateStakingDepositTx() {
     } catch (...) {
         return StakingTransactionType::NONE;
     }
-    if (stakingPeriod >= STAKING_PERIOD.size()) {
+    if (stakingPeriod >= stakingParams::STAKING_PERIOD.size()) {
         return StakingTransactionType::NONE;
     }
     stakingTxMetadata.depositTxMetadata = CStakingDepositTxMetadata(outputIndex, stakingPeriod);

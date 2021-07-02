@@ -37,6 +37,7 @@
 #include <staking/staking_pool.h>
 #include <shutdown.h>
 #include <staking/staking_pool.h>
+#include <staking/stakingparams.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <txdb.h>
@@ -435,7 +436,7 @@ namespace {
 class MemPoolAccept
 {
 public:
-    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool),
+    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool), m_stakes(::ChainstateActive().GetStakesDB()),
         m_limit_ancestors(gArgs.GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT)),
         m_limit_ancestor_size(gArgs.GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000),
         m_limit_descendants(gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT)),
@@ -523,6 +524,7 @@ private:
     CCoinsViewCache m_view;
     CCoinsViewMemPool m_viewmempool;
     CCoinsView m_dummy;
+    CStakesDB& m_stakes;
 
     // The package limits in effect at the time of invocation.
     const size_t m_limit_ancestors;
@@ -666,7 +668,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
 
     CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees)) {
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
@@ -1270,6 +1272,9 @@ void CoinsViews::InitCache()
     m_cacheview = MakeUnique<CCoinsViewCache>(&m_catcherview);
 }
 
+StakesView::StakesView(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
+        m_dbview(cache_size_bytes, in_memory, should_wipe, leveldb_name) {}
+
 // NOTE: for now m_blockman is set to a global, but this will be changed
 // in a future commit.
 CChainState::CChainState() : m_blockman(g_blockman) {}
@@ -1451,9 +1456,7 @@ void CChainState::InvalidBlockFound(CBlockIndex *pindex, const BlockValidationSt
     }
 }
 
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, bool fStakingActive = false)
-{
-    // mark inputs spent
+void MarkInputsSpent(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &txundo) {
     if (!tx.IsCoinBase()) {
         txundo.vprevout.reserve(tx.vin.size());
         for (const CTxIn &txin : tx.vin) {
@@ -1462,14 +1465,35 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
             assert(is_spent);
         }
     }
-    // add outputs
-    AddCoins(inputs, tx, nHeight, false, fStakingActive);
+}
+
+void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, bool fStakingActive = false)
+{
+    MarkInputsSpent(tx, inputs, txundo);
+    bool fStake = false;
+    size_t nStakeOutputNumber = 0;
+    if (fStakingActive) {
+        CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+        if (stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT) {
+            fStake = true;
+            nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
+            size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
+            stakes.addStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod, nHeight + stakingParams::STAKING_PERIOD[nStakingPeriod], nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey));
+        }
+    }
+    AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
+}
+
+void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
+{
+    MarkInputsSpent(tx,inputs, txundo);
+    AddCoins(inputs, tx, nHeight, false);
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, bool fStakingActive)
 {
     CTxUndo txundo;
-    UpdateCoins(tx, inputs, txundo, nHeight, fStakingActive);
+    UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
 bool CScriptCheck::operator()() {
@@ -2142,7 +2166,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee)) {
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, GetStakesDB())) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
@@ -2209,7 +2233,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
-        UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
+        UpdateCoinsAndStakes(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, GetStakesDB(), pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -2813,7 +2837,7 @@ bool CChainState::ActivateBestChainStep(BlockValidationState& state, const CChai
         // any disconnected transactions back to the mempool.
         UpdateMempoolForReorg(disconnectpool, true);
     }
-    mempool.check(&CoinsTip());
+    mempool.check(&CoinsTip(), GetStakesDB());
 
     // Callbacks/notifications for a new best chain.
     if (fInvalidFound)
@@ -4999,7 +5023,7 @@ void CChainState::CheckBlockIndex(const Consensus::Params& consensusParams)
 }
 
 void CChainState::InitStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, std::string leveldb_name) {
-    m_stakes_view = MakeUnique<CStakesDB>(cache_size_bytes, in_memory, should_wipe, leveldb_name);
+    m_stakes_view = MakeUnique<StakesView>(cache_size_bytes, in_memory, should_wipe, leveldb_name);
 }
 
 std::string CBlockFileInfo::ToString() const

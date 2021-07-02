@@ -1,25 +1,32 @@
 #include <staking/stakes_db.h>
+#include "stakes_db.h"
 
 
-CStakesDbEntry::CStakesDbEntry(uint256 txid, CAmount amount, CAmount reward, unsigned int period, unsigned int completeBlock, unsigned int numOutput, CScript script) {
-    this->txid = txid;
-    this->amount = amount;
-    this->reward = reward;
-    this->period = period;
-    this->completeBlock = completeBlock;
-    this->numOutput = numOutput;
-    this->script = script;
+CStakesDbEntry::CStakesDbEntry(const uint256 txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn) {
+    txid = txidIn;
+    amount = amountIn;
+    reward = rewardIn;
+    period = periodIn;
+    completeBlock = completeBlockIn;
+    numOutput = numOutputIn;
+    script = scriptIn;
+    // TODO: create a validation function which will fully verify the entry
+    valid = true;
 }
 
-void CStakesDbEntry::setReward(CAmount reward) {
-    this->reward = reward;
+void CStakesDbEntry::setReward(CAmount rewardIn) {
+    reward = rewardIn;
 }
 
 void CStakesDbEntry::setComplete(bool completeFlag) {
     complete = completeFlag;
 }
 
-bool CStakesDB::addStakeEntry(CStakesDbEntry &entry) {
+CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
+        db_wrapper(GetDataDir() / leveldb_name, cache_size_bytes, in_memory, should_wipe, false) {
+}
+
+bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
     try {
         stakes_map[entry.getKey()] = entry;
         current_cache_size += sizeof(entry);
@@ -91,8 +98,4 @@ std::set<uint256> CStakesDB::getStakeIdsForAddress(std::string address) {
         return std::set<uint256> {};
     }
     return it->second;
-}
-
-CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
-                    db_wrapper(GetDataDir() / leveldb_name, cache_size_bytes, in_memory, should_wipe, false) {
 }
