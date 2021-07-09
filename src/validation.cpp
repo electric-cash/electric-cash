@@ -1467,8 +1467,30 @@ void MarkInputsSpent(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &t
     }
 }
 
-void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, bool fStakingActive = false)
+void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
 {
+    if (fStakingActive) {
+        for (const CTxIn &txin : tx.vin) {
+            const COutPoint &prevout = txin.prevout;
+            const Coin& coin = inputs.AccessCoin(prevout);
+            if (coin.IsStake()) {
+                CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
+                // If the coin is marked as stake, but there is no corresponding entry in stakers DB, there is
+                // some major internal error.
+                assert(stakeDbEntry.isValid());
+                if (!stakeDbEntry.isComplete()) {
+                    // add accumulated reward and staking penalty back to staking pool
+                    stakingPenalties += static_cast<CAmount>(floor(
+                            stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE *
+                            static_cast<double>(stakeDbEntry.getAmount()) / 100.0));
+                    stakingPenalties += stakeDbEntry.getReward();
+                }
+                if (!fJustCheck) {
+                    stakes.removeStakeEntry(stakeDbEntry.getKey());
+                }
+            }
+        }
+    }
     MarkInputsSpent(tx, inputs, txundo);
     bool fStake = false;
     size_t nStakeOutputNumber = 0;
@@ -2150,7 +2172,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     std::vector<int> prevheights;
     CAmount nFees = 0;
-    CAmount stakingBurns = 0;
+    CAmount stakingBurnsAndPenalties = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2178,7 +2200,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
                 {
-                    stakingBurns += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
+                    stakingBurnsAndPenalties += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
                 }
             }
 
@@ -2233,7 +2255,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
-        UpdateCoinsAndStakes(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, GetStakesDB(), pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight);
+        UpdateCoinsAndStakes(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, GetStakesDB(), stakingBurnsAndPenalties, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight, fJustCheck);
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -2275,7 +2297,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // Update staking pool
     if (fStakingActive) {
-        CStakingPool::getInstance()->increaseBalance(stakingBurns);
+        CStakingPool::getInstance()->increaseBalance(stakingBurnsAndPenalties);
         CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
     }
     LogPrintf("Staking Pool updated\n");

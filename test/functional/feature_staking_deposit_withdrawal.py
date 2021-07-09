@@ -9,6 +9,7 @@ from test_framework.util import (
 STAKING_TX_HEADER = 0x53
 STAKING_TX_BURN_SUBHEADER = 0x42
 STAKING_TX_DEPOSIT_SUBHEADER = 0x44
+STAKING_PENALTY_PERCENTAGE = 0.03
 
 
 class StakingBurnTest(BitcoinTestFramework):
@@ -68,6 +69,7 @@ class StakingBurnTest(BitcoinTestFramework):
         staking_reward = 50 * COIN
         starting_staking_balance = 1 * staking_reward
         deposit_amount = 400 * COIN
+        staking_penalty = int(deposit_amount * 0.03)
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
@@ -118,12 +120,17 @@ class StakingBurnTest(BitcoinTestFramework):
 
         # try to spend the stake paying the staking penalty
         tx_output = {
-            addr1: (utxo["amount"] * COIN - fee - int(deposit_amount * 0.03)) / COIN
+            addr1: (utxo["amount"] * COIN - fee - staking_penalty) / COIN
         }
         raw_tx = self.nodes[0].createrawtransaction([tx_input], [tx_output])
         signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
         txid = self.nodes[0].sendrawtransaction(signed_raw_tx["hex"])
         assert txid is not None
+
+        # check if staking pool balance increased by the penalty
+        self.nodes[0].generate(1)
+        expected_staking_pool_balance = node0_staking_balance + 4 * staking_reward + staking_penalty
+        assert self.get_staking_pool_balance(node_num=0) == expected_staking_pool_balance
 
 
 if __name__ == '__main__':

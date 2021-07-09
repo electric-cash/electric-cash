@@ -32,7 +32,6 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
         current_cache_size += sizeof(entry);
         if (current_cache_size >= max_cache_size)
             flushDB();
-        LogPrintf("DEBUG: Added a stake of id %s to database\n", entry.getKeyHex());
         return true;
     }catch(...) {
         LogPrintf("ERROR: Cannot add stake of id %s to database\n", entry.getKeyHex());
