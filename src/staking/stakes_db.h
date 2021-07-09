@@ -41,6 +41,7 @@ public:
         s << numOutput;
         s << complete;
         s << script;
+        s << valid;
     }
 
     template<typename Stream>
@@ -52,6 +53,7 @@ public:
         s >> numOutput;
         s >> complete;
         s >> script;
+        s >> valid;
     }
 
 };

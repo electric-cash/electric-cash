@@ -184,15 +184,15 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
 
         if (coin.IsStake()) {
-            CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(tx.GetHash());
-            // If the coin is marked as stake, but there is no corresponding entry in stakers DB there is
+            CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
+            // If the coin is marked as stake, but there is no corresponding entry in stakers DB, there is
             // some major internal error.
             assert(stakeDbEntry.isValid());
             if (stakeDbEntry.isComplete()) {
                 CAmount stakingReward = stakeDbEntry.getReward();
                 nValueIn += stakingReward;
             } else {
-                auto stakingPenalty = static_cast<CAmount>(floor(stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE * static_cast<double>(stakeDbEntry.getReward())));
+                auto stakingPenalty = static_cast<CAmount>(floor(stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE * static_cast<double>(stakeDbEntry.getAmount()) / 100.0));
                 nValueIn -= stakingPenalty;
              }
         }
