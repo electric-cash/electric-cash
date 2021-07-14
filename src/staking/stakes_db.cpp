@@ -1,17 +1,17 @@
 #include <staking/stakes_db.h>
-#include "stakes_db.h"
 
 
-CStakesDbEntry::CStakesDbEntry(const uint256 txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn) {
+CStakesDbEntry::CStakesDbEntry(const uint256 txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
     txid = txidIn;
     amount = amountIn;
     reward = rewardIn;
-    period = periodIn;
+    periodIdx = periodIn;
     completeBlock = completeBlockIn;
     numOutput = numOutputIn;
     script = scriptIn;
     // TODO: create a validation function which will fully verify the entry
     valid = true;
+    active = activeIn;
 }
 
 void CStakesDbEntry::setReward(CAmount rewardIn) {
@@ -32,12 +32,18 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
         current_cache_size += sizeof(entry);
         if (current_cache_size >= max_cache_size)
             flushDB();
+        // this may add multiple entries
+        if (entry.isActive()) {
+            active_stakes.insert(entry.getKey());
+        }
         return true;
     }catch(...) {
         LogPrintf("ERROR: Cannot add stake of id %s to database\n", entry.getKeyHex());
         return false;
     }
 }
+
+
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
     StakesMap::iterator it = stakes_map.find(txid);
@@ -56,18 +62,17 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) {
     return getStakeDbEntry(uint256S(txid));
 }
 
-bool CStakesDB::removeStakeEntry(uint256 txid) {
-    StakesMap::iterator it = stakes_map.find(txid);
-    if(it == stakes_map.end()) {
-        if(!db_wrapper.Erase(txid)) {
-            LogPrintf("ERROR: Cannot remove stake of id %s from database\n", txid.GetHex());
+bool CStakesDB::deactivateStake(uint256 txid) {
+    CStakesDbEntry stake = getStakeDbEntry(txid);
+    if (stake.isValid() && stake.isActive()) {
+        stake.setInactive();
+        active_stakes.erase(txid);
+        if(!db_wrapper.Write(txid, stake)) {
+            LogPrintf("ERROR: Cannot deactivate stake of id %s to file\n", txid.GetHex());
             return false;
         }
-        return true;
     }
-    else
-        stakes_map.erase(it);
-    return true;
+    return false;
 }
 
 void CStakesDB::flushDB() {
@@ -98,4 +103,15 @@ std::set<uint256> CStakesDB::getStakeIdsForAddress(std::string address) {
         return std::set<uint256> {};
     }
     return it->second;
+}
+
+std::vector<CStakesDbEntry> CStakesDB::getAllActiveStakes() {
+    std::vector<CStakesDbEntry> res;
+    for (auto id : active_stakes) {
+        CStakesDbEntry stake = getStakeDbEntry(id);
+        assert(stake.isValid());
+        res.push_back(stake);
+    }
+    return res;
+
 }

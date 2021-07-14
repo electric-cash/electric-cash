@@ -31,7 +31,7 @@ void check_entry_equals(CStakesDbEntry input, CStakesDbEntry output) {
 BOOST_AUTO_TEST_CASE(stakes_db_entry_serialization) {
     CScript script;
     script_fixture(script);
-    CStakesDbEntry input(InsecureRand256(), 10, 15, 20, 25, 30, script);
+    CStakesDbEntry input(InsecureRand256(), 10, 15, 20, 25, 30, script, true);
     CStakesDbEntry output;
 
     fs::path ph = GetDataDir() / "test_stakes_db";
@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     CScript script;
     script_fixture(script);
     uint256 key = InsecureRand256();
-    CStakesDbEntry input(key, 10, 15, 20, 25, 30, script);
+    CStakesDbEntry input(key, 10, 15, 20, 25, 30, script, true);
     CStakesDbEntry output;
     CStakesDB db(DEFAULT_CACHE_SIZE, false, false, DEFAULT_DB_NAME);
 
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     BOOST_CHECK(db.addStakeEntry(input));
     output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.removeStakeEntry(key));
+    BOOST_CHECK(db.deactivateStake(key));
     output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     db.flushDB();
     output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.removeStakeEntry(key));
+    BOOST_CHECK(db.deactivateStake(key));
     output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 

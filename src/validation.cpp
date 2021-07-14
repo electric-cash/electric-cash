@@ -1467,8 +1467,31 @@ void MarkInputsSpent(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &t
     }
 }
 
+void UpdateActiveStakes(CStakesDB& stakes, const int height) {
+    std::vector<CStakesDbEntry> activeStakes = stakes.getAllActiveStakes();
+
+    // TODO(mtwaro): use reward calculator here, maybe move this whole method to a separate class
+    double globalRewardCoefficient = 1;
+
+    for (auto stake: activeStakes) {
+        assert(stake.isActive());
+        if (height >= stake.getCompleteBlock()) {
+            stake.setComplete(true);
+            stake.setInactive();
+        } else {
+            CAmount amount = stake.getAmount();
+            uint16_t periodIdx = stake.getPeriodIdx();
+            double percentage = stakingParams::STAKING_REWARD_PERCENTAGE[periodIdx];
+            auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)));
+            stake.setReward(stake.getReward() + rewardForBlock);
+        }
+        stakes.addStakeEntry(stake);
+    }
+}
+
 void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
 {
+    // check if any stakes are being spent
     if (fStakingActive) {
         for (const CTxIn &txin : tx.vin) {
             const COutPoint &prevout = txin.prevout;
@@ -1486,7 +1509,7 @@ void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUn
                     stakingPenalties += stakeDbEntry.getReward();
                 }
                 if (!fJustCheck) {
-                    stakes.removeStakeEntry(stakeDbEntry.getKey());
+                    stakes.deactivateStake(stakeDbEntry.getKey());
                 }
             }
         }
@@ -1494,13 +1517,16 @@ void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUn
     MarkInputsSpent(tx, inputs, txundo);
     bool fStake = false;
     size_t nStakeOutputNumber = 0;
+    // check if any new stakes are being deposited.
     if (fStakingActive) {
         CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
         if (stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT) {
             fStake = true;
             nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
             size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
-            stakes.addStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod, nHeight + stakingParams::STAKING_PERIOD[nStakingPeriod], nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey));
+            stakes.addStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
+                                                nHeight + stakingParams::STAKING_PERIOD[nStakingPeriod],
+                                                nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
@@ -2295,8 +2321,9 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime6 = GetTimeMicros(); nTimeCallbacks += nTime6 - nTime5;
     LogPrint(BCLog::BENCH, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
 
-    // Update staking pool
+    // Update staking
     if (fStakingActive) {
+        UpdateActiveStakes(GetStakesDB(), pindex->nHeight);
         CStakingPool::getInstance()->increaseBalance(stakingBurnsAndPenalties);
         CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
     }
