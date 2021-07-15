@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     BOOST_CHECK(db.addStakeEntry(input));
     output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.deactivateStake(key));
+    BOOST_CHECK(db.deactivateStake(key, false));
     output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE(stakes_db_crud_operation) {
     db.flushDB();
     output = db.getStakeDbEntry(key);
     check_entry_equals(input, output);
-    BOOST_CHECK(db.deactivateStake(key));
+    BOOST_CHECK(db.deactivateStake(key, false));
     output = db.getStakeDbEntry(key);
     BOOST_CHECK(input.getKey() != output.getKey());
 

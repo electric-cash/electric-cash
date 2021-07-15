@@ -61,10 +61,11 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) {
     return getStakeDbEntry(uint256S(txid));
 }
 
-bool CStakesDB::deactivateStake(uint256 txid) {
+bool CStakesDB::deactivateStake(uint256 txid, const bool fSetComplete) {
     CStakesDbEntry stake = getStakeDbEntry(txid);
     if (stake.isValid() && stake.isActive()) {
         stake.setInactive();
+        stake.setComplete(fSetComplete);
         active_stakes.erase(txid);
         if(!db_wrapper.Write(txid, stake)) {
             LogPrintf("ERROR: Cannot deactivate stake of id %s to file\n", txid.GetHex());

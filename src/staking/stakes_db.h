@@ -86,7 +86,7 @@ public:
     bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
-    bool deactivateStake(uint256 txid);
+    bool deactivateStake(uint256 txid, const bool fSetComplete);
     void flushDB();
     ~CStakesDB() { flushDB(); }
     std::set<uint256> getStakeIdsForAddress(std::string address);

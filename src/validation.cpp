@@ -1475,18 +1475,18 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
 
     for (auto stake: activeStakes) {
         assert(stake.isActive());
+        CAmount amount = stake.getAmount();
+        size_t periodIdx = stake.getPeriodIdx();
+        double percentage = stakingParams::STAKING_REWARD_PERCENTAGE[periodIdx];
+        auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
+        stake.setReward(stake.getReward() + rewardForBlock);
+        CStakingPool::getInstance()->decreaseBalance(rewardForBlock);
+
         if (height >= stake.getCompleteBlock()) {
-            stake.setComplete(true);
-            stake.setInactive();
+            stakes.deactivateStake(stake.getKey(), true);
         } else {
-            CAmount amount = stake.getAmount();
-            size_t periodIdx = stake.getPeriodIdx();
-            double percentage = stakingParams::STAKING_REWARD_PERCENTAGE[periodIdx];
-            auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
-            stake.setReward(stake.getReward() + rewardForBlock);
-            CStakingPool::getInstance()->decreaseBalance(rewardForBlock);
+            stakes.addStakeEntry(stake);
         }
-        stakes.addStakeEntry(stake);
     }
 }
 
@@ -1502,7 +1502,8 @@ void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUn
                 // If the coin is marked as stake, but there is no corresponding entry in stakers DB, there is
                 // some major internal error.
                 assert(stakeDbEntry.isValid());
-                if (!stakeDbEntry.isComplete()) {
+                bool fStakeComplete = stakeDbEntry.isComplete();
+                if (!fStakeComplete) {
                     // add accumulated reward and staking penalty back to staking pool
                     stakingPenalties += static_cast<CAmount>(floor(
                             stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE *
@@ -1510,7 +1511,7 @@ void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUn
                     stakingPenalties += stakeDbEntry.getReward();
                 }
                 if (!fJustCheck) {
-                    stakes.deactivateStake(stakeDbEntry.getKey());
+                    stakes.deactivateStake(stakeDbEntry.getKey(), fStakeComplete);
                 }
             }
         }

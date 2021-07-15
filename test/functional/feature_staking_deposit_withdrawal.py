@@ -10,7 +10,7 @@ from test_framework.util import (
 STAKING_TX_HEADER = 0x53
 STAKING_TX_BURN_SUBHEADER = 0x42
 STAKING_TX_DEPOSIT_SUBHEADER = 0x44
-STAKING_PENALTY_PERCENTAGE = 0.03
+STAKING_PENALTY_PERCENTAGE = 3.0
 
 
 class StakingBurnTest(BitcoinTestFramework):
@@ -70,7 +70,7 @@ class StakingBurnTest(BitcoinTestFramework):
         starting_height = 200
         staking_reward = 50 * COIN
         deposit_amount = 400 * COIN
-        staking_penalty = int(deposit_amount * 0.03)
+        staking_penalty = int(deposit_amount * STAKING_PENALTY_PERCENTAGE / 100.0)
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
@@ -137,7 +137,7 @@ class StakingBurnTest(BitcoinTestFramework):
     def normal_withdrawal_test(self):
         staking_reward = 50 * COIN
         starting_staking_balance = 1 * staking_reward
-        deposit_amount = 400 * COIN
+        deposit_amount = 300 * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
@@ -187,6 +187,16 @@ class StakingBurnTest(BitcoinTestFramework):
         signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
         txid = self.nodes[0].sendrawtransaction(signed_raw_tx["hex"])
         assert txid is not None
+
+        self.nodes[0].generate(1)
+        node0_height = self.nodes[0].getblockcount()
+
+        blocks_after_reward_reduction = max(0, node0_height - 4199)
+        blocks_before_reward_reduction = (stake_length_blocks + 2) - blocks_after_reward_reduction
+        expected_staking_pool_balance = node0_staking_balance + blocks_after_reward_reduction * 7.5 * COIN + \
+                                        blocks_before_reward_reduction * staking_reward - expected_reward
+        assert abs(self.get_staking_pool_balance(
+            node_num=0) - expected_staking_pool_balance) <= 10_000, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) differs too much from expected value ({expected_staking_pool_balance})"
 
 
 if __name__ == '__main__':

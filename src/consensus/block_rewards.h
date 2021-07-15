@@ -16,7 +16,7 @@ const uint32_t NUMBER_OF_REWARD_REDUCTIONS = 39;
 const float FRACTION_OF_STAKING_REWARD = 0.1;
 
 
-const std::array<CAmount, 39> REWARD_AMOUNTS = {
+const std::array<CAmount, NUMBER_OF_REWARD_REDUCTIONS> REWARD_AMOUNTS = {
     50000000000,
     7500000000,
     7000000000,
