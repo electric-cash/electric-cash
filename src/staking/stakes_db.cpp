@@ -32,7 +32,6 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
         current_cache_size += sizeof(entry);
         if (current_cache_size >= max_cache_size)
             flushDB();
-        // this may add multiple entries
         if (entry.isActive()) {
             active_stakes.insert(entry.getKey());
         }

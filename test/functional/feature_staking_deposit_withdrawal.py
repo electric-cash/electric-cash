@@ -1,4 +1,5 @@
 import decimal
+import math
 
 from test_framework.messages import COIN
 from test_framework.test_framework import BitcoinTestFramework
@@ -18,12 +19,13 @@ class StakingBurnTest(BitcoinTestFramework):
 
     def run_test(self):
         self.early_withdrawal_test()
+        self.normal_withdrawal_test()
 
     def get_staking_pool_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
 
     @staticmethod
-    def create_staking_burn_tx_input(stake_address: str, change_address: str, deposit_amount: decimal.Decimal,
+    def create_tx_inputs_and_outputs(stake_address: str, change_address: str, deposit_amount: decimal.Decimal,
                                      utxo: dict):
         fee = COIN // 1000
         tx_input = {
@@ -56,7 +58,7 @@ class StakingBurnTest(BitcoinTestFramework):
                                                       f"({unspent['amount'] * COIN})"
         if not change_address:
             change_address = self.nodes[node_num].getnewaddress()
-        tx_inputs, tx_outputs = self.create_staking_burn_tx_input(stake_address, change_address, deposit_amount,
+        tx_inputs, tx_outputs = self.create_tx_inputs_and_outputs(stake_address, change_address, deposit_amount,
                                                                   unspent)
         # create, sign and send staking burn transaction
         raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
@@ -67,7 +69,6 @@ class StakingBurnTest(BitcoinTestFramework):
     def early_withdrawal_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
         deposit_amount = 400 * COIN
         staking_penalty = int(deposit_amount * 0.03)
 
@@ -130,7 +131,62 @@ class StakingBurnTest(BitcoinTestFramework):
         # check if staking pool balance increased by the penalty
         self.nodes[0].generate(1)
         expected_staking_pool_balance = node0_staking_balance + 4 * staking_reward + staking_penalty
-        assert self.get_staking_pool_balance(node_num=0) == expected_staking_pool_balance
+        assert self.get_staking_pool_balance(
+            node_num=0) == expected_staking_pool_balance, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) is not equal to expected value ({expected_staking_pool_balance})"
+
+    def normal_withdrawal_test(self):
+        staking_reward = 50 * COIN
+        starting_staking_balance = 1 * staking_reward
+        deposit_amount = 400 * COIN
+        staking_percentage = 5.0
+        stake_length_months = 1
+        stake_length_blocks = stake_length_months * 30 * 144
+        expected_reward = math.floor(deposit_amount * staking_percentage / 100.0 * stake_length_months / 12.0)
+
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height == node1_height, f'Starting heights differ ' \
+                                             f'{node0_height, node1_height}'
+
+        # generate 10 blocks on node 0, then sync nodes and check height and staking balance
+        addr1 = self.nodes[0].getnewaddress()
+        self.nodes[0].generatetoaddress(10, addr1)
+        self.sync_all()
+
+        # assure that staking balance is the same on both nodes
+        node0_staking_balance = self.get_staking_pool_balance(node_num=0)
+        node1_staking_balance = self.get_staking_pool_balance(node_num=1)
+        assert node0_staking_balance == node1_staking_balance
+
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height == node1_height, 'Difference in nodes height'
+
+        # send staking deposit transaction
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
+        # mine some blocks
+        self.nodes[0].generate(stake_length_blocks + 1)
+        self.sync_all()
+        # try to spend the stake
+
+        unspent = [u for u in self.nodes[0].listunspent() if u["txid"] == stake_id and u["address"] == addr1]
+        assert len(unspent) == 1
+        utxo = unspent[0]
+
+        fee = COIN // 1000
+        tx_input = {
+            "txid": utxo["txid"],
+            "vout": utxo["vout"]
+        }
+
+        tx_output = {
+            addr1: (utxo["amount"] * COIN - fee + expected_reward) / COIN
+        }
+
+        raw_tx = self.nodes[0].createrawtransaction([tx_input], [tx_output])
+        signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
+        txid = self.nodes[0].sendrawtransaction(signed_raw_tx["hex"])
+        assert txid is not None
 
 
 if __name__ == '__main__':

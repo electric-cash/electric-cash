@@ -3,6 +3,7 @@
 
 #include <amount.h>
 namespace stakingParams {
+    constexpr size_t BLOCKS_PER_YEAR = 360 * 144;
     constexpr CAmount MIN_STAKING_AMOUNT = 5 * COIN;
     constexpr double STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE = 3.0;
     constexpr std::array<size_t, 4> STAKING_PERIOD = {

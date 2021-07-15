@@ -1471,7 +1471,7 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
     std::vector<CStakesDbEntry> activeStakes = stakes.getAllActiveStakes();
 
     // TODO(mtwaro): use reward calculator here, maybe move this whole method to a separate class
-    double globalRewardCoefficient = 1;
+    double globalRewardCoefficient = 1.0;
 
     for (auto stake: activeStakes) {
         assert(stake.isActive());
@@ -1480,10 +1480,11 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
             stake.setInactive();
         } else {
             CAmount amount = stake.getAmount();
-            uint16_t periodIdx = stake.getPeriodIdx();
+            size_t periodIdx = stake.getPeriodIdx();
             double percentage = stakingParams::STAKING_REWARD_PERCENTAGE[periodIdx];
-            auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)));
+            auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
             stake.setReward(stake.getReward() + rewardForBlock);
+            CStakingPool::getInstance()->decreaseBalance(rewardForBlock);
         }
         stakes.addStakeEntry(stake);
     }
