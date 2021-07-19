@@ -37,6 +37,14 @@ public:
     void setInactive() { active = false; }
     void setActive() { active = true; }
     bool isActive() const { return active; }
+    size_t estimateSize() const {
+        return 2 * sizeof(CAmount) +
+               2 * sizeof(uint32_t) +
+               sizeof(uint8_t) +
+               3 * sizeof(bool) +
+               txid.size() +
+               script.size();
+    }
 
     template<typename Stream>
     void Serialize(Stream &s) const {
@@ -73,8 +81,8 @@ typedef std::set<uint256> StakeIdsSet;
 class CStakesDB {
 private:
     size_t current_cache_size {};
-    // TODO set up max size param
-    static const size_t max_cache_size {1000};
+    // TODO move cache size var into separate class
+    static const size_t max_cache_size {500 * (1 << 20)};
     // TODO check db params
     CDBWrapper db_wrapper;
     StakesMap stakes_map {};
