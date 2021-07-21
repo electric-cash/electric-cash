@@ -1470,15 +1470,11 @@ void MarkInputsSpent(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &t
 void UpdateActiveStakes(CStakesDB& stakes, const int height) {
     std::vector<CStakesDbEntry> activeStakes = stakes.getAllActiveStakes();
 
-    // TODO(mtwaro): use reward calculator here, maybe move this whole method to a separate class
-    double globalRewardCoefficient = 1.0;
-
+    double globalRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, height);
+    LogPrintf("Global staking reward coefficient for block %d: %lf \n", height, globalRewardCoefficient);
     for (auto stake: activeStakes) {
         assert(stake.isActive());
-        CAmount amount = stake.getAmount();
-        size_t periodIdx = stake.getPeriodIdx();
-        double percentage = stakingParams::STAKING_REWARD_PERCENTAGE[periodIdx];
-        auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
+        CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalRewardCoefficient, stake);
         stake.setReward(stake.getReward() + rewardForBlock);
         CStakingPool::getInstance()->decreaseBalance(rewardForBlock);
 
@@ -1831,7 +1827,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             }
             for (unsigned int j = tx.vin.size(); j-- > 0;) {
                 const COutPoint &out = tx.vin[j].prevout;
+                if (txundo.vprevout[j].IsStake()) {}
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
             }
@@ -1845,7 +1843,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     if (fStakingActive) {
         // Undo staking pool rewards
         CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
-
         // Undo staking burns
         CStakingPool::getInstance()->decreaseBalance(stakingBurns);
         //TODO(mtwaro): undo staking DB changes caused by this block.

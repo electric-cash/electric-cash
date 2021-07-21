@@ -45,7 +45,7 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
 
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
-    StakesMap::iterator it = stakes_map.find(txid);
+    auto it = stakes_map.find(txid);
     CStakesDbEntry output;
     if(it == stakes_map.end()) {
         if(db_wrapper.Read(txid, output))
@@ -61,27 +61,26 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) {
     return getStakeDbEntry(uint256S(txid));
 }
 
-bool CStakesDB::deactivateStake(uint256 txid, const bool fSetComplete) {
+bool CStakesDB::deactivateStake(const uint256 txid, const bool fSetComplete) {
     CStakesDbEntry stake = getStakeDbEntry(txid);
     if (stake.isValid() && stake.isActive()) {
         stake.setInactive();
         stake.setComplete(fSetComplete);
         active_stakes.erase(txid);
-        if(!db_wrapper.Write(txid, stake)) {
-            LogPrintf("ERROR: Cannot deactivate stake of id %s to file\n", txid.GetHex());
-            return false;
-        }
+        addStakeEntry(stake);
+    } else {
+        return false;
     }
-    return false;
+    return true;
 }
 
 void CStakesDB::flushDB() {
     CDBBatch batch{db_wrapper};
     batch.Clear();
     // TODO: set batch size params
-    size_t batch_size = static_cast<size_t>(0.1 * max_cache_size);
+    auto batch_size = static_cast<size_t>(0.1 * max_cache_size);
 
-    StakesMap::iterator it = stakes_map.begin();
+    auto it = stakes_map.begin();
     while(it != stakes_map.end()) {
         batch.Write(it->first, it->second);
         if(batch.SizeEstimate() > batch_size) {
@@ -99,7 +98,7 @@ void CStakesDB::flushDB() {
 }
 
 void CStakesDB::addAddressToMap(std::string address, uint256 txid) {
-    AddressMap::iterator it = address_to_stakes_map.find(address);
+    auto it = address_to_stakes_map.find(address);
     if(it == address_to_stakes_map.end())
         address_to_stakes_map[address] = std::set<uint256> {txid};
     else
@@ -107,7 +106,7 @@ void CStakesDB::addAddressToMap(std::string address, uint256 txid) {
 }
 
 std::set<uint256> CStakesDB::getStakeIdsForAddress(std::string address) {
-    AddressMap::iterator it = address_to_stakes_map.find(address);
+    auto it = address_to_stakes_map.find(address);
     if(it == address_to_stakes_map.end()) {
         LogPrintf("ERROR: Address %s not found\n", address);
         return std::set<uint256> {};
@@ -124,4 +123,22 @@ std::vector<CStakesDbEntry> CStakesDB::getAllActiveStakes() {
     }
     return res;
 
+}
+
+bool CStakesDB::reactivateStake(const uint256 txid, const uint32_t height) {
+        CStakesDbEntry stake = getStakeDbEntry(txid);
+        if (stake.isValid() && !stake.isActive()) {
+            stake.setActive();
+            if (stake.getCompleteBlock() <= height) {
+                stake.setComplete(false);
+            active_stakes.erase(txid);
+            if (!db_wrapper.Write(txid, stake)) {
+                LogPrintf("ERROR: Cannot deactivate stake of id %s to file\n", txid.GetHex());
+                return false;
+            }
+        } else {
+            return false;
+        }
+        return true;
+    }
 }
