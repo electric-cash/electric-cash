@@ -8,7 +8,8 @@
 
 class CStakingRewardsCalculator {
 public:
-    static CAmount CalculateRewardForStake(double globalRewardCoefficient, const CStakesDbEntry &stake);
+    static CAmount CalculateRewardForStake(double globalRewardCoefficient, const CStakesDbEntry& stake);
+    static CAmount CalculatePenaltyForStake(const CStakesDbEntry& stake);
     static double CalculateGlobalRewardCoefficient(CStakesDB& stakes, uint32_t height);
 };
 

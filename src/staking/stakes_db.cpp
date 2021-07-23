@@ -30,6 +30,9 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
     try {
         stakes_map[entry.getKey()] = entry;
         current_cache_size += entry.estimateSize();
+        if (entry.getCompleteBlock() > 0) {
+            stakes_completed_at_block_height[entry.getCompleteBlock()].insert(entry.getKey());
+        }
         if (current_cache_size >= max_cache_size)
             flushDB();
         if (entry.isActive()) {
@@ -41,8 +44,6 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
         return false;
     }
 }
-
-
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
     auto it = stakes_map.find(txid);
@@ -71,6 +72,20 @@ bool CStakesDB::deactivateStake(const uint256 txid, const bool fSetComplete) {
     } else {
         return false;
     }
+    return true;
+}
+
+bool CStakesDB::removeStakeEntry(uint256 txid) {
+    active_stakes.erase(txid);
+    auto it = stakes_map.find(txid);
+    if (it == stakes_map.end()) {
+        if (!db_wrapper.Erase(txid)) {
+            LogPrintf("ERROR: Cannot remove stake of id %s from database\n", txid.GetHex());
+            return false;
+        }
+        return true;
+    } else
+        stakes_map.erase(it);
     return true;
 }
 
@@ -114,7 +129,7 @@ std::set<uint256> CStakesDB::getStakeIdsForAddress(std::string address) {
     return it->second;
 }
 
-std::vector<CStakesDbEntry> CStakesDB::getAllActiveStakes() {
+StakesVector CStakesDB::getAllActiveStakes() {
     std::vector<CStakesDbEntry> res;
     for (auto id : active_stakes) {
         CStakesDbEntry stake = getStakeDbEntry(id);
@@ -122,23 +137,27 @@ std::vector<CStakesDbEntry> CStakesDB::getAllActiveStakes() {
         res.push_back(stake);
     }
     return res;
+}
 
+StakesVector CStakesDB::getStakesCompletedAtHeight(const uint32_t height) {
+    std::vector<CStakesDbEntry> res;
+    for (const auto& id : stakes_completed_at_block_height[height]) {
+        CStakesDbEntry stake = getStakeDbEntry(id);
+        assert(stake.isValid());
+        res.push_back(stake);
+    }
+    return res;
 }
 
 bool CStakesDB::reactivateStake(const uint256 txid, const uint32_t height) {
-        CStakesDbEntry stake = getStakeDbEntry(txid);
-        if (stake.isValid() && !stake.isActive()) {
-            stake.setActive();
-            if (stake.getCompleteBlock() <= height) {
-                stake.setComplete(false);
-            active_stakes.erase(txid);
-            if (!db_wrapper.Write(txid, stake)) {
-                LogPrintf("ERROR: Cannot deactivate stake of id %s to file\n", txid.GetHex());
-                return false;
-            }
-        } else {
-            return false;
-        }
-        return true;
+    CStakesDbEntry stake = getStakeDbEntry(txid);
+    if (stake.isValid() && !stake.isActive()) {
+        stake.setActive();
+        stake.setComplete(stake.getCompleteBlock() > height);
+        active_stakes.insert(stake.getKey());
+        addStakeEntry(stake);
+    } else {
+        return false;
     }
+    return true;
 }

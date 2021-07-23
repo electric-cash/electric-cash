@@ -77,6 +77,8 @@ public:
 typedef std::map<uint256, CStakesDbEntry> StakesMap;
 typedef std::map<std::string, std::set<uint256>> AddressMap;
 typedef std::set<uint256> StakeIdsSet;
+typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
+typedef std::vector<CStakesDbEntry> StakesVector;
 
 class CStakesDB {
 private:
@@ -88,19 +90,23 @@ private:
     StakesMap stakes_map {};
     AddressMap address_to_stakes_map {};
     StakeIdsSet active_stakes {};
+    StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
+
 public:
     CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
     CStakesDB(const CStakesDB& other) = delete;
     bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
-    bool deactivateStake(const uint256 txid, const bool fSetComplete);
-    bool reactivateStake(const uint256 txid, const uint32_t height);
+    bool removeStakeEntry(uint256 txid);
+    bool deactivateStake(uint256 txid, const bool fSetComplete);
+    bool reactivateStake(uint256 txid, uint32_t height);
     void flushDB();
     ~CStakesDB() { flushDB(); }
     std::set<uint256> getStakeIdsForAddress(std::string address);
     void addAddressToMap(std::string address, uint256 txid);
-    std::vector<CStakesDbEntry> getAllActiveStakes();
+    StakesVector getAllActiveStakes();
+    StakesVector getStakesCompletedAtHeight(const uint32_t height);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H
