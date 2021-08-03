@@ -1791,7 +1791,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     }
 
     CAmount stakingBurnsAndPenalties = 0;
-    CAmount stakingRewardsForBlock = 0;
     bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
@@ -1853,21 +1852,23 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
         // Undo staking burns
         CStakingPool::getInstance()->decreaseBalance(stakingBurnsAndPenalties);
-        //TODO(mtwaro): undo staking DB changes caused by this block.
         std::vector<CStakesDbEntry> stakesToReactivate = stakes.getStakesCompletedAtHeight(pindex->nHeight);
         for (auto& stake : stakesToReactivate) {
             stakes.reactivateStake(stake.getKey(), pindex->nHeight);
         }
         double globalStakingRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, pindex->nHeight);
+        LogPrintf("Global staking reward coefficient for block %d: %lf \n", pindex->nHeight, globalStakingRewardCoefficient);
+        CAmount stakingRewardsForBlock = 0;
         for (auto& stake : stakes.getAllActiveStakes()) {
             CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalStakingRewardCoefficient, stake);
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
-            if (stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()] <= pindex->nHeight) {
+            if (stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()] >= pindex->nHeight) {
                 stakes.removeStakeEntry(stake.getKey());
             }
         }
         CStakingPool::getInstance()->increaseBalance(stakingRewardsForBlock);
+        LogPrintf("Undone staking rewards in a sum of %d. \n", stakingRewardsForBlock);
     }
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
