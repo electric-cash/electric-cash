@@ -13,7 +13,7 @@ STAKING_TX_DEPOSIT_SUBHEADER = 0x44
 STAKING_PENALTY_PERCENTAGE = 3.0
 
 
-class StakingBurnTest(BitcoinTestFramework):
+class StakingDepositWithdrawalTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
 
@@ -66,6 +66,29 @@ class StakingBurnTest(BitcoinTestFramework):
         txid = self.nodes[0].sendrawtransaction(signed_raw_tx['hex'])
         return txid
 
+    def spend_stake(self, node_num: int, stake_txid: str, stake_address: str, early_withdrawal: bool = False,
+                    expected_reward: int = 0, expected_rpc_err: int = None):
+        unspent = [u for u in self.nodes[node_num].listunspent() if u["txid"] == stake_txid and u["address"] == stake_address]
+        assert len(unspent) == 1
+        utxo = unspent[0]
+        staking_penalty = int(utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0
+        reward = expected_reward if not early_withdrawal else 0
+        fee = COIN // 1000
+        tx_input = {
+            "txid": utxo["txid"],
+            "vout": utxo["vout"]
+        }
+        tx_output = {
+            stake_address: (utxo["amount"] * COIN - fee - staking_penalty + reward) / COIN
+        }
+        raw_tx = self.nodes[node_num].createrawtransaction([tx_input], [tx_output])
+        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
+        if expected_rpc_err is not None:
+            assert_raises_rpc_error(expected_rpc_err, None,
+                                    self.nodes[0].sendrawtransaction, signed_raw_tx["hex"])
+        else:
+            return self.nodes[node_num].sendrawtransaction(signed_raw_tx["hex"])
+
     def early_withdrawal_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
@@ -98,34 +121,11 @@ class StakingBurnTest(BitcoinTestFramework):
         self.sync_all()
 
         # try to spend the stake
-
-        unspent = [u for u in self.nodes[0].listunspent() if u["txid"] == stake_id and u["address"] == addr1]
-        assert len(unspent) == 1
-        utxo = unspent[0]
-
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-
-        tx_output = {
-            addr1: (utxo["amount"] * COIN - fee) / COIN
-        }
-        raw_tx = self.nodes[0].createrawtransaction([tx_input], [tx_output])
-        signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
-
         # verify that the stake cannot be spent without paying the penalty
-        assert_raises_rpc_error(-26, "bad-txns-in-belowout, value in (388.00) < value out (399.999)",
-                                self.nodes[0].sendrawtransaction, signed_raw_tx["hex"])
+        self.spend_stake(0, stake_id, addr1, early_withdrawal=False, expected_rpc_err=-26)
 
         # try to spend the stake paying the staking penalty
-        tx_output = {
-            addr1: (utxo["amount"] * COIN - fee - staking_penalty) / COIN
-        }
-        raw_tx = self.nodes[0].createrawtransaction([tx_input], [tx_output])
-        signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
-        txid = self.nodes[0].sendrawtransaction(signed_raw_tx["hex"])
+        txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
         assert txid is not None
 
         # check if staking pool balance increased by the penalty
@@ -169,23 +169,7 @@ class StakingBurnTest(BitcoinTestFramework):
         self.sync_all()
         # try to spend the stake
 
-        unspent = [u for u in self.nodes[0].listunspent() if u["txid"] == stake_id and u["address"] == addr1]
-        assert len(unspent) == 1
-        utxo = unspent[0]
-
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-
-        tx_output = {
-            addr1: (utxo["amount"] * COIN - fee + expected_reward) / COIN
-        }
-
-        raw_tx = self.nodes[0].createrawtransaction([tx_input], [tx_output])
-        signed_raw_tx = self.nodes[0].signrawtransactionwithwallet(raw_tx)
-        txid = self.nodes[0].sendrawtransaction(signed_raw_tx["hex"])
+        txid = self.spend_stake(0, stake_id, addr1, expected_reward=expected_reward)
         assert txid is not None
 
         self.nodes[0].generate(1)
@@ -198,6 +182,5 @@ class StakingBurnTest(BitcoinTestFramework):
         assert abs(self.get_staking_pool_balance(
             node_num=0) - expected_staking_pool_balance) <= 10_000, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) differs too much from expected value ({expected_staking_pool_balance})"
 
-
 if __name__ == '__main__':
-    StakingBurnTest().main()
+    StakingDepositWithdrawalTest().main()
