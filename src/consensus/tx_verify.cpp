@@ -9,6 +9,7 @@
 #include <script/interpreter.h>
 #include <consensus/validation.h>
 #include <staking/transaction.h>
+#include <staking/staking_rewards_calculator.h>
 
 // TODO remove the following dependencies
 #include <chain.h>
@@ -192,7 +193,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 CAmount stakingReward = stakeDbEntry.getReward();
                 nValueIn += stakingReward;
             } else {
-                auto stakingPenalty = static_cast<CAmount>(floor(stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE * static_cast<double>(stakeDbEntry.getAmount()) / 100.0));
+                auto stakingPenalty = CStakingRewardsCalculator::CalculatePenaltyForStake(stakeDbEntry);
                 nValueIn -= stakingPenalty;
              }
         }

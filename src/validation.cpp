@@ -1472,18 +1472,19 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
 
     double globalRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, height);
     LogPrintf("Global staking reward coefficient for block %d: %lf \n", height, globalRewardCoefficient);
+    CAmount totalRewardForBlock = 0;
     for (auto stake: activeStakes) {
         assert(stake.isActive());
         CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalRewardCoefficient, stake);
         stake.setReward(stake.getReward() + rewardForBlock);
-        CStakingPool::getInstance()->decreaseBalance(rewardForBlock);
-
+        totalRewardForBlock += rewardForBlock;
         if (height >= stake.getCompleteBlock()) {
             stakes.deactivateStake(stake.getKey(), true);
         } else {
             stakes.addStakeEntry(stake);
         }
     }
+    CStakingPool::getInstance()->decreaseBalance(totalRewardForBlock);
 }
 
 void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
@@ -1792,6 +1793,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     CAmount stakingBurnsAndPenalties = 0;
     bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
+    std::set<uint256> prematureStakeIds = {};
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
@@ -1832,6 +1834,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                     assert(stake.isValid() && !stake.isActive());
                     if (!stake.isComplete()) {
                         stakes.reactivateStake(stake.getKey(), pindex->nHeight);
+                        prematureStakeIds.insert(stake.getKey());
                         stakingBurnsAndPenalties += stake.getReward();
                         stakingBurnsAndPenalties += CStakingRewardsCalculator::CalculatePenaltyForStake(stake);
                     }
@@ -1860,11 +1863,16 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         LogPrintf("Global staking reward coefficient for block %d: %lf \n", pindex->nHeight, globalStakingRewardCoefficient);
         CAmount stakingRewardsForBlock = 0;
         for (auto& stake : stakes.getAllActiveStakes()) {
+            // Do not decrease reward for reactivated prematurely-spent stakes, as it was not increased in original block
+            if (prematureStakeIds.count(stake.getKey()) > 0) continue;
             CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalStakingRewardCoefficient, stake);
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
             if (stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()] >= pindex->nHeight) {
                 stakes.removeStakeEntry(stake.getKey());
+            }
+            else {
+                stakes.addStakeEntry(stake);
             }
         }
         CStakingPool::getInstance()->increaseBalance(stakingRewardsForBlock);

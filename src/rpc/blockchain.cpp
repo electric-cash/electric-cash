@@ -209,6 +209,21 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     return result;
 }
 
+UniValue stakeToJSON(const CStakesDbEntry& stake)
+{
+    AssertLockNotHeld(cs_main); // For performance reasons
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("deposit_height", stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()]);
+    result.pushKV("staking_period", stakingParams::STAKING_PERIOD[stake.getPeriodIdx()]);
+    result.pushKV("staking_amount", stake.getAmount());
+    result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
+    result.pushKV("fulfilled", stake.isComplete());
+    // TODO(mtwaro): access coin and fill this param
+    result.pushKV("paid_out", false);
+    return result;
+}
+
 static UniValue getblockcount(const JSONRPCRequest& request)
 {
             RPCHelpMan{"getblockcount",
@@ -2420,6 +2435,37 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
     return results;
 }
 
+static UniValue getstakeinfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakeinfo",
+               "\nReturns information about a stake with a given <txid>, if it exists in the database.",
+               {{"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "TXID of deposit transaction"}},
+               RPCResult{
+                       RPCResult::Type::OBJ, "", "",
+                       {
+                               {RPCResult::Type::STR_HEX, "deposit_height", "Block height at which the stake was deposited."},
+                               {RPCResult::Type::NUM, "staking_period", "Length of a stake in number of blocks."},
+                               {RPCResult::Type::STR_AMOUNT, "staking_amount", "Staked amount in ELCASH."},
+                               {RPCResult::Type::STR_AMOUNT, "accumulated_reward", "Accumulated staking reward at the moment of request."},
+                               {RPCResult::Type::BOOL, "fulfilled", "Whether the stake is fulfilled."},
+                               {RPCResult::Type::BOOL, "paid_out", "Whether the stake was spent."},
+                       }
+               },
+               RPCExamples{
+                       HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                       + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+               }
+    }.Check(request);
+
+    uint256 hash(ParseHashV(request.params[0], "txid"));
+
+    const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(hash);
+    if (!stake.isValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Stake not found");
+    }
+    return stakeToJSON(stake);
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2453,6 +2499,7 @@ static const CRPCCommand commands[] =
 
     /* Staking methods*/
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
+    { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

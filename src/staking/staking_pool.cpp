@@ -25,7 +25,7 @@ void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
 }
 
 void CStakingPool::decreaseBalance(CAmount amount) {
-    if ((balance - amount) > 0)
+    if ((balance - amount) > 0) {
         balance -= amount;
     else
         LogPrintf("ERROR: Current staking pool balance %d can not be decreased by %d\n", balance, amount);

@@ -76,7 +76,7 @@ public:
     void Unserialize(Stream &s) {
         uint32_t code = 0;
         ::Unserialize(s, VARINT(code));
-        nHeight = code >> 1;
+        nHeight = (code << 1) >> 2;
         fCoinBase = code & 1;
         fStake = code >> 31;
         ::Unserialize(s, Using<TxOutCompression>(out));
