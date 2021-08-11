@@ -6,6 +6,9 @@
 #include <map>
 #include <set>
 #include <dbwrapper.h>
+#include <fstream>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
@@ -75,6 +78,30 @@ public:
         s >> active;
     }
 
+};
+
+template <typename T>
+class CSerializer {
+    friend class boost::serialization::access;
+    template<typename Archive>
+    void serialize(Archive& archive, const unsigned int version) {
+        archive & varToSave;
+    }
+    T& varToSave;
+    std::string fileName;
+public:
+    CSerializer(T& varToSave, const std::string& fileName):
+        varToSave{varToSave}, fileName{fileName} {}
+    void dump() {
+        std::ofstream ofs{fileName};
+        boost::archive::text_oarchive oa{ofs};
+        oa << *this;
+    }
+    void load() {
+        std::ifstream ifs{fileName};
+        boost::archive::text_iarchive ia{ifs};
+        ia >> *this;
+    }
 };
 
 typedef std::map<uint256, CStakesDbEntry> StakesMap;

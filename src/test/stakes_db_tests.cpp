@@ -2,6 +2,8 @@
 #include <staking/stakes_db.h>
 #include <test/util/setup_common.h>
 #include <boost/test/unit_test.hpp>
+#include <vector>
+#include <boost/serialization/vector.hpp>
 
 const size_t DEFAULT_CACHE_SIZE = 1000;
 const std::string DEFAULT_DB_NAME = "stakes";
@@ -87,6 +89,34 @@ BOOST_AUTO_TEST_CASE(address_mapping) {
 
     list_of_ids = db.getStakeIdsForAddress("not existing address");
     BOOST_CHECK(list_of_ids.size() == 0);
+}
+
+BOOST_AUTO_TEST_CASE(generic_serialization) {
+    double d1{13.4}, d2{0};
+    std::string path{(GetDataDir() / "serialization").string()};
+
+    BOOST_CHECK(d1 != d2);
+    {
+        CSerializer<double> serializer_1{d1, path};
+        CSerializer<double> serializer_2{d2, path};
+        serializer_1.dump();
+        serializer_2.load();
+    }
+    BOOST_CHECK(d1 == d2);
+
+    // test stl collection
+    std::vector<double> v1{1, 2, -10, 3.4, 0}, v2{};
+    BOOST_CHECK(v1.size() != v2.size());
+    {
+        CSerializer<std::vector<double>> serializer_1{v1, path};
+        CSerializer<std::vector<double>> serializer_2{v2, path};
+        serializer_1.dump();
+        serializer_2.load();
+    }
+
+    BOOST_CHECK(v1.size() == v2.size());
+    for(int i=0; i<v1.size(); i++)
+        BOOST_CHECK(v1[i] == v2[i]);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
