@@ -7,6 +7,9 @@
 #include <set>
 #include <dbwrapper.h>
 
+static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
+static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
+
 
 class CStakesDbEntry {
 private:
@@ -82,12 +85,7 @@ typedef std::vector<CStakesDbEntry> StakesVector;
 
 class CStakesDB {
 private:
-    size_t current_cache_size {};
-    // TODO move cache size var into separate class
-    static const size_t max_cache_size {500 * (1 << 20)};
-    // TODO check db params
     CDBWrapper db_wrapper;
-    StakesMap stakes_map {};
     AddressMap address_to_stakes_map {};
     StakeIdsSet active_stakes {};
     StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
@@ -101,12 +99,39 @@ public:
     bool removeStakeEntry(uint256 txid);
     bool deactivateStake(uint256 txid, const bool fSetComplete);
     bool reactivateStake(uint256 txid, uint32_t height);
-    void flushDB();
-    ~CStakesDB() { flushDB(); }
+    void flushDB(StakesMap& stakes_map);
     std::set<uint256> getStakeIdsForAddress(std::string address);
     void addAddressToMap(std::string address, uint256 txid);
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    void updateActiveStakes(const CStakesDbEntry& entry);
+};
+
+
+class CStakesDBCache {
+private:
+    CStakesDB* base_db;
+    size_t current_cache_size {};
+    size_t max_cache_size{};
+    StakesMap stakes_map {};
+
+public:
+    CStakesDBCache(CStakesDB* db, size_t max_cache_size=MAX_CACHE_SIZE):
+        base_db{db}, max_cache_size{max_cache_size} {}
+    CStakesDBCache(const CStakesDBCache& other) = delete;
+    bool addStakeEntry(const CStakesDbEntry& entry);
+    CStakesDbEntry getStakeDbEntry(uint256 txid);
+    CStakesDbEntry getStakeDbEntry(std::string txid);
+    bool removeStakeEntry(uint256 txid);
+    bool deactivateStake(uint256 txid, const bool fSetComplete);
+    bool reactivateStake(uint256 txid, uint32_t height);
+    void flushDB();
+    ~CStakesDBCache() { flushDB(); }
+    std::set<uint256> getStakeIdsForAddress(std::string address);
+    void addAddressToMap(std::string address, uint256 txid);
+    StakesVector getAllActiveStakes();
+    StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    void updateActiveStakes(const CStakesDbEntry& entry);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

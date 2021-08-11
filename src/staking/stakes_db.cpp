@@ -28,16 +28,9 @@ CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, 
 
 bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
     try {
-        stakes_map[entry.getKey()] = entry;
-        current_cache_size += entry.estimateSize();
-        if (entry.getCompleteBlock() > 0) {
-            stakes_completed_at_block_height[entry.getCompleteBlock()].insert(entry.getKey());
-        }
-        if (current_cache_size >= max_cache_size)
-            flushDB();
-        if (entry.isActive()) {
-            active_stakes.insert(entry.getKey());
-        }
+        updateActiveStakes(entry);
+        StakesMap map{{entry.getKey(), entry}};
+        flushDB(map);
         return true;
     }catch(...) {
         LogPrintf("ERROR: Cannot add stake of id %s to database\n", entry.getKeyHex());
@@ -46,16 +39,12 @@ bool CStakesDB::addStakeEntry(const CStakesDbEntry& entry) {
 }
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
-    auto it = stakes_map.find(txid);
     CStakesDbEntry output;
-    if(it == stakes_map.end()) {
-        if(db_wrapper.Read(txid, output))
-            output.setKey(txid);
-        else
-            LogPrintf("ERROR: Cannot get stake of id %s from database\n", txid.GetHex());
-        return output;
-    }
-    return it->second;
+    if(db_wrapper.Read(txid, output))
+        output.setKey(txid);
+    else
+        LogPrintf("ERROR: Cannot get stake of id %s from database\n", txid.GetHex());
+    return output;
 }
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) {
@@ -77,25 +66,19 @@ bool CStakesDB::deactivateStake(const uint256 txid, const bool fSetComplete) {
 
 bool CStakesDB::removeStakeEntry(uint256 txid) {
     active_stakes.erase(txid);
-    auto it = stakes_map.find(txid);
-    if (it == stakes_map.end()) {
-        if (!db_wrapper.Erase(txid)) {
-            LogPrintf("ERROR: Cannot remove stake of id %s from database\n", txid.GetHex());
-            return false;
-        }
-        return true;
-    } else
-        stakes_map.erase(it);
+    if (!db_wrapper.Erase(txid)) {
+        LogPrintf("ERROR: Cannot remove stake of id %s from database\n", txid.GetHex());
+        return false;
+    }
     return true;
 }
 
-void CStakesDB::flushDB() {
+void CStakesDB::flushDB(StakesMap& stakes_map) {
     CDBBatch batch{db_wrapper};
     batch.Clear();
-    // TODO: set batch size params
-    auto batch_size = static_cast<size_t>(0.1 * max_cache_size);
+    size_t batch_size = static_cast<size_t>(gArgs.GetArg("-dbbatchsize", DEFAULT_BATCH_SIZE));
 
-    auto it = stakes_map.begin();
+    StakesMap::iterator it = stakes_map.begin();
     while(it != stakes_map.end()) {
         batch.Write(it->first, it->second);
         if(batch.SizeEstimate() > batch_size) {
@@ -109,7 +92,6 @@ void CStakesDB::flushDB() {
     LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     db_wrapper.WriteBatch(batch);
     batch.Clear();
-
 }
 
 void CStakesDB::addAddressToMap(std::string address, uint256 txid) {
@@ -160,4 +142,74 @@ bool CStakesDB::reactivateStake(const uint256 txid, const uint32_t height) {
         return false;
     }
     return true;
+}
+
+void CStakesDB::updateActiveStakes(const CStakesDbEntry& entry) {
+    if (entry.isActive()) {
+        active_stakes.insert(entry.getKey());
+    }
+}
+
+bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
+    try {
+        stakes_map[entry.getKey()] = entry;
+        current_cache_size += entry.estimateSize();
+        base_db->updateActiveStakes(entry);
+        if (current_cache_size >= max_cache_size)
+            base_db->flushDB(stakes_map);
+        return true;
+    }catch(...) {
+        LogPrintf("ERROR: Cannot add stake of id %s to database\n", entry.getKeyHex());
+        return false;
+    }
+}
+
+bool CStakesDBCache::removeStakeEntry(uint256 txid) {
+    auto it = stakes_map.find(txid);
+    if (it != stakes_map.end()) {
+        stakes_map.erase(it);
+        return true;
+    }
+    else
+        return base_db->removeStakeEntry(txid);
+}
+
+CStakesDbEntry CStakesDBCache::getStakeDbEntry(uint256 txid) {
+    auto it = stakes_map.find(txid);
+    CStakesDbEntry output;
+    if(it == stakes_map.end())
+        return base_db->getStakeDbEntry(txid);
+    return it->second;
+}
+
+CStakesDbEntry CStakesDBCache::getStakeDbEntry(std::string txid) {
+    return getStakeDbEntry(uint256S(txid));
+}
+
+bool CStakesDBCache::deactivateStake(uint256 txid, const bool fSetComplete) {
+    return base_db->deactivateStake(txid, fSetComplete);
+}
+
+void CStakesDBCache::flushDB() {
+    base_db->flushDB(stakes_map);
+}
+
+void CStakesDBCache::addAddressToMap(std::string address, uint256 txid) {
+    base_db->addAddressToMap(address, txid);
+}
+
+std::set<uint256> CStakesDBCache::getStakeIdsForAddress(std::string address) {
+    return base_db->getStakeIdsForAddress(address);
+}
+
+StakesVector CStakesDBCache::getAllActiveStakes() {
+    return base_db->getAllActiveStakes();
+}
+
+StakesVector CStakesDBCache::getStakesCompletedAtHeight(const uint32_t height) {
+    return base_db->getStakesCompletedAtHeight(height);
+}
+
+void CStakesDBCache::updateActiveStakes(const CStakesDbEntry& entry) {
+    base_db->updateActiveStakes(entry);
 }
