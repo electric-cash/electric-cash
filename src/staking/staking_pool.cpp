@@ -21,12 +21,14 @@ void CStakingPool::increaseBalance(CAmount amount) {
 }
 
 void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
-    balance += GetStakingRewardForHeight(nHeight);
+    CAmount amount = GetStakingRewardForHeight(nHeight);
+    this->increaseBalance(amount);
 }
 
 void CStakingPool::decreaseBalance(CAmount amount) {
     if ((balance - amount) > 0) {
         balance -= amount;
+    }
     else
         LogPrintf("ERROR: Current staking pool balance %d can not be decreased by %d\n", balance, amount);
 }

@@ -14,9 +14,17 @@ CAmount CStakingRewardsCalculator::CalculatePenaltyForStake(const CStakesDbEntry
             static_cast<double>(stake.getAmount()) / 100.0));
 }
 
-double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDB& stakes, uint32_t height) {
-    double max_possible_payout = std::floor(static_cast<double>(CStakingPool::getInstance()->getBalance()) /
-            stakingParams::STAKING_POOL_EXPIRY_BLOCKS + static_cast<double>(GetStakingRewardForHeight(height)));
+double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDB& stakes, uint32_t height, bool goingBackward) {
+    // In case of reorg (going backward) the balance of staking pool is different than when going forward, so the max_possible_reward
+    // must be calculated using a different algebraic formula
+    double max_possible_payout = 0;
+    if (goingBackward) {
+        max_possible_payout = std::floor(static_cast<double>(CStakingPool::getInstance()->getBalance() +
+                stakingParams::STAKING_POOL_EXPIRY_BLOCKS * GetStakingRewardForHeight(height)) / static_cast<double>(stakingParams::STAKING_POOL_EXPIRY_BLOCKS - 1));
+    } else {
+        max_possible_payout = std::floor(static_cast<double>(CStakingPool::getInstance()->getBalance()) /
+                stakingParams::STAKING_POOL_EXPIRY_BLOCKS + static_cast<double>(GetStakingRewardForHeight(height)));
+    }
 
     // TODO(mtwaro): THIS MUST BE CHANGED - store the mapping {period => total_staked_for_period} inside the staking DB and move the following logic there.
     std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> totalStakedByPeriod = {0, 0, 0, 0};

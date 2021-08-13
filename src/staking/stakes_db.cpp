@@ -133,7 +133,7 @@ StakesVector CStakesDB::getAllActiveStakes() {
     std::vector<CStakesDbEntry> res;
     for (auto id : active_stakes) {
         CStakesDbEntry stake = getStakeDbEntry(id);
-        assert(stake.isValid());
+        assert(stake.isValid() && stake.isActive() && !stake.isComplete());
         res.push_back(stake);
     }
     return res;
@@ -153,7 +153,7 @@ bool CStakesDB::reactivateStake(const uint256 txid, const uint32_t height) {
     CStakesDbEntry stake = getStakeDbEntry(txid);
     if (stake.isValid() && !stake.isActive()) {
         stake.setActive();
-        stake.setComplete(stake.getCompleteBlock() > height);
+        stake.setComplete(height > stake.getCompleteBlock());
         active_stakes.insert(stake.getKey());
         addStakeEntry(stake);
     } else {

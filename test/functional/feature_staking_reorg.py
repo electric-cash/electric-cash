@@ -1,3 +1,5 @@
+import time
+
 from test_framework.messages import COIN
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -22,7 +24,8 @@ class StakingReorgTest(BitcoinTestFramework):
     def run_test(self):
         self.reorg_cancelled_deposit_tx()
         self.reorg_recalculate_reward()
-        self.reorg_spend_stake()
+        self.reorg_premature_stake_spend()
+        self.reorg_mature_stake_spend()
 
     def get_staking_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
@@ -105,9 +108,7 @@ class StakingReorgTest(BitcoinTestFramework):
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
-        starting_height = 200
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
 
         addr1 = self.nodes[0].getnewaddress()
         # assure that nodes start with the same height
@@ -128,17 +129,17 @@ class StakingReorgTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[0], 1)
         disconnect_nodes(self.nodes[1], 2)
 
-        self.nodes[0].generate(100)
-        self.nodes[1].generate(150)
+        self.nodes[0].generate(10)
+        self.nodes[1].generate(15)
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         # height of nodes after nodes reconnecting
         target_height = max(node0_height, node1_height)
-        assert node1_height - node0_height == 50, 'Wrong diff in nodes height'
+        assert node1_height - node0_height == 5, 'Wrong diff in nodes height'
 
-        node0_expected_reward = (100 + 15) * expected_reward_per_block
-        node1_expected_reward = (150 + 15) * expected_reward_per_block
+        node0_expected_reward = (10 + 15) * expected_reward_per_block
+        node1_expected_reward = (15 + 15) * expected_reward_per_block
 
         node0_reward = self.get_stake_reward(stake_txid, 0) * COIN
         node1_reward = self.get_stake_reward(stake_txid, 1) * COIN
@@ -146,8 +147,8 @@ class StakingReorgTest(BitcoinTestFramework):
         assert node0_reward == node0_expected_reward, f"Reward on node0 different than expected: {node0_reward, node0_expected_reward}"
         assert node1_reward == node1_expected_reward, f"Reward on node1 different than expected: {node1_reward, node1_expected_reward}"
 
-        node0_expected_staking_balance = node0_staking_balance + (100 + 15) * staking_reward - 2 * node0_expected_reward # stake from previous test is there
-        node1_expected_staking_balance = node1_staking_balance + (150 + 15) * staking_reward - 2 * node1_expected_reward # stake from previous test is there
+        node0_expected_staking_balance = node0_staking_balance + (10 + 15) * staking_reward - 2 * node0_expected_reward # stake from previous test is there
+        node1_expected_staking_balance = node1_staking_balance + (15 + 15) * staking_reward - 2 * node1_expected_reward # stake from previous test is there
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node0_expected_staking_balance, f'Staking balance on node0 different than expected: f{node0_staking_balance, node0_expected_staking_balance}'
@@ -215,14 +216,14 @@ class StakingReorgTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[1], 2)
 
         self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
-        self.nodes[0].generate(1122)
-        self.nodes[1].generate(1219)
+        self.nodes[0].generate(22)
+        self.nodes[1].generate(29)
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         # height of nodes after nodes reconnecting
         target_height = max(node0_height, node1_height)
-        assert node1_height - node0_height == 97, 'Wrong diff in nodes height'
+        assert node1_height - node0_height == 7, 'Wrong diff in nodes height'
 
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
@@ -244,14 +245,12 @@ class StakingReorgTest(BitcoinTestFramework):
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance == target_staking_balance, f'Nodes staking balance ({node0_staking_balance, node1_staking_balance}) different than {target_staking_balance}'
 
-    def reorg_spend_stake(self):
-        staking_reward = 50 * COIN
+    def reorg_premature_stake_spend(self):
         deposit_amount = 300 * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
-        staking_reward = 50 * COIN
 
         addr1 = self.nodes[0].getnewaddress()
 
@@ -269,12 +268,13 @@ class StakingReorgTest(BitcoinTestFramework):
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance, f'Starting staking balance difference: {node0_staking_balance, node1_staking_balance}'
         stake_txid = self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
-        # generate 15 blocks on node 0, then sync nodes and check height and staking balance
-        self.nodes[0].generate(stake_length_blocks // 4 - 10)
-        self.nodes[0].generate(stake_length_blocks // 4)
-        self.nodes[0].generate(stake_length_blocks // 4)
-        self.nodes[0].generate(stake_length_blocks // 4)
-        self.sync_all(timeout=180)
+        # generate blocks in parts to shorten the synchronization
+        num_div = 108
+        self.nodes[0].generate(stake_length_blocks // num_div - 10)
+        self.sync_all()
+        for i in range(num_div - 1):
+            self.nodes[0].generate(stake_length_blocks // num_div)
+            self.sync_all()
 
         # disconnect nodes
         self.log.info('Disconnect nodes')
@@ -324,6 +324,83 @@ class StakingReorgTest(BitcoinTestFramework):
 
         assert node0_reward == node1_reward == node1_expected_reward, f'Difference in staking rewards: {node0_reward, node1_reward, node1_expected_reward}'
 
+    def reorg_mature_stake_spend(self):
+        deposit_amount = 300 * COIN
+        staking_percentage = 5.0
+        stake_length_months = 1
+        stake_length_blocks = stake_length_months * 30 * 144
+        expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
+
+        addr1 = self.nodes[0].getnewaddress()
+
+        # share private key so the second node can also spend the stake.
+        pk = self.nodes[0].dumpprivkey(addr1)
+        self.nodes[1].importprivkey(pk)
+
+        # assure that nodes start with the same height
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height == node1_height, f'Starting nodes height difference: {node0_height, node1_height}'
+
+        # assure that staking balance is the same on both nodes
+        node0_staking_balance = self.get_staking_balance(node_num=0)
+        node1_staking_balance = self.get_staking_balance(node_num=1)
+        assert node0_staking_balance == node1_staking_balance, f'Starting staking balance difference: {node0_staking_balance, node1_staking_balance}'
+        stake_txid = self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
+        # generate 15 blocks on node 0, then sync nodes and check height and staking balance
+        num_div = 54
+        self.nodes[0].generate(stake_length_blocks // num_div - 10)
+        self.sync_all()
+        for i in range(num_div - 1):
+            self.nodes[0].generate(stake_length_blocks // num_div)
+            self.sync_all()
+
+        # disconnect nodes
+        self.log.info('Disconnect nodes')
+        disconnect_nodes(self.nodes[0], 1)
+        disconnect_nodes(self.nodes[1], 2)
+
+        self.nodes[0].generate(5)
+        self.nodes[1].generate(15)
+
+        node0_expected_reward = (stake_length_blocks - 5) * expected_reward_per_block
+        node1_expected_reward = stake_length_blocks * expected_reward_per_block
+
+        node0_reward = self.get_stake_reward(stake_txid, 0) * COIN
+        node1_reward = self.get_stake_reward(stake_txid, 1) * COIN
+
+        assert node0_reward == node0_expected_reward, f"Reward on node0 different than expected: {node0_reward, node0_expected_reward}"
+        assert node1_reward == node1_expected_reward, f"Reward on node1 different than expected: {node1_reward, node1_expected_reward}"
+
+        self.spend_stake(0, stake_txid, addr1, True)
+        self.spend_stake(1, stake_txid, addr1, False, self.get_stake_reward(stake_txid, 1) * COIN)
+
+        self.nodes[0].generate(21)
+        self.nodes[1].generate(1)
+
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height - node1_height == 10, 'Wrong diff in nodes height'
+        # height of nodes after nodes reconnecting
+        target_height = max(node0_height, node1_height)
+
+        # reconnecting nodes
+        self.log.info('Reconnect nodes')
+        connect_nodes(self.nodes[0], 1)
+        connect_nodes(self.nodes[1], 2)
+        self.sync_blocks()
+
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height == node1_height == target_height, f'Nodes heights different than {target_height}'
+
+        node0_reward = self.get_stake_reward(stake_txid, 0) * COIN
+        node1_reward = self.get_stake_reward(stake_txid, 1) * COIN
+        assert node0_reward == node1_reward == node0_expected_reward, f'Difference in staking rewards: {node0_reward, node1_reward, node0_expected_reward}'
+
+        node0_staking_balance = self.get_staking_balance(node_num=0)
+        node1_staking_balance = self.get_staking_balance(node_num=1)
+        assert node0_staking_balance == node1_staking_balance, f'Difference in nodes staking balance ({node0_staking_balance, node1_staking_balance})'
 
 
 if __name__ == '__main__':

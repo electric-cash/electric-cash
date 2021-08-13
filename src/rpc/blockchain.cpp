@@ -214,7 +214,7 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     AssertLockNotHeld(cs_main); // For performance reasons
 
     UniValue result(UniValue::VOBJ);
-    result.pushKV("deposit_height", stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()]);
+    result.pushKV("deposit_height", (int)stake.getDepositBlock());
     result.pushKV("staking_period", stakingParams::STAKING_PERIOD[stake.getPeriodIdx()]);
     result.pushKV("staking_amount", stake.getAmount());
     result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
