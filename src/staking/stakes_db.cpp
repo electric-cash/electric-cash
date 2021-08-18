@@ -154,7 +154,7 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
     try {
         stakes_map[entry.getKey()] = entry;
         current_cache_size += entry.estimateSize();
-        base_db->updateActiveStakes(entry);
+        updateActiveStakes(entry);
         if (current_cache_size >= max_cache_size)
             base_db->flushDB(stakes_map);
         return true;
@@ -168,6 +168,7 @@ bool CStakesDBCache::removeStakeEntry(uint256 txid) {
     auto it = stakes_map.find(txid);
     if (it != stakes_map.end()) {
         stakes_map.erase(it);
+        active_stakes.erase(txid);
         return true;
     }
     else
@@ -187,7 +188,16 @@ CStakesDbEntry CStakesDBCache::getStakeDbEntry(std::string txid) {
 }
 
 bool CStakesDBCache::deactivateStake(uint256 txid, const bool fSetComplete) {
-    return base_db->deactivateStake(txid, fSetComplete);
+    CStakesDbEntry stake = getStakeDbEntry(txid);
+    if (stake.isValid() && stake.isActive()) {
+        stake.setInactive();
+        stake.setComplete(fSetComplete);
+        active_stakes.erase(txid);
+        addStakeEntry(stake);
+    } else {
+        return false;
+    }
+    return true;
 }
 
 void CStakesDBCache::flushDB() {
@@ -203,13 +213,40 @@ std::set<uint256> CStakesDBCache::getStakeIdsForAddress(std::string address) {
 }
 
 StakesVector CStakesDBCache::getAllActiveStakes() {
-    return base_db->getAllActiveStakes();
+    std::vector<CStakesDbEntry> res;
+    for (auto id : active_stakes) {
+        CStakesDbEntry stake = getStakeDbEntry(id);
+        assert(stake.isValid());
+        res.push_back(stake);
+    }
+    return res;
 }
 
 StakesVector CStakesDBCache::getStakesCompletedAtHeight(const uint32_t height) {
-    return base_db->getStakesCompletedAtHeight(height);
+    std::vector<CStakesDbEntry> res;
+    for (const auto& id : stakes_completed_at_block_height[height]) {
+        CStakesDbEntry stake = getStakeDbEntry(id);
+        assert(stake.isValid());
+        res.push_back(stake);
+    }
+    return res;
+}
+
+bool CStakesDBCache::reactivateStake(const uint256 txid, const uint32_t height) {
+    CStakesDbEntry stake = getStakeDbEntry(txid);
+    if (stake.isValid() && !stake.isActive()) {
+        stake.setActive();
+        stake.setComplete(stake.getCompleteBlock() > height);
+        active_stakes.insert(stake.getKey());
+        addStakeEntry(stake);
+    } else {
+        return false;
+    }
+    return true;
 }
 
 void CStakesDBCache::updateActiveStakes(const CStakesDbEntry& entry) {
-    base_db->updateActiveStakes(entry);
+    if (entry.isActive()) {
+        active_stakes.insert(entry.getKey());
+    }
 }

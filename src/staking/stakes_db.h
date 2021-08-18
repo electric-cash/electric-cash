@@ -141,6 +141,8 @@ private:
     size_t current_cache_size {};
     size_t max_cache_size{};
     StakesMap stakes_map {};
+    StakeIdsSet active_stakes {};
+    StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
 
 public:
     CStakesDBCache(CStakesDB* db, size_t max_cache_size=MAX_CACHE_SIZE):
