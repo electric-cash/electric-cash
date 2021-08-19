@@ -1,4 +1,4 @@
-Elecric Cash Core
+Electric Cash Core
 =============
 
 Setup
