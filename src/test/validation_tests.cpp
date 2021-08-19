@@ -25,11 +25,11 @@ BOOST_AUTO_TEST_CASE(block_subsidy_test)
     
     for (int nReductions = 0; nReductions < maxReductions; nReductions++) {
         int nHeight = nReductions + REWARD_REDUCTION_PERIOD;
-        CAmount nSubsidy = GetBlockSubsidy(nHeight);
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, 1);
         BOOST_CHECK(nSubsidy <= nInitialSubsidy);
         nPreviousSubsidy = nSubsidy;
     }
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(maxReductions * REWARD_REDUCTION_PERIOD + BOOTSTRAP_PERIOD), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(maxReductions * REWARD_REDUCTION_PERIOD + BOOTSTRAP_PERIOD, 1), 0);
 }
 
 BOOST_AUTO_TEST_CASE(subsidy_limit_test)
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
     CAmount nSum = 0;
     CAmount stakingBalance = 0;
     for (int nHeight = 0; nHeight < 2000000; nHeight += 100) {
-        CAmount nSubsidy = GetBlockSubsidy(nHeight);
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, 1);
         CAmount stakingReward = GetStakingRewardForHeight(nHeight);
         BOOST_CHECK(nSubsidy <= 500 * COIN);
         BOOST_CHECK(stakingReward <= FRACTION_OF_STAKING_REWARD * GetBlockRewardForHeight(nHeight));
