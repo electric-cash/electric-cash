@@ -3,6 +3,7 @@
 #include <amount.h>
 #include <uint256.h>
 #include <script/script.h>
+#include <staking/staking_pool.h>
 #include <map>
 #include <set>
 #include <dbwrapper.h>
@@ -112,10 +113,12 @@ typedef std::vector<CStakesDbEntry> StakesVector;
 
 class CStakesDB {
 private:
-    CDBWrapper db_wrapper;
-    AddressMap address_to_stakes_map {};
-    StakeIdsSet active_stakes {};
-    StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
+
+    CDBWrapper m_db_wrapper;
+    AddressMap m_address_to_stakes_map {};
+    StakeIdsSet m_active_stakes {};
+    StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
+    CStakingPool m_staking_pool;
 
 public:
     CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
@@ -132,21 +135,27 @@ public:
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
     void updateActiveStakes(const CStakesDbEntry& entry);
+    CStakingPool& stakingPool();
+
+    const AddressMap& getAddressMap() const { return m_address_to_stakes_map;}
+    const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
+    const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
 };
 
 
 class CStakesDBCache {
 private:
-    CStakesDB* base_db;
-    size_t current_cache_size {};
-    size_t max_cache_size{};
-    StakesMap stakes_map {};
-    StakeIdsSet active_stakes {};
-    StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
+    CStakesDB* m_base_db;
+    size_t m_current_cache_size {};
+    size_t m_max_cache_size{};
+    StakesMap m_stakes_map {};
+    CStakingPool m_staking_pool;
+    StakeIdsSet m_active_stakes {};
+    StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
+    AddressMap m_address_to_stakes_map {};
 
 public:
-    CStakesDBCache(CStakesDB* db, size_t max_cache_size=MAX_CACHE_SIZE):
-        base_db{db}, max_cache_size{max_cache_size} {}
+    CStakesDBCache(CStakesDB* db, size_t max_cache_size=MAX_CACHE_SIZE);
     CStakesDBCache(const CStakesDBCache& other) = delete;
     bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
@@ -154,6 +163,7 @@ public:
     bool removeStakeEntry(uint256 txid);
     bool deactivateStake(uint256 txid, const bool fSetComplete);
     bool reactivateStake(uint256 txid, uint32_t height);
+    CStakingPool& stakingPool();
     void flushDB();
     ~CStakesDBCache() { flushDB(); }
     std::set<uint256> getStakeIdsForAddress(std::string address);
@@ -161,6 +171,7 @@ public:
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
     void updateActiveStakes(const CStakesDbEntry& entry);
+
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

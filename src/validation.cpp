@@ -1484,7 +1484,7 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
             stakes.addStakeEntry(stake);
         }
     }
-    CStakingPool::getInstance()->decreaseBalance(totalRewardForBlock);
+    stakes.stakingPool().decreaseBalance(totalRewardForBlock);
 }
 
 void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
@@ -1852,9 +1852,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     if (fStakingActive) {
         // Undo staking pool rewards
-        CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
+        stakes.stakingPool().decreaseBalanceForHeight(pindex->nHeight);
         // Undo staking burns
-        CStakingPool::getInstance()->decreaseBalance(stakingBurnsAndPenalties);
+        stakes.stakingPool().decreaseBalance(stakingBurnsAndPenalties);
         std::vector<CStakesDbEntry> stakesToReactivate = stakes.getStakesCompletedAtHeight(pindex->nHeight);
         for (auto& stake : stakesToReactivate) {
             stakes.reactivateStake(stake.getKey(), pindex->nHeight);
@@ -1875,7 +1875,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 stakes.addStakeEntry(stake);
             }
         }
-        CStakingPool::getInstance()->increaseBalance(stakingRewardsForBlock);
+        stakes.stakingPool().increaseBalance(stakingRewardsForBlock);
         LogPrintf("Undone staking rewards in a sum of %d. \n", stakingRewardsForBlock);
     }
 
@@ -2352,8 +2352,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     // Update staking
     if (fStakingActive) {
         UpdateActiveStakes(GetStakesDB(), pindex->nHeight);
-        CStakingPool::getInstance()->increaseBalance(stakingBurnsAndPenalties);
-        CStakingPool::getInstance()->increaseBalanceForNewBlock(pindex->nHeight);
+        GetStakesDB().stakingPool().increaseBalance(stakingBurnsAndPenalties);
+        GetStakesDB().stakingPool().increaseBalanceForNewBlock(pindex->nHeight);
     }
     LogPrintf("Staking Pool updated\n");
 

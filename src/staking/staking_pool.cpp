@@ -3,33 +3,24 @@
 #include <consensus/block_rewards.h>
 
 
-CStakingPool* CStakingPool::getInstance() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (srpInstance == nullptr)
-        srpInstance = new CStakingPool();
-    return srpInstance;
-}
-
-CStakingPool* CStakingPool::getInstance(CAmount balance) {
-    CStakingPool* instance = CStakingPool::getInstance();
-    instance->balance = balance;
-    return instance;
+CStakingPool::CStakingPool(CAmount amount) {
+    m_balance = amount;
 }
 
 void CStakingPool::increaseBalance(CAmount amount) {
-    balance += amount;
+    m_balance += amount;
 }
 
 void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
-    balance += GetStakingRewardForHeight(nHeight);
+    m_balance += GetStakingRewardForHeight(nHeight);
 }
 
 void CStakingPool::decreaseBalance(CAmount amount) {
-    if ((balance - amount) > 0) {
-        balance -= amount;
+    if ((m_balance - amount) > 0) {
+        m_balance -= amount;
     }
     else
-        LogPrintf("ERROR: Current staking pool balance %d can not be decreased by %d\n", balance, amount);
+        LogPrintf("ERROR: Current staking pool balance %d can not be decreased by %d\n", m_balance, amount);
 }
 
 void CStakingPool::decreaseBalanceForHeight(int nHeight) {
@@ -38,12 +29,9 @@ void CStakingPool::decreaseBalanceForHeight(int nHeight) {
 }
 
 CAmount CStakingPool::getBalance() {
-    return balance;
+    return m_balance;
 }
 
 void CStakingPool::setBalance(CAmount balance) {
-    this->balance = balance;
+    this->m_balance = balance;
 }
-
-CStakingPool* CStakingPool::srpInstance = nullptr;
-std::mutex CStakingPool::mutex_;
