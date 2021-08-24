@@ -6,6 +6,7 @@
 #include <staking/staking_pool.h>
 #include <map>
 #include <set>
+#include <sync.h>
 #include <dbwrapper.h>
 #include <fstream>
 #include <boost/archive/text_oarchive.hpp>
@@ -13,7 +14,9 @@
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
-
+const std::string BEST_HASH_HEADER_PREFIX = "BHH";
+class CStakesDBCache;
+extern RecursiveMutex cs_main;
 
 class CStakesDbEntry {
 private:
@@ -113,39 +116,44 @@ typedef std::vector<CStakesDbEntry> StakesVector;
 
 class CStakesDB {
 private:
-
     CDBWrapper m_db_wrapper;
     AddressMap m_address_to_stakes_map {};
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     CStakingPool m_staking_pool;
+    uint256 m_best_block_hash;
+
+    // mutex to assure that no more than one editable cache is open.
+    std::mutex m_cache_mutex;
 
 public:
-    CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+    explicit CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+    CStakesDB() = delete;
     CStakesDB(const CStakesDB& other) = delete;
-    bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
     bool removeStakeEntry(uint256 txid);
-    bool deactivateStake(uint256 txid, const bool fSetComplete);
-    bool reactivateStake(uint256 txid, uint32_t height);
-    void flushDB(StakesMap& stakes_map);
+    bool flushDB(CStakesDBCache* cache);
     std::set<uint256> getStakeIdsForAddress(std::string address);
-    void addAddressToMap(std::string address, uint256 txid);
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
-    void updateActiveStakes(const CStakesDbEntry& entry);
     CStakingPool& stakingPool();
-
+    uint256 getBestBlock();
     const AddressMap& getAddressMap() const { return m_address_to_stakes_map;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
+    void initCache();
+    void dropCache();
 };
 
 
 class CStakesDBCache {
+    friend CStakesDB;
 private:
     CStakesDB* m_base_db;
+    bool m_viewonly;
+    bool m_flushed = false;
+    uint256 m_best_block_hash;
     size_t m_current_cache_size {};
     size_t m_max_cache_size{};
     StakesMap m_stakes_map {};
@@ -153,9 +161,10 @@ private:
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     AddressMap m_address_to_stakes_map {};
+    StakeIdsSet m_stakes_to_remove {};
 
 public:
-    CStakesDBCache(CStakesDB* db, size_t max_cache_size=MAX_CACHE_SIZE);
+    CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
     CStakesDBCache(const CStakesDBCache& other) = delete;
     bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
@@ -164,14 +173,16 @@ public:
     bool deactivateStake(uint256 txid, const bool fSetComplete);
     bool reactivateStake(uint256 txid, uint32_t height);
     CStakingPool& stakingPool();
-    void flushDB();
-    ~CStakesDBCache() { flushDB(); }
+    bool flushDB();
+    ~CStakesDBCache() { drop(); }
     std::set<uint256> getStakeIdsForAddress(std::string address);
-    void addAddressToMap(std::string address, uint256 txid);
+    bool addAddressToMap(std::string address, uint256 txid);
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
-    void updateActiveStakes(const CStakesDbEntry& entry);
-
+    bool updateActiveStakes(const CStakesDbEntry& entry);
+    bool setBestBlock(const uint256 hash);
+    uint256 getBestBlock() const;
+    bool drop();
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

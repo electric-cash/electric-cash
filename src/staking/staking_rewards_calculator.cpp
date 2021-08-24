@@ -14,7 +14,7 @@ CAmount CStakingRewardsCalculator::CalculatePenaltyForStake(const CStakesDbEntry
             static_cast<double>(stake.getAmount()) / 100.0));
 }
 
-double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDB& stakes, uint32_t height) {
+double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDBCache& stakes, uint32_t height) {
     double max_possible_payout = std::floor(static_cast<double>(stakes.stakingPool().getBalance()) /
             stakingParams::STAKING_POOL_EXPIRY_BLOCKS + static_cast<double>(GetStakingRewardForHeight(height)));
 

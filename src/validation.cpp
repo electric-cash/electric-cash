@@ -666,9 +666,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // CoinsViewCache instead of create its own
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
-
+    CStakesDBCache stakes(&m_stakes, true);
     CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes)) {
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, stakes)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
@@ -1467,7 +1467,7 @@ void MarkInputsSpent(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &t
     }
 }
 
-void UpdateActiveStakes(CStakesDB& stakes, const int height) {
+void UpdateActiveStakes(CStakesDBCache& stakes, const int height) {
     std::vector<CStakesDbEntry> activeStakes = stakes.getAllActiveStakes();
 
     double globalRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, height);
@@ -1487,7 +1487,7 @@ void UpdateActiveStakes(CStakesDB& stakes, const int height) {
     stakes.stakingPool().decreaseBalance(totalRewardForBlock);
 }
 
-void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDB& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
+void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
 {
     // check if any stakes are being spent
     if (fStakingActive) {
@@ -1776,7 +1776,7 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
 
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
  *  When FAILED is returned, view is left in an indeterminate state. */
-DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams, CStakesDB& stakes)
+DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams, CStakesDBCache& stakes)
 {
     bool fClean = true;
 
@@ -1849,6 +1849,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
+    stakes.setBestBlock(pindex->pprev->GetBlockHash());
 
     if (fStakingActive) {
         // Undo staking pool rewards
@@ -2039,7 +2040,7 @@ static int64_t nBlocksTotal = 0;
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
 bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
-                  CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck)
+                  CCoinsViewCache& view, const CChainParams& chainparams, CStakesDBCache& stakes, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
     assert(pindex);
@@ -2072,14 +2073,15 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     // verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock = pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
     assert(hashPrevBlock == view.GetBestBlock());
-
     nBlocksTotal++;
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
     if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
-        if (!fJustCheck)
+        if (!fJustCheck) {
             view.SetBestBlock(pindex->GetBlockHash());
+            stakes.setBestBlock(pindex->GetBlockHash());
+        }
         return true;
     }
 
@@ -2242,7 +2244,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, GetStakesDB())) {
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, stakes)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
@@ -2309,7 +2311,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
         }
-        UpdateCoinsAndStakes(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, GetStakesDB(), stakingBurnsAndPenalties, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight, fJustCheck);
+        UpdateCoinsAndStakes(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, stakes, stakingBurnsAndPenalties, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight, fJustCheck);
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -2342,6 +2344,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     assert(pindex->phashBlock);
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
+    stakes.setBestBlock(pindex->GetBlockHash());
 
     int64_t nTime5 = GetTimeMicros(); nTimeIndex += nTime5 - nTime4;
     LogPrint(BCLog::BENCH, "    - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime5 - nTime4), nTimeIndex * MICRO, nTimeIndex * MILLI / nBlocksTotal);
@@ -2351,12 +2354,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
     // Update staking
     if (fStakingActive) {
-        UpdateActiveStakes(GetStakesDB(), pindex->nHeight);
-        GetStakesDB().stakingPool().increaseBalance(stakingBurnsAndPenalties);
-        GetStakesDB().stakingPool().increaseBalanceForNewBlock(pindex->nHeight);
+        UpdateActiveStakes(stakes, pindex->nHeight);
+        stakes.stakingPool().increaseBalance(stakingBurnsAndPenalties);
+        stakes.stakingPool().increaseBalanceForNewBlock(pindex->nHeight);
     }
-    LogPrintf("Staking Pool updated\n");
-
     return true;
 }
 
@@ -2619,11 +2620,16 @@ bool CChainState::DisconnectTip(BlockValidationState& state, const CChainParams&
     int64_t nStart = GetTimeMicros();
     {
         CCoinsViewCache view(&CoinsTip());
+        CStakesDBCache stakes(&GetStakesDB());
         assert(view.GetBestBlock() == pindexDelete->GetBlockHash());
-        if (DisconnectBlock(block, pindexDelete, view, chainparams, GetStakesDB()) != DISCONNECT_OK)
+        assert(stakes.getBestBlock() == pindexDelete->GetBlockHash());
+        if (DisconnectBlock(block, pindexDelete, view, chainparams, stakes) != DISCONNECT_OK) {
+            stakes.drop();
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
-        bool flushed = view.Flush();
-        assert(flushed);
+        }
+        bool coinsFlushed = view.Flush();
+        bool stakesFlushed = stakes.flushDB();
+        assert(coinsFlushed && stakesFlushed);
     }
     LogPrint(BCLog::BENCH, "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * MILLI);
     // Write the chain state to disk, if necessary.
@@ -2725,18 +2731,21 @@ bool CChainState::ConnectTip(BlockValidationState& state, const CChainParams& ch
     LogPrint(BCLog::BENCH, "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * MILLI, nTimeReadFromDisk * MICRO);
     {
         CCoinsViewCache view(&CoinsTip());
-        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
+        CStakesDBCache stakes(&GetStakesDB());
+        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams, stakes);
         GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
+            stakes.drop();
             return error("%s: ConnectBlock %s failed, %s", __func__, pindexNew->GetBlockHash().ToString(), state.ToString());
         }
         nTime3 = GetTimeMicros(); nTimeConnectTotal += nTime3 - nTime2;
         assert(nBlocksTotal > 0);
         LogPrint(BCLog::BENCH, "  - Connect total: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime3 - nTime2) * MILLI, nTimeConnectTotal * MICRO, nTimeConnectTotal * MILLI / nBlocksTotal);
-        bool flushed = view.Flush();
-        assert(flushed);
+        bool coinsFlushed = view.Flush();
+        bool stakesFlushed = stakes.flushDB();
+        assert(coinsFlushed && stakesFlushed);
     }
     int64_t nTime4 = GetTimeMicros(); nTimeFlush += nTime4 - nTime3;
     LogPrint(BCLog::BENCH, "  - Flush: %.2fms [%.2fs (%.2fms/blk)]\n", (nTime4 - nTime3) * MILLI, nTimeFlush * MICRO, nTimeFlush * MILLI / nBlocksTotal);
@@ -2914,7 +2923,8 @@ bool CChainState::ActivateBestChainStep(BlockValidationState& state, const CChai
         // any disconnected transactions back to the mempool.
         UpdateMempoolForReorg(disconnectpool, true);
     }
-    mempool.check(&CoinsTip(), GetStakesDB());
+    CStakesDBCache stakes(&GetStakesDB(), true);
+    mempool.check(&CoinsTip(), stakes);
 
     // Callbacks/notifications for a new best chain.
     if (fInvalidFound)
@@ -3988,6 +3998,7 @@ bool TestBlockValidity(BlockValidationState& state, const CChainParams& chainpar
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == ::ChainActive().Tip());
     CCoinsViewCache viewNew(&::ChainstateActive().CoinsTip());
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
     uint256 block_hash(block.GetHash());
     CBlockIndex indexDummy(block);
     indexDummy.pprev = pindexPrev;
@@ -4001,7 +4012,7 @@ bool TestBlockValidity(BlockValidationState& state, const CChainParams& chainpar
         return error("%s: Consensus::CheckBlock: %s", __func__, state.ToString());
     if (!ContextualCheckBlock(block, state, chainparams.GetConsensus(), pindexPrev, fCheckDdms))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, state.ToString());
-    if (!::ChainstateActive().ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
+    if (!::ChainstateActive().ConnectBlock(block, state, &indexDummy, viewNew, chainparams, stakes, true))
         return false;
     assert(state.IsValid());
 
@@ -4387,6 +4398,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     nCheckLevel = std::max(0, std::min(4, nCheckLevel));
     LogPrintf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CCoinsViewCache coins(coinsview);
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB());
     CBlockIndex* pindex;
     CBlockIndex* pindexFailure = nullptr;
     int nGoodTransactions = 0;
@@ -4429,7 +4441,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
         if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
-            DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins, chainparams, ::ChainstateActive().GetStakesDB());
+            assert(stakes.getBestBlock() == pindex->GetBlockHash());
+            DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins, chainparams, stakes);
             if (res == DISCONNECT_FAILED) {
                 return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
             }
@@ -4464,7 +4477,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
-            if (!::ChainstateActive().ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!::ChainstateActive().ConnectBlock(block, state, pindex, coins, chainparams, stakes))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s (%s)", pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
         }
     }
@@ -4502,6 +4515,7 @@ bool CChainState::ReplayBlocks(const CChainParams& params)
 
     CCoinsView& db = this->CoinsDB();
     CCoinsViewCache cache(&db);
+    CStakesDBCache stakes(&GetStakesDB());
 
     std::vector<uint256> hashHeads = db.GetHeadBlocks();
     if (hashHeads.empty()) return true; // We're already in a consistent state.
@@ -4536,7 +4550,7 @@ bool CChainState::ReplayBlocks(const CChainParams& params)
                 return error("RollbackBlock(): ReadBlockFromDisk() failed at %d, hash=%s", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
             }
             LogPrintf("Rolling back %s (%i)\n", pindexOld->GetBlockHash().ToString(), pindexOld->nHeight);
-            DisconnectResult res = DisconnectBlock(block, pindexOld, cache, params, this->GetStakesDB());
+            DisconnectResult res = DisconnectBlock(block, pindexOld, cache, params, stakes);
             if (res == DISCONNECT_FAILED) {
                 return error("RollbackBlock(): DisconnectBlock failed at %d, hash=%s", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
             }
@@ -4554,11 +4568,16 @@ bool CChainState::ReplayBlocks(const CChainParams& params)
         const CBlockIndex* pindex = pindexNew->GetAncestor(nHeight);
         LogPrintf("Rolling forward %s (%i)\n", pindex->GetBlockHash().ToString(), nHeight);
         uiInterface.ShowProgress(_("Replaying blocks...").translated, (int) ((nHeight - nForkHeight) * 100.0 / (pindexNew->nHeight - nForkHeight)) , false);
-        if (!RollforwardBlock(pindex, cache, params)) return false;
+        if (!RollforwardBlock(pindex, cache, params)) {
+            stakes.drop();
+            return false;
+        }
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
+    stakes.setBestBlock(pindexNew->GetBlockHash());
     cache.Flush();
+    stakes.flushDB();
     uiInterface.ShowProgress("", 100, false);
     return true;
 }

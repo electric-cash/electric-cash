@@ -75,15 +75,16 @@ BOOST_AUTO_TEST_CASE(stakes_db_entry_serialization) {
 
 BOOST_AUTO_TEST_CASE(address_mapping) {
     CStakesDB db(DEFAULT_CACHE_SIZE, false, false, DEFAULT_DB_NAME);
+    CStakesDBCache cache(&db);
     std::set<uint256> list_of_ids;
     std::string address = "wallet_address";
     uint256 txid1, txid2 = InsecureRand256(), InsecureRand256();
-    db.addAddressToMap(address, txid1);
-    db.addAddressToMap(address, txid1);
-    list_of_ids = db.getStakeIdsForAddress(address);
+    cache.addAddressToMap(address, txid1);
+    cache.addAddressToMap(address, txid1);
+    list_of_ids = cache.getStakeIdsForAddress(address);
     BOOST_CHECK(list_of_ids.size() == 1);
 
-    db.addAddressToMap(address, txid2);
+    cache.addAddressToMap(address, txid2);
     list_of_ids = db.getStakeIdsForAddress(address);
     BOOST_CHECK(list_of_ids.size() == 2);
 
