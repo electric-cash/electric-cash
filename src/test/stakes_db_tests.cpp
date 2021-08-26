@@ -98,8 +98,9 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
 
     BOOST_CHECK(d1 != d2);
     {
-        CSerializer<double> serializer_1{d1, path};
-        CSerializer<double> serializer_2{d2, path};
+        std::string key{"double_key"};
+        CSerializer<double> serializer_1{d1, path, key};
+        CSerializer<double> serializer_2{d2, path, key};
         serializer_1.dump();
         serializer_2.load();
     }
@@ -109,8 +110,9 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
     std::vector<double> v1{1, 2, -10, 3.4, 0}, v2{};
     BOOST_CHECK(v1.size() != v2.size());
     {
-        CSerializer<std::vector<double>> serializer_1{v1, path};
-        CSerializer<std::vector<double>> serializer_2{v2, path};
+        std::string key{"stl_key"};
+        CSerializer<std::vector<double>> serializer_1{v1, path, key};
+        CSerializer<std::vector<double>> serializer_2{v2, path, key};
         serializer_1.dump();
         serializer_2.load();
     }
@@ -118,6 +120,22 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
     BOOST_CHECK(v1.size() == v2.size());
     for(int i=0; i<v1.size(); i++)
         BOOST_CHECK(v1[i] == v2[i]);
+
+    // test empty collection
+    std::vector<double> empty{};
+    BOOST_CHECK(empty.size() == 0);
+    {
+        std::string key{"empty_stl_key"};
+        CSerializer<std::vector<double>> serializer{empty, path, key};
+        serializer.load();
+    }
+
+    std::vector<uint256> v3{InsecureRand256()};
+    {
+        std::string key{"uint256"};
+        CSerializer<std::vector<uint256>> serializer{v3, path, key};
+        serializer.dump();
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

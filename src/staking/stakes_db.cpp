@@ -24,7 +24,9 @@ void CStakesDbEntry::setComplete(bool completeFlag) {
 
 CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
         m_db_wrapper(GetDataDir() / leveldb_name, cache_size_bytes, in_memory, should_wipe, false),
-        m_staking_pool(0) {}
+        m_staking_pool(0), leveldb_name{leveldb_name} {
+            initHelpStates();
+}
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
     CStakesDbEntry output;
@@ -71,6 +73,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_staking_pool = cache->m_staking_pool;
     m_stakes_completed_at_block_height = cache->m_stakes_completed_at_block_height;
     m_best_block_hash = cache->m_best_block_hash;
+    dumpHelpStates();
     // TODO(mtwaro): flush the above fields here, return false if failed
     m_db_wrapper.Write(BEST_HASH_HEADER_PREFIX, m_best_block_hash);
 
@@ -137,6 +140,43 @@ uint256 CStakesDB::getBestBlock() {
     return m_best_block_hash;
 }
 
+void CStakesDB::initHelpStates() {
+    {
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, leveldb_name, "m_address_to_stakes_map"};
+        serializer.load();
+    }
+    {
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, leveldb_name, "m_active_stakes"};
+        serializer.load();
+    }
+    {
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, leveldb_name, "m_stakes_completed_at_block_height"};
+        serializer.load();
+    }
+    {
+        CSerializer<uint256> serializer{m_best_block_hash, leveldb_name, "m_best_block_hash"};
+        serializer.load();
+    }
+}
+
+void CStakesDB::dumpHelpStates() {
+    {
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, leveldb_name, "m_address_to_stakes_map"};
+        serializer.dump();
+    }
+    {
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, leveldb_name, "m_active_stakes"};
+        serializer.dump();
+    }
+    {
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, leveldb_name, "m_stakes_completed_at_block_height"};
+        serializer.dump();
+    }
+    {
+        CSerializer<uint256> serializer{m_best_block_hash, leveldb_name, "m_best_block_hash"};
+        serializer.dump();
+    }
+}
 
 CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_size): m_viewonly(fViewOnly),
         m_base_db{db}, m_max_cache_size{max_cache_size}, m_staking_pool(m_base_db->stakingPool()) {

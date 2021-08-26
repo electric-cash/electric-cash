@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <boost/serialization/access.hpp>
 
 /** Template base class for fixed-sized opaque blobs. */
 template<unsigned int BITS>
@@ -118,6 +119,14 @@ public:
  * those are required.
  */
 class uint256 : public base_blob<256> {
+// TODO: Move serialization to separate class e.g uint256Serializable?
+private:
+    friend class boost::serialization::access;
+    template<typename Archive>
+    void serialize(Archive& archive, const unsigned int version) {
+        archive & data;
+    }
+
 public:
     uint256() {}
     explicit uint256(const std::vector<unsigned char>& vch) : base_blob<256>(vch) {}

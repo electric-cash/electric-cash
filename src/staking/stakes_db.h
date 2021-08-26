@@ -8,9 +8,12 @@
 #include <set>
 #include <sync.h>
 #include <dbwrapper.h>
-#include <fstream>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
+#include <sstream>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/set.hpp>
+#include <boost/serialization/map.hpp>
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
@@ -92,19 +95,41 @@ class CSerializer {
         archive & varToSave;
     }
     T& varToSave;
-    std::string fileName;
+    std::string fileName, dbKey;
 public:
-    CSerializer(T& varToSave, const std::string& fileName):
-        varToSave{varToSave}, fileName{fileName} {}
+    CSerializer(T& varToSave, const std::string& fileName, const std::string& dbKey):
+        varToSave{varToSave}, fileName{fileName}, dbKey{dbKey} {}
     void dump() {
-        std::ofstream ofs{fileName};
-        boost::archive::text_oarchive oa{ofs};
+        leveldb::DB* pdb;
+        leveldb::Options options;
+        options.create_if_missing = true;
+        leveldb::Status status = leveldb::DB::Open(options, fileName, &pdb);
+        dbwrapper_private::HandleError(status);
+
+        std::stringstream ss;
+        boost::archive::binary_oarchive oa{ss};
         oa << *this;
+
+        status = pdb->Put(leveldb::WriteOptions(), dbKey, ss.str());
+        dbwrapper_private::HandleError(status);
+        delete pdb;
     }
     void load() {
-        std::ifstream ifs{fileName};
-        boost::archive::text_iarchive ia{ifs};
-        ia >> *this;
+        leveldb::DB* pdb;
+        leveldb::Options options;
+        options.create_if_missing = true;
+        leveldb::Status status = leveldb::DB::Open(options, fileName, &pdb);
+        dbwrapper_private::HandleError(status);
+
+        std::string value;
+        status = pdb->Get(leveldb::ReadOptions(), dbKey, &value);
+
+        if(!value.empty()) {
+            std::stringstream ss{value};
+            boost::archive::binary_iarchive ia{ss};
+            ia >> *this;
+        }
+        delete pdb;
     }
 };
 
@@ -122,6 +147,8 @@ private:
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
+
+    std::string leveldb_name;
 
     // mutex to assure that no more than one editable cache is open.
     std::mutex m_cache_mutex;
@@ -144,6 +171,8 @@ public:
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
     void initCache();
     void dropCache();
+    void initHelpStates();
+    void dumpHelpStates();
 };
 
 
