@@ -25,7 +25,17 @@ void CStakesDbEntry::setComplete(bool completeFlag) {
 CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
         m_db_wrapper(GetDataDir() / leveldb_name, cache_size_bytes, in_memory, should_wipe, false),
         m_staking_pool(0), leveldb_name{leveldb_name} {
-            initHelpStates();
+    verify();
+    initHelpStates();
+}
+
+void CStakesDB::verify() {
+    bool flushOngoing = true;
+    if (m_db_wrapper.Read(DB_PREFIX_FLUSH_ONGOING, flushOngoing)) {
+        assert(!flushOngoing);
+    } else {
+        assert(m_db_wrapper.IsEmpty());
+    }
 }
 
 CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
@@ -61,9 +71,8 @@ StakesVector CStakesDB::getAllActiveStakes() {
 
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LOCK(cs_main);
-    bool flushOngoing = true;
-    // TODO(mtwaro): flush the value above here
-
+    verify();
+    m_db_wrapper.Write(DB_PREFIX_FLUSH_ONGOING, true);
     CDBBatch batch{m_db_wrapper};
     batch.Clear();
     size_t batch_size = static_cast<size_t>(gArgs.GetArg("-dbbatchsize", DEFAULT_BATCH_SIZE));
@@ -74,8 +83,6 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_stakes_completed_at_block_height = cache->m_stakes_completed_at_block_height;
     m_best_block_hash = cache->m_best_block_hash;
     dumpHelpStates();
-    // TODO(mtwaro): flush the above fields here, return false if failed
-    m_db_wrapper.Write(BEST_HASH_HEADER_PREFIX, m_best_block_hash);
 
     StakesMap stakes_map = cache->m_stakes_map;
     StakesMap::iterator it = stakes_map.begin();
@@ -95,9 +102,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     for (const auto& txid : cache->m_stakes_to_remove) {
         removeStakeEntry(txid);
     }
-
-    flushOngoing = false;
-    //TODO(mtwaro): flush above value here
+    m_db_wrapper.Write(DB_PREFIX_FLUSH_ONGOING, false);
     dropCache();
     return true;
 }
@@ -135,45 +140,45 @@ void CStakesDB::dropCache() {
 
 uint256 CStakesDB::getBestBlock() {
     if (m_best_block_hash.IsNull()) {
-        m_db_wrapper.Read(BEST_HASH_HEADER_PREFIX, m_best_block_hash);
+        m_db_wrapper.Read(DB_PREFIX_BEST_HASH, m_best_block_hash);
     }
     return m_best_block_hash;
 }
 
 void CStakesDB::initHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, leveldb_name, "m_address_to_stakes_map"};
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, "m_address_to_stakes_map"};
         serializer.load();
     }
     {
-        CSerializer<StakeIdsSet> serializer{m_active_stakes, leveldb_name, "m_active_stakes"};
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, "m_active_stakes"};
         serializer.load();
     }
     {
-        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, leveldb_name, "m_stakes_completed_at_block_height"};
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper, "m_stakes_completed_at_block_height"};
         serializer.load();
     }
     {
-        CSerializer<uint256> serializer{m_best_block_hash, leveldb_name, "m_best_block_hash"};
+        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, "m_best_block_hash"};
         serializer.load();
     }
 }
 
 void CStakesDB::dumpHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, leveldb_name, "m_address_to_stakes_map"};
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, "m_address_to_stakes_map"};
         serializer.dump();
     }
     {
-        CSerializer<StakeIdsSet> serializer{m_active_stakes, leveldb_name, "m_active_stakes"};
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, "m_active_stakes"};
         serializer.dump();
     }
     {
-        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, leveldb_name, "m_stakes_completed_at_block_height"};
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper, "m_stakes_completed_at_block_height"};
         serializer.dump();
     }
     {
-        CSerializer<uint256> serializer{m_best_block_hash, leveldb_name, "m_best_block_hash"};
+        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, "m_best_block_hash"};
         serializer.dump();
     }
 }

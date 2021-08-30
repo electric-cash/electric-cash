@@ -94,13 +94,13 @@ BOOST_AUTO_TEST_CASE(address_mapping) {
 
 BOOST_AUTO_TEST_CASE(generic_serialization) {
     double d1{13.4}, d2{0};
-    std::string path{(GetDataDir() / "serialization").string()};
-
+    fs::path ph = GetDataDir() / "serialization";
+    CDBWrapper dbw(ph, (1 << 20), true, false, false);
     BOOST_CHECK(d1 != d2);
     {
         std::string key{"double_key"};
-        CSerializer<double> serializer_1{d1, path, key};
-        CSerializer<double> serializer_2{d2, path, key};
+        CSerializer<double> serializer_1{d1, dbw, key};
+        CSerializer<double> serializer_2{d2, dbw, key};
         serializer_1.dump();
         serializer_2.load();
     }
@@ -111,8 +111,8 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
     BOOST_CHECK(v1.size() != v2.size());
     {
         std::string key{"stl_key"};
-        CSerializer<std::vector<double>> serializer_1{v1, path, key};
-        CSerializer<std::vector<double>> serializer_2{v2, path, key};
+        CSerializer<std::vector<double>> serializer_1{v1, dbw, key};
+        CSerializer<std::vector<double>> serializer_2{v2, dbw, key};
         serializer_1.dump();
         serializer_2.load();
     }
@@ -126,14 +126,14 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
     BOOST_CHECK(empty.size() == 0);
     {
         std::string key{"empty_stl_key"};
-        CSerializer<std::vector<double>> serializer{empty, path, key};
+        CSerializer<std::vector<double>> serializer{empty, dbw, key};
         serializer.load();
     }
 
     std::vector<uint256> v3{InsecureRand256()};
     {
         std::string key{"uint256"};
-        CSerializer<std::vector<uint256>> serializer{v3, path, key};
+        CSerializer<std::vector<uint256>> serializer{v3, dbw, key};
         serializer.dump();
     }
 }

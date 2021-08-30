@@ -17,7 +17,8 @@
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
-const std::string BEST_HASH_HEADER_PREFIX = "BHH";
+const std::string DB_PREFIX_BEST_HASH = "BHH";
+const std::string DB_PREFIX_FLUSH_ONGOING = "FLO";
 class CStakesDBCache;
 extern RecursiveMutex cs_main;
 
@@ -95,41 +96,29 @@ class CSerializer {
         archive & varToSave;
     }
     T& varToSave;
-    std::string fileName, dbKey;
+    std::string dbKey;
+    CDBWrapper& dbWrapper;
 public:
-    CSerializer(T& varToSave, const std::string& fileName, const std::string& dbKey):
-        varToSave{varToSave}, fileName{fileName}, dbKey{dbKey} {}
+    CSerializer(T& varToSave, CDBWrapper& dbWrapper, const std::string& dbKey):
+        varToSave{varToSave}, dbWrapper(dbWrapper), dbKey{dbKey} {}
     void dump() {
-        leveldb::DB* pdb;
-        leveldb::Options options;
-        options.create_if_missing = true;
-        leveldb::Status status = leveldb::DB::Open(options, fileName, &pdb);
-        dbwrapper_private::HandleError(status);
 
         std::stringstream ss;
         boost::archive::binary_oarchive oa{ss};
         oa << *this;
 
-        status = pdb->Put(leveldb::WriteOptions(), dbKey, ss.str());
-        dbwrapper_private::HandleError(status);
-        delete pdb;
+        dbWrapper.Write(dbKey, ss.str());
     }
     void load() {
-        leveldb::DB* pdb;
-        leveldb::Options options;
-        options.create_if_missing = true;
-        leveldb::Status status = leveldb::DB::Open(options, fileName, &pdb);
-        dbwrapper_private::HandleError(status);
 
         std::string value;
-        status = pdb->Get(leveldb::ReadOptions(), dbKey, &value);
+        dbWrapper.Read(dbKey, value);
 
         if(!value.empty()) {
             std::stringstream ss{value};
             boost::archive::binary_iarchive ia{ss};
             ia >> *this;
         }
-        delete pdb;
     }
 };
 
@@ -141,14 +130,13 @@ typedef std::vector<CStakesDbEntry> StakesVector;
 
 class CStakesDB {
 private:
-    CDBWrapper m_db_wrapper;
+    CDBWrapper m_db_wrapper GUARDED_BY(cs_main);
+    std::string leveldb_name;
     AddressMap m_address_to_stakes_map {};
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
-
-    std::string leveldb_name;
 
     // mutex to assure that no more than one editable cache is open.
     std::mutex m_cache_mutex;
@@ -173,6 +161,8 @@ public:
     void dropCache();
     void initHelpStates();
     void dumpHelpStates();
+
+    void verify();
 };
 
 
