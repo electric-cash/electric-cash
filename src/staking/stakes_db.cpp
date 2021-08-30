@@ -24,12 +24,29 @@ void CStakesDbEntry::setComplete(bool completeFlag) {
 
 CStakesDB::CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name) :
         m_db_wrapper(GetDataDir() / leveldb_name, cache_size_bytes, in_memory, should_wipe, false),
-        m_staking_pool(0), leveldb_name{leveldb_name} {
-    verify();
+        m_staking_pool(0) {
     initHelpStates();
+    verify();
 }
 
 void CStakesDB::verify() {
+    verifyFlushState();
+    verifyTotalAmounts();
+}
+
+void CStakesDB::verifyTotalAmounts() {
+    AmountByPeriodArray totalStakedByPeriod = {0, 0, 0, 0};
+    for (const auto& stake : getAllActiveStakes()) {
+        CAmount amount = stake.getAmount();
+        size_t periodIdx = stake.getPeriodIdx();
+        totalStakedByPeriod[periodIdx] += amount;
+    }
+    for (int i = 0; i < stakingParams::NUM_STAKING_PERIODS; ++i) {
+        assert(totalStakedByPeriod[i] == m_amounts_by_periods[i]);
+    }
+}
+
+void CStakesDB::verifyFlushState() {
     bool flushOngoing = true;
     if (m_db_wrapper.Read(DB_PREFIX_FLUSH_ONGOING, flushOngoing)) {
         assert(!flushOngoing);
@@ -71,7 +88,7 @@ StakesVector CStakesDB::getAllActiveStakes() {
 
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LOCK(cs_main);
-    verify();
+    verifyFlushState();
     m_db_wrapper.Write(DB_PREFIX_FLUSH_ONGOING, true);
     CDBBatch batch{m_db_wrapper};
     batch.Clear();
@@ -159,6 +176,10 @@ void CStakesDB::initHelpStates() {
         serializer.load();
     }
     {
+        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, "m_amounts_by_periods"};
+        serializer.load();
+    }
+    {
         CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, "m_best_block_hash"};
         serializer.load();
     }
@@ -175,6 +196,10 @@ void CStakesDB::dumpHelpStates() {
     }
     {
         CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper, "m_stakes_completed_at_block_height"};
+        serializer.dump();
+    }
+    {
+        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, "m_amounts_by_periods"};
         serializer.dump();
     }
     {
@@ -206,6 +231,9 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
     try {
         m_stakes_map[entry.getKey()] = entry;
         m_current_cache_size += entry.estimateSize();
+        size_t periodIdx = entry.getPeriodIdx();
+        CAmount amount = entry.getAmount();
+        m_amounts_by_periods[periodIdx] += amount;
         updateActiveStakes(entry);
         return true;
     }catch(...) {
@@ -214,17 +242,24 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
     }
 }
 
-bool CStakesDBCache::removeStakeEntry(uint256 txid) {
+bool CStakesDBCache::removeStakeEntry(const CStakesDbEntry& entry) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
     }
-    m_active_stakes.erase(txid);
-    auto it = m_stakes_map.find(txid);
+    // no possible scenario to remove an inactive entry
+    assert(entry.isActive());
+    size_t periodIdx = entry.getPeriodIdx();
+    CAmount amount = entry.getAmount();
+    m_amounts_by_periods[periodIdx] -= amount;
+
+    const uint256 stakeId = entry.getKey();
+    m_active_stakes.erase(stakeId);
+    auto it = m_stakes_map.find(stakeId);
     if (it != m_stakes_map.end()) {
         m_stakes_map.erase(it);
     }
-    m_stakes_to_remove.insert(txid);
+    m_stakes_to_remove.insert(stakeId);
     return true;
 }
 
@@ -268,6 +303,9 @@ bool CStakesDBCache::deactivateStake(uint256 txid, const bool fSetComplete) {
         stake.setInactive();
         stake.setComplete(fSetComplete);
         m_active_stakes.erase(txid);
+        CAmount amount = stake.getAmount();
+        size_t periodIdx = stake.getPeriodIdx();
+        m_amounts_by_periods[periodIdx] -= amount;
         addStakeEntry(stake);
     } else {
         return false;
@@ -335,6 +373,9 @@ bool CStakesDBCache::reactivateStake(const uint256 txid, const uint32_t height) 
         stake.setActive();
         stake.setComplete(stake.getCompleteBlock() > height);
         m_active_stakes.insert(stake.getKey());
+        CAmount amount = stake.getAmount();
+        size_t periodIdx = stake.getPeriodIdx();
+        m_amounts_by_periods[periodIdx] += amount;
         addStakeEntry(stake);
     } else {
         return false;
@@ -376,4 +417,11 @@ uint256 CStakesDBCache::getBestBlock() const {
         return m_base_db->getBestBlock();
     }
     return m_best_block_hash;
+}
+
+const AmountByPeriodArray& CStakesDBCache::getAmountsByPeriods() {
+    if (m_viewonly) {
+        return m_base_db->getAmountsByPeriods();
+    }
+    return m_amounts_by_periods;
 }

@@ -4,6 +4,7 @@
 #include <uint256.h>
 #include <script/script.h>
 #include <staking/staking_pool.h>
+#include <staking/stakingparams.h>
 #include <map>
 #include <set>
 #include <sync.h>
@@ -14,6 +15,8 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/set.hpp>
 #include <boost/serialization/map.hpp>
+#include <boost/serialization/array.hpp>
+
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
@@ -127,14 +130,15 @@ typedef std::map<std::string, std::set<uint256>> AddressMap;
 typedef std::set<uint256> StakeIdsSet;
 typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
+typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodArray;
 
 class CStakesDB {
 private:
     CDBWrapper m_db_wrapper GUARDED_BY(cs_main);
-    std::string leveldb_name;
     AddressMap m_address_to_stakes_map {};
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
+    AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
 
@@ -154,6 +158,7 @@ public:
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
     CStakingPool& stakingPool();
     uint256 getBestBlock();
+    const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
     const AddressMap& getAddressMap() const { return m_address_to_stakes_map;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
@@ -163,6 +168,10 @@ public:
     void dumpHelpStates();
 
     void verify();
+
+    void verifyFlushState();
+
+    void verifyTotalAmounts();
 };
 
 
@@ -181,6 +190,7 @@ private:
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     AddressMap m_address_to_stakes_map {};
     StakeIdsSet m_stakes_to_remove {};
+    AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
@@ -188,7 +198,7 @@ public:
     bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
-    bool removeStakeEntry(uint256 txid);
+    bool removeStakeEntry(const CStakesDbEntry& entry);
     bool deactivateStake(uint256 txid, const bool fSetComplete);
     bool reactivateStake(uint256 txid, uint32_t height);
     CStakingPool& stakingPool();
@@ -201,6 +211,7 @@ public:
     bool updateActiveStakes(const CStakesDbEntry& entry);
     bool setBestBlock(const uint256 hash);
     uint256 getBestBlock() const;
+    const AmountByPeriodArray& getAmountsByPeriods();
     bool drop();
 };
 

@@ -215,14 +215,14 @@ class StakingReorgTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[1], 2)
 
         self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
-        self.nodes[0].generate(1122)
-        self.nodes[1].generate(1219)
+        self.nodes[0].generate(19)
+        self.nodes[1].generate(22)
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         # height of nodes after nodes reconnecting
         target_height = max(node0_height, node1_height)
-        assert node1_height - node0_height == 97, 'Wrong diff in nodes height'
+        assert node1_height - node0_height == 3, 'Wrong diff in nodes height'
 
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)

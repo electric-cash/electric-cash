@@ -18,14 +18,7 @@ double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDBCach
     double max_possible_payout = std::floor(static_cast<double>(stakes.stakingPool().getBalance()) /
             stakingParams::STAKING_POOL_EXPIRY_BLOCKS + static_cast<double>(GetStakingRewardForHeight(height)));
 
-    // TODO(mtwaro): THIS MUST BE CHANGED - store the mapping {period => total_staked_for_period} inside the staking DB and move the following logic there.
-    std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> totalStakedByPeriod = {0, 0, 0, 0};
-    for (const auto& stake : stakes.getAllActiveStakes()) {
-        CAmount amount = stake.getAmount();
-        size_t periodIdx = stake.getPeriodIdx();
-        totalStakedByPeriod[periodIdx] += amount;
-    }
-
+    const AmountByPeriodArray totalStakedByPeriod = stakes.getAmountsByPeriods();
     double max_potential_payout = 0;
     for (int i = 0; i < stakingParams::NUM_STAKING_PERIODS; ++i) {
         max_potential_payout += stakingParams::STAKING_REWARD_PERCENTAGE[i] / 100.0 * static_cast<double>(totalStakedByPeriod[i]) / stakingParams::BLOCKS_PER_YEAR;

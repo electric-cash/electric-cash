@@ -1870,7 +1870,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
             if (stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()] >= pindex->nHeight) {
-                stakes.removeStakeEntry(stake.getKey());
+                stakes.removeStakeEntry(stake);
             }
             else {
                 stakes.addStakeEntry(stake);
