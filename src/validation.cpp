@@ -1854,9 +1854,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     if (fStakingActive) {
         // Undo staking pool rewards
 
-        CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
+        stakes.stakingPool().decreaseBalanceForHeight(pindex->nHeight);
         // Undo staking burns and penalties
-        CStakingPool::getInstance()->decreaseBalance(stakingBurnsAndPenalties);
+        stakes.stakingPool().decreaseBalance(stakingBurnsAndPenalties);
         std::vector<CStakesDbEntry> stakesToReactivate = stakes.getStakesCompletedAtHeight(pindex->nHeight);
         for (auto& stake : stakesToReactivate) {
             stakes.reactivateStake(stake.getKey(), pindex->nHeight);
@@ -1871,7 +1871,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
             if (stake.getDepositBlock() >= pindex->nHeight) {
-                stakes.removeStakeEntry(stake.getKey());
+                stakes.removeStakeEntry(stake);
             }
             else {
                 stakes.addStakeEntry(stake);

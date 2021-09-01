@@ -14,15 +14,15 @@ CAmount CStakingRewardsCalculator::CalculatePenaltyForStake(const CStakesDbEntry
             static_cast<double>(stake.getAmount()) / 100.0));
 }
 
-double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDB& stakes, uint32_t height, bool goingBackward) {
+double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(CStakesDBCache& stakes, uint32_t height, bool goingBackward) {
     // In case of reorg (going backward) the balance of staking pool is different than when going forward, so the max_possible_reward
     // must be calculated using a different algebraic formula
     double max_possible_payout = 0;
     if (goingBackward) {
-        max_possible_payout = std::floor(static_cast<double>(CStakingPool::getInstance()->getBalance() +
+        max_possible_payout = std::floor(static_cast<double>(stakes.stakingPool().getBalance() +
                 stakingParams::STAKING_POOL_EXPIRY_BLOCKS * GetStakingRewardForHeight(height)) / static_cast<double>(stakingParams::STAKING_POOL_EXPIRY_BLOCKS - 1));
     } else {
-        max_possible_payout = std::floor(static_cast<double>(CStakingPool::getInstance()->getBalance()) /
+        max_possible_payout = std::floor(static_cast<double>(stakes.stakingPool().getBalance()) /
                 stakingParams::STAKING_POOL_EXPIRY_BLOCKS + static_cast<double>(GetStakingRewardForHeight(height)));
     }
 
