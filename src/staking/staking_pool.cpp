@@ -12,7 +12,8 @@ void CStakingPool::increaseBalance(CAmount amount) {
 }
 
 void CStakingPool::increaseBalanceForNewBlock(int nHeight) {
-    m_balance += GetStakingRewardForHeight(nHeight);
+    CAmount amount = GetStakingRewardForHeight(nHeight);
+    this->increaseBalance(amount);
 }
 
 void CStakingPool::decreaseBalance(CAmount amount) {

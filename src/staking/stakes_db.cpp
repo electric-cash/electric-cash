@@ -344,7 +344,7 @@ StakesVector CStakesDBCache::getAllActiveStakes() {
     std::vector<CStakesDbEntry> res;
     for (auto id : m_active_stakes) {
         CStakesDbEntry stake = getStakeDbEntry(id);
-        assert(stake.isValid() && stake.isActive());
+        assert(stake.isValid() && stake.isActive() && !stake.isComplete());
         res.push_back(stake);
     }
     return res;

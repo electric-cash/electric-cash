@@ -1254,9 +1254,10 @@ bool ReadRawBlockFromDisk(std::vector<uint8_t>& block, const CBlockIndex* pindex
     return ReadRawBlockFromDisk(block, block_pos, message_start);
 }
 
-CAmount GetBlockSubsidy(int nHeight)
+CAmount GetBlockSubsidy(int nHeight, int nStakingActivationHeight)
 {
-    return GetBlockRewardForHeight(nHeight) - GetStakingRewardForHeight(nHeight);
+    return nHeight >= nStakingActivationHeight ?GetBlockRewardForHeight(nHeight) - GetStakingRewardForHeight(nHeight) :
+           GetBlockRewardForHeight(nHeight);
 }
 
 CoinsViews::CoinsViews(
@@ -1478,10 +1479,9 @@ void UpdateActiveStakes(CStakesDBCache& stakes, const int height) {
         CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalRewardCoefficient, stake);
         stake.setReward(stake.getReward() + rewardForBlock);
         totalRewardForBlock += rewardForBlock;
+        stakes.addStakeEntry(stake);
         if (height >= stake.getCompleteBlock()) {
             stakes.deactivateStake(stake.getKey(), true);
-        } else {
-            stakes.addStakeEntry(stake);
         }
     }
     stakes.stakingPool().decreaseBalance(totalRewardForBlock);
@@ -1522,7 +1522,7 @@ void UpdateCoinsAndStakes(const CTransaction& tx, CCoinsViewCache& inputs, CTxUn
             nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
             size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
             stakes.addStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
-                                                nHeight + stakingParams::STAKING_PERIOD[nStakingPeriod],
+                                                nHeight + stakingParams::STAKING_PERIOD[nStakingPeriod] - 1,
                                                 nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
@@ -1853,14 +1853,15 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     if (fStakingActive) {
         // Undo staking pool rewards
-        stakes.stakingPool().decreaseBalanceForHeight(pindex->nHeight);
-        // Undo staking burns
-        stakes.stakingPool().decreaseBalance(stakingBurnsAndPenalties);
+
+        CStakingPool::getInstance()->decreaseBalanceForHeight(pindex->nHeight);
+        // Undo staking burns and penalties
+        CStakingPool::getInstance()->decreaseBalance(stakingBurnsAndPenalties);
         std::vector<CStakesDbEntry> stakesToReactivate = stakes.getStakesCompletedAtHeight(pindex->nHeight);
         for (auto& stake : stakesToReactivate) {
             stakes.reactivateStake(stake.getKey(), pindex->nHeight);
         }
-        double globalStakingRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, pindex->nHeight);
+        double globalStakingRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(stakes, pindex->nHeight, true);
         LogPrintf("Global staking reward coefficient for block %d: %lf \n", pindex->nHeight, globalStakingRewardCoefficient);
         CAmount stakingRewardsForBlock = 0;
         for (auto& stake : stakes.getAllActiveStakes()) {
@@ -1869,8 +1870,8 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(globalStakingRewardCoefficient, stake);
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
-            if (stake.getCompleteBlock() - stakingParams::STAKING_PERIOD[stake.getPeriodIdx()] >= pindex->nHeight) {
-                stakes.removeStakeEntry(stake);
+            if (stake.getDepositBlock() >= pindex->nHeight) {
+                stakes.removeStakeEntry(stake.getKey());
             }
             else {
                 stakes.addStakeEntry(stake);
@@ -2317,7 +2318,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint(BCLog::BENCH, "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs (%.2fms/blk)]\n", (unsigned)block.vtx.size(), MILLI * (nTime3 - nTime2), MILLI * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : MILLI * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * MICRO, nTimeConnect * MILLI / nBlocksTotal);
 
-    CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight);
+    CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus().nStakingStartHeight);
     if (block.vtx[0]->GetValueOut() > blockReward) {
         LogPrintf("ERROR: ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)\n", block.vtx[0]->GetValueOut(), blockReward);
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-amount");
