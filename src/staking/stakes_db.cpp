@@ -407,7 +407,6 @@ bool CStakesDBCache::drop() {
     if (m_viewonly) {
         return false;
     }
-    LogPrintf("DEB: dropped cache %s\n", static_cast<void*>(this));
     m_base_db->dropCache();
     return true;
 }

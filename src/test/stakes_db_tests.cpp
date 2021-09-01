@@ -85,10 +85,10 @@ BOOST_AUTO_TEST_CASE(address_mapping) {
     BOOST_CHECK(list_of_ids.size() == 1);
 
     cache.addAddressToMap(address, txid2);
-    list_of_ids = db.getStakeIdsForAddress(address);
+    list_of_ids = cache.getStakeIdsForAddress(address);
     BOOST_CHECK(list_of_ids.size() == 2);
 
-    list_of_ids = db.getStakeIdsForAddress("not existing address");
+    list_of_ids = cache.getStakeIdsForAddress("not existing address");
     BOOST_CHECK(list_of_ids.size() == 0);
 }
 

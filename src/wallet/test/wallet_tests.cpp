@@ -80,7 +80,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         BOOST_CHECK(result.last_failed_block.IsNull());
         BOOST_CHECK_EQUAL(result.last_scanned_block, newTip->GetBlockHash());
         BOOST_CHECK_EQUAL(*result.last_scanned_height, newTip->nHeight);
-        BOOST_CHECK_EQUAL(wallet.GetBalance().m_mine_immature, 900 * COIN); // 90% of 1000
+        BOOST_CHECK_EQUAL(wallet.GetBalance().m_mine_immature, 950 * COIN); // one full reward, one 90%
     }
 
     // Prune the older block file.
@@ -286,7 +286,7 @@ BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
     // credit amount is calculated.
     wtx.MarkDirty();
     BOOST_CHECK(spk_man->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey()));
-    BOOST_CHECK_EQUAL(wtx.GetImmatureCredit(), 450 * COIN); // 90% of 500
+    BOOST_CHECK_EQUAL(wtx.GetImmatureCredit(), 500 * COIN); // 90% of 500
 }
 
 static int64_t AddTx(CWallet& wallet, uint32_t lockTime, int64_t mockTime, int64_t blockTime)
@@ -525,8 +525,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoins, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 1U);
 
     // Check initial balance from one mature coinbase transaction.
-    // Only 90% of initial 500 goes to miner
-    BOOST_CHECK_EQUAL(450 * COIN, wallet->GetAvailableBalance());
+    BOOST_CHECK_EQUAL(500 * COIN, wallet->GetAvailableBalance());
 
     // Add a transaction creating a change address, and confirm ListCoins still
     // returns the coin associated with the change address underneath the
