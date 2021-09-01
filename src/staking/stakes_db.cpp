@@ -234,6 +234,7 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
         size_t periodIdx = entry.getPeriodIdx();
         CAmount amount = entry.getAmount();
         m_amounts_by_periods[periodIdx] += amount;
+        m_stakes_completed_at_block_height[entry.getCompleteBlock()].insert(entry.getKey());
         updateActiveStakes(entry);
         return true;
     }catch(...) {
@@ -371,7 +372,7 @@ bool CStakesDBCache::reactivateStake(const uint256 txid, const uint32_t height) 
     CStakesDbEntry stake = getStakeDbEntry(txid);
     if (stake.isValid() && !stake.isActive()) {
         stake.setActive();
-        stake.setComplete(stake.getCompleteBlock() > height);
+        stake.setComplete(height > stake.getCompleteBlock());
         m_active_stakes.insert(stake.getKey());
         CAmount amount = stake.getAmount();
         size_t periodIdx = stake.getPeriodIdx();
