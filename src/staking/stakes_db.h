@@ -3,11 +3,27 @@
 #include <amount.h>
 #include <uint256.h>
 #include <script/script.h>
+#include <staking/staking_pool.h>
 #include <staking/stakingparams.h>
 #include <map>
 #include <set>
+#include <sync.h>
 #include <dbwrapper.h>
+#include <sstream>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/set.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/array.hpp>
 
+
+static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
+static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
+const std::string DB_PREFIX_BEST_HASH = "BHH";
+const std::string DB_PREFIX_FLUSH_ONGOING = "FLO";
+class CStakesDBCache;
+extern RecursiveMutex cs_main;
 
 class CStakesDbEntry {
 private:
@@ -76,39 +92,128 @@ public:
 
 };
 
+template <typename T>
+class CSerializer {
+    friend class boost::serialization::access;
+    template<typename Archive>
+    void serialize(Archive& archive, const unsigned int version) {
+        archive & varToSave;
+    }
+    T& varToSave;
+    std::string dbKey;
+    CDBWrapper& dbWrapper;
+public:
+    CSerializer(T& varToSave, CDBWrapper& dbWrapper, const std::string& dbKey):
+        varToSave{varToSave}, dbWrapper(dbWrapper), dbKey{dbKey} {}
+    void dump() {
+
+        std::stringstream ss;
+        boost::archive::binary_oarchive oa{ss};
+        oa << *this;
+
+        dbWrapper.Write(dbKey, ss.str());
+    }
+    void load() {
+
+        std::string value;
+        dbWrapper.Read(dbKey, value);
+
+        if(!value.empty()) {
+            std::stringstream ss{value};
+            boost::archive::binary_iarchive ia{ss};
+            ia >> *this;
+        }
+    }
+};
+
 typedef std::map<uint256, CStakesDbEntry> StakesMap;
 typedef std::map<std::string, std::set<uint256>> AddressMap;
 typedef std::set<uint256> StakeIdsSet;
 typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
+typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodArray;
 
 class CStakesDB {
 private:
-    size_t current_cache_size {};
-    // TODO move cache size var into separate class
-    static const size_t max_cache_size {500 * (1 << 20)};
-    // TODO check db params
-    CDBWrapper db_wrapper;
-    StakesMap stakes_map {};
-    AddressMap address_to_stakes_map {};
-    StakeIdsSet active_stakes {};
-    StakesCompletedAtBlockHeightMap stakes_completed_at_block_height {};
+    CDBWrapper m_db_wrapper GUARDED_BY(cs_main);
+    AddressMap m_address_to_stakes_map {};
+    StakeIdsSet m_active_stakes {};
+    StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
+    AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+    CStakingPool m_staking_pool;
+    uint256 m_best_block_hash;
+
+    // mutex to assure that no more than one editable cache is open.
+    std::mutex m_cache_mutex;
 
 public:
-    CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+    explicit CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+    CStakesDB() = delete;
     CStakesDB(const CStakesDB& other) = delete;
-    bool addStakeEntry(const CStakesDbEntry& entry);
     CStakesDbEntry getStakeDbEntry(uint256 txid);
     CStakesDbEntry getStakeDbEntry(std::string txid);
     bool removeStakeEntry(uint256 txid);
-    bool deactivateStake(uint256 txid, const bool fSetComplete);
-    bool reactivateStake(uint256 txid, uint32_t height);
-    void flushDB();
-    ~CStakesDB() { flushDB(); }
+    bool flushDB(CStakesDBCache* cache);
     std::set<uint256> getStakeIdsForAddress(std::string address);
-    void addAddressToMap(std::string address, uint256 txid);
     StakesVector getAllActiveStakes();
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    CStakingPool& stakingPool();
+    uint256 getBestBlock();
+    const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
+    const AddressMap& getAddressMap() const { return m_address_to_stakes_map;}
+    const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
+    const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
+    void initCache();
+    void dropCache();
+    void initHelpStates();
+    void dumpHelpStates();
+
+    void verify();
+
+    void verifyFlushState();
+
+    void verifyTotalAmounts();
+};
+
+
+class CStakesDBCache {
+    friend CStakesDB;
+private:
+    CStakesDB* m_base_db;
+    bool m_viewonly;
+    bool m_flushed = false;
+    uint256 m_best_block_hash;
+    size_t m_current_cache_size {};
+    size_t m_max_cache_size{};
+    StakesMap m_stakes_map {};
+    CStakingPool m_staking_pool;
+    StakeIdsSet m_active_stakes {};
+    StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
+    AddressMap m_address_to_stakes_map {};
+    StakeIdsSet m_stakes_to_remove {};
+    AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+
+public:
+    CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
+    CStakesDBCache(const CStakesDBCache& other) = delete;
+    bool addStakeEntry(const CStakesDbEntry& entry);
+    CStakesDbEntry getStakeDbEntry(uint256 txid);
+    CStakesDbEntry getStakeDbEntry(std::string txid);
+    bool removeStakeEntry(const CStakesDbEntry& entry);
+    bool deactivateStake(uint256 txid, const bool fSetComplete);
+    bool reactivateStake(uint256 txid, uint32_t height);
+    CStakingPool& stakingPool();
+    bool flushDB();
+    ~CStakesDBCache() { drop(); }
+    std::set<uint256> getStakeIdsForAddress(std::string address);
+    bool addAddressToMap(std::string address, uint256 txid);
+    StakesVector getAllActiveStakes();
+    StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    bool updateActiveStakes(const CStakesDbEntry& entry);
+    bool setBestBlock(const uint256 hash);
+    uint256 getBestBlock() const;
+    const AmountByPeriodArray& getAmountsByPeriods();
+    bool drop();
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

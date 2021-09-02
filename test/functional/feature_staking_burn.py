@@ -44,10 +44,13 @@ class StakingBurnTest(BitcoinTestFramework):
             return [tx_input], [tx_output_staking_burn_header]
 
     def send_staking_burn_tx(self, change_address: str, amount_to_burn: decimal.Decimal, node_num: int):
-        unspent = self.nodes[node_num].listunspent()[0]
-        assert unspent[
-                   "amount"] * COIN > amount_to_burn, f"Amount too big ({amount_to_burn}) to be sent from this UTXO " \
-                                                      f"({unspent['amount'] * COIN})"
+
+        i = 0
+        while True:
+            unspent = self.nodes[node_num].listunspent()[i]
+            if unspent["amount"] * COIN >= amount_to_burn:
+                break
+            i = i + 1
         tx_inputs, tx_outputs = self.create_staking_burn_tx_input(change_address, amount_to_burn, unspent)
         # create, sign and send staking burn transaction
         raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)

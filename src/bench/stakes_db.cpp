@@ -6,9 +6,10 @@
 #include <cmath>
 
 
-static CStakesDB* fill_cache(size_t cache_size_in_bytes) {
-    CStakesDB* db = new CStakesDB(cache_size_in_bytes / 10, false, true,
+static CStakesDBCache* fill_cache(size_t cache_size_in_bytes) {
+    CStakesDB* base_db = new CStakesDB(cache_size_in_bytes / 10, false, true,
         (GetDataDir() / "bench_test" / "stakes_db").string());
+    CStakesDBCache* db = new CStakesDBCache(base_db, cache_size_in_bytes);
 
     CScript script;
     script.clear();
@@ -29,7 +30,7 @@ static CStakesDB* fill_cache(size_t cache_size_in_bytes) {
 }
 
 static void StakesDB(benchmark::State& state) {
-    CStakesDB *db = fill_cache(500 * (1 << 20));
+    CStakesDBCache *db = fill_cache(500 * (1 << 20));
 
     while(state.KeepRunning()) {
         db->flushDB();

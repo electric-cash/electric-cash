@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
     CAmount nSum = 0;
     CAmount stakingBalance = 0;
     for (int nHeight = 0; nHeight < 2000000; nHeight += 100) {
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, 1);
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, 0);
         CAmount stakingReward = GetStakingRewardForHeight(nHeight);
         BOOST_CHECK(nSubsidy <= 500 * COIN);
         BOOST_CHECK(stakingReward <= FRACTION_OF_STAKING_REWARD * GetBlockRewardForHeight(nHeight));

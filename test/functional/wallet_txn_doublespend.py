@@ -33,9 +33,7 @@ class TxnMallTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[2], 1)
 
     def run_test(self):
-        COINBASE_REWARD_MINER_FRACTON = 0.9
-        # All nodes should start with 0.9 * 1,250 ELCASH:
-        starting_balance = Decimal(12500 * COINBASE_REWARD_MINER_FRACTON)
+        starting_balance = Decimal(12500)
 
         # All nodes should be out of IBD.
         # If the nodes are not all out of IBD, that can interfere with
@@ -50,11 +48,11 @@ class TxnMallTest(BitcoinTestFramework):
 
         # Assign coins to foo and bar addresses:
         node0_address_foo = self.nodes[0].getnewaddress()
-        fund_foo_txid = self.nodes[0].sendtoaddress(node0_address_foo, 12190 * COINBASE_REWARD_MINER_FRACTON)
+        fund_foo_txid = self.nodes[0].sendtoaddress(node0_address_foo, 12190)
         fund_foo_tx = self.nodes[0].gettransaction(fund_foo_txid)
 
         node0_address_bar = self.nodes[0].getnewaddress()
-        fund_bar_txid = self.nodes[0].sendtoaddress(node0_address_bar, 290 * COINBASE_REWARD_MINER_FRACTON)
+        fund_bar_txid = self.nodes[0].sendtoaddress(node0_address_bar, 290)
         fund_bar_tx = self.nodes[0].gettransaction(fund_bar_txid)
 
         assert_equal(self.nodes[0].getbalance(),
@@ -68,22 +66,22 @@ class TxnMallTest(BitcoinTestFramework):
         doublespend_fee = Decimal('-.02')
         rawtx_input_0 = {}
         rawtx_input_0["txid"] = fund_foo_txid
-        rawtx_input_0["vout"] = find_output(self.nodes[0], fund_foo_txid, 12190 * COINBASE_REWARD_MINER_FRACTON)
+        rawtx_input_0["vout"] = find_output(self.nodes[0], fund_foo_txid, 12190)
         rawtx_input_1 = {}
         rawtx_input_1["txid"] = fund_bar_txid
-        rawtx_input_1["vout"] = find_output(self.nodes[0], fund_bar_txid, 290 * COINBASE_REWARD_MINER_FRACTON)
+        rawtx_input_1["vout"] = find_output(self.nodes[0], fund_bar_txid, 290)
         inputs = [rawtx_input_0, rawtx_input_1]
         change_address = self.nodes[0].getnewaddress()
         outputs = {}
-        outputs[node1_address] = 12400 * COINBASE_REWARD_MINER_FRACTON
-        outputs[change_address] = Decimal((12480 - 12400) * COINBASE_REWARD_MINER_FRACTON) + doublespend_fee
+        outputs[node1_address] = 12400
+        outputs[change_address] = Decimal(12480 - 12400) + doublespend_fee
         rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
         doublespend = self.nodes[0].signrawtransactionwithwallet(rawtx)
         assert_equal(doublespend["complete"], True)
 
         # Create two spends using 1 50 ELCASH coin each
-        txid1 = self.nodes[0].sendtoaddress(node1_address, 400 * COINBASE_REWARD_MINER_FRACTON)
-        txid2 = self.nodes[0].sendtoaddress(node1_address, 200 * COINBASE_REWARD_MINER_FRACTON)
+        txid1 = self.nodes[0].sendtoaddress(node1_address, 400)
+        txid2 = self.nodes[0].sendtoaddress(node1_address, 200)
 
         # Have node0 mine a block:
         if (self.options.mine_block):
@@ -132,14 +130,14 @@ class TxnMallTest(BitcoinTestFramework):
         assert_equal(tx1["confirmations"], -2)
         assert_equal(tx2["confirmations"], -2)
 
-        # Node0's total balance should be starting balance, plus 100ELCASH for
+        # Node0's total balance should be starting balance, plus 100 ELCASH for
         # two more matured blocks, minus 1240 for the double-spend, plus fees (which are
         # negative):
-        expected = starting_balance + Decimal((1000 - 12400) * COINBASE_REWARD_MINER_FRACTON) + fund_foo_tx["fee"] + fund_bar_tx["fee"] + doublespend_fee
+        expected = starting_balance + Decimal(900 - 12400) + fund_foo_tx["fee"] + fund_bar_tx["fee"] + doublespend_fee
         assert_equal(self.nodes[0].getbalance(), expected)
 
         # Node1's balance should be its initial balance (1250 for 25 block rewards) plus the doublespend:
-        assert_equal(self.nodes[1].getbalance(), (12500 + 12400) * COINBASE_REWARD_MINER_FRACTON)
+        assert_equal(self.nodes[1].getbalance(), 12500 + 12400)
 
 if __name__ == '__main__':
     TxnMallTest().main()

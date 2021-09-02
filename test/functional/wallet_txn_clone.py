@@ -40,9 +40,7 @@ class TxnMallTest(BitcoinTestFramework):
         else:
             output_type = "legacy"
 
-        COINBASE_REWARD_MINER_FRACTON = 0.9
-        # All nodes should start with 0.9 * 12,500 ELCASH:
-        starting_balance = Decimal(12500 * COINBASE_REWARD_MINER_FRACTON)
+        starting_balance = Decimal(12500)
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress()  # bug workaround, coins generated assigned to first getnewaddress!
@@ -50,11 +48,11 @@ class TxnMallTest(BitcoinTestFramework):
         self.nodes[0].settxfee(.001)
 
         node0_address1 = self.nodes[0].getnewaddress(address_type=output_type)
-        node0_txid1 = self.nodes[0].sendtoaddress(node0_address1, 12190 * COINBASE_REWARD_MINER_FRACTON)
+        node0_txid1 = self.nodes[0].sendtoaddress(node0_address1, 12190)
         node0_tx1 = self.nodes[0].gettransaction(node0_txid1)
 
         node0_address2 = self.nodes[0].getnewaddress(address_type=output_type)
-        node0_txid2 = self.nodes[0].sendtoaddress(node0_address2, 290 * COINBASE_REWARD_MINER_FRACTON)
+        node0_txid2 = self.nodes[0].sendtoaddress(node0_address2, 290)
         node0_tx2 = self.nodes[0].gettransaction(node0_txid2)
 
         assert_equal(self.nodes[0].getbalance(),
@@ -64,8 +62,8 @@ class TxnMallTest(BitcoinTestFramework):
         node1_address = self.nodes[1].getnewaddress()
 
         # Send tx1, and another transaction tx2 that won't be cloned
-        txid1 = self.nodes[0].sendtoaddress(node1_address, 400 * COINBASE_REWARD_MINER_FRACTON)
-        txid2 = self.nodes[0].sendtoaddress(node1_address, 200 * COINBASE_REWARD_MINER_FRACTON)
+        txid1 = self.nodes[0].sendtoaddress(node1_address, 400)
+        txid2 = self.nodes[0].sendtoaddress(node1_address, 200)
 
         # Construct a clone of tx1, to be malleated
         rawtx1 = self.nodes[0].getrawtransaction(txid1, 1)

@@ -61,10 +61,13 @@ class StakingReorgTest(BitcoinTestFramework):
 
     def send_staking_deposit_tx(self, stake_address: str, deposit_amount: decimal.Decimal, period_idx: int, node_num: int,
                                 change_address: str = None):
-        unspent = self.nodes[node_num].listunspent()[0]
-        assert unspent[
-                   "amount"] * COIN > deposit_amount, f"Amount too big ({deposit_amount}) to be sent from this UTXO " \
-                                                      f"({unspent['amount'] * COIN})"
+        i = 0
+        while True:
+            unspent = self.nodes[node_num].listunspent()[i]
+            if unspent["amount"] * COIN >= deposit_amount:
+                break
+            i = i + 1
+
         if not change_address:
             change_address = self.nodes[node_num].getnewaddress()
         tx_inputs, tx_outputs = self.create_tx_inputs_and_outputs(stake_address, change_address, deposit_amount, period_idx,

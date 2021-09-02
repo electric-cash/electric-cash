@@ -2428,7 +2428,7 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
-    results.pushKV("staking_pool", CStakingPool::getInstance()->getBalance());
+    results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
 // TODO: remove dummy variables when ready
     results.pushKV("num_stakers", -1);
     results.pushKV("total_staked", -1);
