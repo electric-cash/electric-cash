@@ -57,7 +57,7 @@ StakingTransactionType CStakingTransactionParser::ValidateStakingDepositTx() {
     } catch (...) {
         return StakingTransactionType::NONE;
     }
-    if (stakingPeriod >= stakingParams::STAKING_PERIOD.size()) {
+    if (stakingPeriod >= stakingParams::NUM_STAKING_PERIODS) {
         return StakingTransactionType::NONE;
     }
     stakingTxMetadata.depositTxMetadata = CStakingDepositTxMetadata(outputIndex, stakingPeriod);
