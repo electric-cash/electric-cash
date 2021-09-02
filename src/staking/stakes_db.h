@@ -10,6 +10,7 @@
 #include <sync.h>
 #include <dbwrapper.h>
 #include <sstream>
+#include <string_view>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
@@ -21,8 +22,7 @@
 
 static const size_t MAX_CACHE_SIZE{450 * (1 << 20)};
 static const size_t DEFAULT_BATCH_SIZE{45 * (1 << 20)};
-const std::string DB_PREFIX_BEST_HASH = "BHH";
-const std::string DB_PREFIX_FLUSH_ONGOING = "FLO";
+
 class CStakesDBCache;
 extern RecursiveMutex cs_main;
 

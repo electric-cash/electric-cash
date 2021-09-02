@@ -1,6 +1,15 @@
 #include <staking/stakes_db.h>
 
 
+namespace DBHeaders {
+    const std::string ADDRESS_TO_STAKES_MAP = "address_to_stakes_map";
+    const std::string ACTIVE_STAKES = "active_stakes";
+    const std::string STAKES_COMPLETED_AT_BLOCK_HEIGHT = "stakes_completed_at_block_height";
+    const std::string AMOUNT_BY_PERIOD = "amounts_by_periods";
+    const std::string BEST_BLOCK_HASH = "best_block_hash";
+    const std::string FLUSH_ONGOING = "flush_ongoing";
+}
+
 CStakesDbEntry::CStakesDbEntry(const uint256 txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
     txid = txidIn;
     amount = amountIn;
@@ -48,7 +57,7 @@ void CStakesDB::verifyTotalAmounts() {
 
 void CStakesDB::verifyFlushState() {
     bool flushOngoing = true;
-    if (m_db_wrapper.Read(DB_PREFIX_FLUSH_ONGOING, flushOngoing)) {
+    if (m_db_wrapper.Read(DBHeaders::FLUSH_ONGOING, flushOngoing)) {
         assert(!flushOngoing);
     } else {
         assert(m_db_wrapper.IsEmpty());
@@ -89,7 +98,7 @@ StakesVector CStakesDB::getAllActiveStakes() {
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LOCK(cs_main);
     verifyFlushState();
-    m_db_wrapper.Write(DB_PREFIX_FLUSH_ONGOING, true);
+    m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, true);
     CDBBatch batch{m_db_wrapper};
     batch.Clear();
     size_t batch_size = static_cast<size_t>(gArgs.GetArg("-dbbatchsize", DEFAULT_BATCH_SIZE));
@@ -119,7 +128,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     for (const auto& txid : cache->m_stakes_to_remove) {
         removeStakeEntry(txid);
     }
-    m_db_wrapper.Write(DB_PREFIX_FLUSH_ONGOING, false);
+    m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
 }
@@ -157,53 +166,55 @@ void CStakesDB::dropCache() {
 
 uint256 CStakesDB::getBestBlock() {
     if (m_best_block_hash.IsNull()) {
-        m_db_wrapper.Read(DB_PREFIX_BEST_HASH, m_best_block_hash);
+        m_db_wrapper.Read(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
     }
     return m_best_block_hash;
 }
 
 void CStakesDB::initHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, "m_address_to_stakes_map"};
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
         serializer.load();
     }
     {
-        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, "m_active_stakes"};
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, DBHeaders::ACTIVE_STAKES};
         serializer.load();
     }
     {
-        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper, "m_stakes_completed_at_block_height"};
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper,
+                                                                DBHeaders::STAKES_COMPLETED_AT_BLOCK_HEIGHT};
         serializer.load();
     }
     {
-        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, "m_amounts_by_periods"};
+        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.load();
     }
     {
-        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, "m_best_block_hash"};
+        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, DBHeaders::BEST_BLOCK_HASH};
         serializer.load();
     }
 }
 
 void CStakesDB::dumpHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, "m_address_to_stakes_map"};
+        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
         serializer.dump();
     }
     {
-        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, "m_active_stakes"};
+        CSerializer<StakeIdsSet> serializer{m_active_stakes, m_db_wrapper, DBHeaders::ACTIVE_STAKES};
         serializer.dump();
     }
     {
-        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper, "m_stakes_completed_at_block_height"};
+        CSerializer<StakesCompletedAtBlockHeightMap> serializer{m_stakes_completed_at_block_height, m_db_wrapper,
+                                                                DBHeaders::STAKES_COMPLETED_AT_BLOCK_HEIGHT};
         serializer.dump();
     }
     {
-        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, "m_amounts_by_periods"};
+        CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.dump();
     }
     {
-        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, "m_best_block_hash"};
+        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, DBHeaders::BEST_BLOCK_HASH};
         serializer.dump();
     }
 }
