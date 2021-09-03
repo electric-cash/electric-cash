@@ -38,7 +38,7 @@ private:
     bool active;
 public:
     CStakesDbEntry() {};
-    CStakesDbEntry(const uint256 txidIn, CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn);
+    CStakesDbEntry(const uint256& txidIn, CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn);
     CAmount getAmount() const { return amount; }
     void setReward(const CAmount rewardIn);
     CAmount getReward() const { return reward; }
@@ -51,7 +51,7 @@ public:
     uint256 getKey() const { return txid; }
     std::string getKeyHex() const { return txid.GetHex(); }
     CScript getScript() const { return script; }
-    void setKey(const uint256 txidIn) { txid = txidIn; }
+    void setKey(const uint256& txidIn) { txid = txidIn; }
     bool isValid() const { return valid; }
     void setInactive() { active = false; }
     void setActive() { active = true; }
@@ -128,7 +128,7 @@ public:
 };
 
 typedef std::map<uint256, CStakesDbEntry> StakesMap;
-typedef std::map<std::string, std::set<uint256>> AddressMap;
+typedef std::map<std::string, std::set<uint256>> ScriptToStakesMap;
 typedef std::set<uint256> StakeIdsSet;
 typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
@@ -137,7 +137,7 @@ typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodAr
 class CStakesDB {
 private:
     CDBWrapper m_db_wrapper GUARDED_BY(cs_main);
-    AddressMap m_address_to_stakes_map {};
+    ScriptToStakesMap m_script_to_active_stakes {};
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
@@ -151,29 +151,26 @@ public:
     explicit CStakesDB(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
     CStakesDB() = delete;
     CStakesDB(const CStakesDB& other) = delete;
-    CStakesDbEntry getStakeDbEntry(uint256 txid);
-    CStakesDbEntry getStakeDbEntry(std::string txid);
-    bool removeStakeEntry(uint256 txid);
+    CStakesDbEntry getStakeDbEntry(const uint256& txid) const;
+    CStakesDbEntry getStakeDbEntry(std::string txid) const;
+    bool removeStakeEntry(const uint256& txid);
     bool flushDB(CStakesDBCache* cache);
-    std::set<uint256> getStakeIdsForAddress(std::string address);
-    StakesVector getAllActiveStakes();
+    std::set<uint256> getActiveStakeIdsForScript(const CScript& script);
+    StakesVector getAllActiveStakes() const;
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
     CStakingPool& stakingPool();
     uint256 getBestBlock();
     const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
-    const AddressMap& getAddressMap() const { return m_address_to_stakes_map;}
+    const ScriptToStakesMap& getScriptMap() const { return m_script_to_active_stakes;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
     void initCache();
     void dropCache();
     void initHelpStates();
     void dumpHelpStates();
-
     void verify();
-
     void verifyFlushState();
-
-    void verifyTotalAmounts();
+    void verifyTotalAmounts() const;
 };
 
 
@@ -190,30 +187,29 @@ private:
     CStakingPool m_staking_pool;
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
-    AddressMap m_address_to_stakes_map {};
+    ScriptToStakesMap m_script_to_active_stakes {};
     StakeIdsSet m_stakes_to_remove {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
     CStakesDBCache(const CStakesDBCache& other) = delete;
-    bool addStakeEntry(const CStakesDbEntry& entry);
-    CStakesDbEntry getStakeDbEntry(uint256 txid);
-    CStakesDbEntry getStakeDbEntry(std::string txid);
-    bool removeStakeEntry(const CStakesDbEntry& entry);
-    bool deactivateStake(uint256 txid, const bool fSetComplete);
-    bool reactivateStake(uint256 txid, uint32_t height);
+    bool addNewStakeEntry(const CStakesDbEntry& entry);
+    CStakesDbEntry getStakeDbEntry(const uint256& txid) const;
+    CStakesDbEntry getStakeDbEntry(std::string txid) const;
+    bool removeStakeEntry(const uint256& txid);
+    bool deactivateStake(const uint256& txid, const bool fSetComplete);
+    bool reactivateStake(const uint256& txid, const uint32_t height);
+    bool updateStakeEntry(const CStakesDbEntry& entry);
     CStakingPool& stakingPool();
     bool flushDB();
     ~CStakesDBCache() { drop(); }
-    std::set<uint256> getStakeIdsForAddress(std::string address);
-    bool addAddressToMap(std::string address, uint256 txid);
-    StakesVector getAllActiveStakes();
+    std::set<uint256> getActiveStakeIdsForScript(const CScript& script) const;
+    StakesVector getAllActiveStakes() const;
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
-    bool updateActiveStakes(const CStakesDbEntry& entry);
-    bool setBestBlock(const uint256 hash);
+    bool setBestBlock(const uint256& hash);
     uint256 getBestBlock() const;
-    const AmountByPeriodArray& getAmountsByPeriods();
+    const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
 };
 

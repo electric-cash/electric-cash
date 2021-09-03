@@ -60,7 +60,6 @@ class StakingBurnTest(BitcoinTestFramework):
     def staking_burn_simple_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
         amount_to_burn = 400 * COIN
 
         node0_height = self.nodes[0].getblockcount()

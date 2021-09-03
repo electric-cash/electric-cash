@@ -104,12 +104,8 @@ class StakingReorgTest(BitcoinTestFramework):
             return self.nodes[node_num].sendrawtransaction(signed_raw_tx["hex"])
 
     def reorg_recalculate_reward(self):
-        staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
         deposit_amount = 300 * COIN
         staking_percentage = 5.0
-        stake_length_months = 1
-        stake_length_blocks = stake_length_months * 30 * 144
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
         staking_reward = 50 * COIN
 
@@ -177,16 +173,10 @@ class StakingReorgTest(BitcoinTestFramework):
         assert node0_reward == node1_reward == node1_expected_reward, f'Difference in staking rewards: {node0_reward, node1_reward, node1_expected_reward}'
 
     def reorg_cancelled_deposit_tx(self):
-        staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
         deposit_amount = 300 * COIN
-        staking_percentage = 5.0
-        stake_length_months = 1
-        stake_length_blocks = stake_length_months * 30 * 144
-        expected_reward = math.floor(deposit_amount * staking_percentage / 100.0 * stake_length_months / 12.0)
         starting_height = 200
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
+        starting_staking_balance = 100 * staking_reward
 
         addr1 = self.nodes[0].getnewaddress()
 

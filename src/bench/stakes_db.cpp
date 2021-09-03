@@ -24,7 +24,7 @@ static CStakesDBCache* fill_cache(size_t cache_size_in_bytes) {
 
     for(arith_uint256 key{0}; key < static_cast<int>(floor(cache_size_in_bytes / entry_size)); ++key) {
         entry.setKey(ArithToUint256(key));
-        db->addStakeEntry(entry);
+        db->addNewStakeEntry(entry);
     }
     return db;
 }

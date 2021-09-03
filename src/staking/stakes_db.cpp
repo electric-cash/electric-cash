@@ -7,10 +7,17 @@ namespace DBHeaders {
     const std::string STAKES_COMPLETED_AT_BLOCK_HEIGHT = "stakes_completed_at_block_height";
     const std::string AMOUNT_BY_PERIOD = "amounts_by_periods";
     const std::string BEST_BLOCK_HASH = "best_block_hash";
+    const std::string STAKING_POOL = "staking_pool";
     const std::string FLUSH_ONGOING = "flush_ongoing";
 }
 
-CStakesDbEntry::CStakesDbEntry(const uint256 txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
+std::string scriptToStr(const CScript& script) {
+    CDataStream ds(SER_DISK, CLIENT_VERSION);
+    ds << script;
+    return ds.str();
+}
+
+CStakesDbEntry::CStakesDbEntry(const uint256& txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
     txid = txidIn;
     amount = amountIn;
     reward = rewardIn;
@@ -43,7 +50,7 @@ void CStakesDB::verify() {
     verifyTotalAmounts();
 }
 
-void CStakesDB::verifyTotalAmounts() {
+void CStakesDB::verifyTotalAmounts() const {
     AmountByPeriodArray totalStakedByPeriod = {0, 0, 0, 0};
     for (const auto& stake : getAllActiveStakes()) {
         CAmount amount = stake.getAmount();
@@ -64,7 +71,7 @@ void CStakesDB::verifyFlushState() {
     }
 }
 
-CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
+CStakesDbEntry CStakesDB::getStakeDbEntry(const uint256& txid) const {
     CStakesDbEntry output;
     if(m_db_wrapper.Read(txid, output))
         output.setKey(txid);
@@ -73,11 +80,11 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(uint256 txid) {
     return output;
 }
 
-CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) {
+CStakesDbEntry CStakesDB::getStakeDbEntry(std::string txid) const {
     return getStakeDbEntry(uint256S(txid));
 }
 
-bool CStakesDB::removeStakeEntry(uint256 txid) {
+bool CStakesDB::removeStakeEntry(const uint256& txid) {
     if (!m_db_wrapper.Erase(txid)) {
         LogPrintf("ERROR: Cannot remove stake of id %s from database\n", txid.GetHex());
         return false;
@@ -85,7 +92,7 @@ bool CStakesDB::removeStakeEntry(uint256 txid) {
     return true;
 }
 
-StakesVector CStakesDB::getAllActiveStakes() {
+StakesVector CStakesDB::getAllActiveStakes() const {
     std::vector<CStakesDbEntry> res;
     for (auto id : m_active_stakes) {
         CStakesDbEntry stake = getStakeDbEntry(id);
@@ -93,6 +100,14 @@ StakesVector CStakesDB::getAllActiveStakes() {
         res.push_back(stake);
     }
     return res;
+}
+
+std::set<uint256> CStakesDB::getActiveStakeIdsForScript(const CScript& script) {
+    auto it = m_script_to_active_stakes.find(scriptToStr(script));
+    if(it == m_script_to_active_stakes.end()) {
+        return std::set<uint256> {};
+    }
+    return it->second;
 }
 
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
@@ -103,10 +118,11 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     batch.Clear();
     size_t batch_size = static_cast<size_t>(gArgs.GetArg("-dbbatchsize", DEFAULT_BATCH_SIZE));
 
-    m_address_to_stakes_map = cache->m_address_to_stakes_map;
+    m_script_to_active_stakes = cache->m_script_to_active_stakes;
     m_active_stakes = cache->m_active_stakes;
     m_staking_pool = cache->m_staking_pool;
     m_stakes_completed_at_block_height = cache->m_stakes_completed_at_block_height;
+    m_amounts_by_periods = cache->m_amounts_by_periods;
     m_best_block_hash = cache->m_best_block_hash;
     dumpHelpStates();
 
@@ -131,15 +147,6 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
-}
-
-std::set<uint256> CStakesDB::getStakeIdsForAddress(std::string address) {
-    auto it = m_address_to_stakes_map.find(address);
-    if(it == m_address_to_stakes_map.end()) {
-        LogPrintf("ERROR: Address %s not found\n", address);
-        return std::set<uint256> {};
-    }
-    return it->second;
 }
 
 StakesVector CStakesDB::getStakesCompletedAtHeight(const uint32_t height) {
@@ -173,7 +180,7 @@ uint256 CStakesDB::getBestBlock() {
 
 void CStakesDB::initHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
+        CSerializer<ScriptToStakesMap> serializer{m_script_to_active_stakes, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
         serializer.load();
     }
     {
@@ -189,15 +196,14 @@ void CStakesDB::initHelpStates() {
         CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.load();
     }
-    {
-        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, DBHeaders::BEST_BLOCK_HASH};
-        serializer.load();
-    }
+
+    m_db_wrapper.Read(DBHeaders::STAKING_POOL, m_staking_pool);
+    m_db_wrapper.Read(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
 }
 
 void CStakesDB::dumpHelpStates() {
     {
-        CSerializer<AddressMap> serializer{m_address_to_stakes_map, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
+        CSerializer<ScriptToStakesMap> serializer{m_script_to_active_stakes, m_db_wrapper, DBHeaders::ADDRESS_TO_STAKES_MAP};
         serializer.dump();
     }
     {
@@ -213,10 +219,9 @@ void CStakesDB::dumpHelpStates() {
         CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.dump();
     }
-    {
-        CSerializer<uint256> serializer{m_best_block_hash, m_db_wrapper, DBHeaders::BEST_BLOCK_HASH};
-        serializer.dump();
-    }
+
+    m_db_wrapper.Write(DBHeaders::STAKING_POOL, m_staking_pool);
+    m_db_wrapper.Write(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
 }
 
 CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_size): m_viewonly(fViewOnly),
@@ -225,8 +230,9 @@ CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_s
         m_base_db->initCache();
         m_active_stakes.insert(m_base_db->getActiveStakesSet().begin(),  m_base_db->getActiveStakesSet().end());
         m_stakes_completed_at_block_height.insert(m_base_db->getStakesCompletedAtBlockHeightMap().begin(),  m_base_db->getStakesCompletedAtBlockHeightMap().end());
-        m_address_to_stakes_map.insert(m_base_db->getAddressMap().begin(),  m_base_db->getAddressMap().end());
+        m_script_to_active_stakes.insert(m_base_db->getScriptMap().begin(), m_base_db->getScriptMap().end());
         m_best_block_hash = m_base_db->getBestBlock();
+        m_amounts_by_periods = m_base_db->getAmountsByPeriods();
     }
 }
 
@@ -234,7 +240,7 @@ CStakingPool& CStakesDBCache::stakingPool() {
     return m_staking_pool;
 }
 
-bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
+bool CStakesDBCache::addNewStakeEntry(const CStakesDbEntry& entry) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -242,11 +248,14 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
     try {
         m_stakes_map[entry.getKey()] = entry;
         m_current_cache_size += entry.estimateSize();
-        size_t periodIdx = entry.getPeriodIdx();
-        CAmount amount = entry.getAmount();
-        m_amounts_by_periods[periodIdx] += amount;
         m_stakes_completed_at_block_height[entry.getCompleteBlock()].insert(entry.getKey());
-        updateActiveStakes(entry);
+        if (entry.isActive()) {
+            m_active_stakes.insert(entry.getKey());
+            m_script_to_active_stakes[scriptToStr(entry.getScript())].insert(entry.getKey());
+            size_t periodIdx = entry.getPeriodIdx();
+            CAmount amount = entry.getAmount();
+            m_amounts_by_periods[periodIdx] += amount;
+        }
         return true;
     }catch(...) {
         LogPrintf("ERROR: Cannot add stake of id %s to database\n", entry.getKeyHex());
@@ -254,19 +263,21 @@ bool CStakesDBCache::addStakeEntry(const CStakesDbEntry& entry) {
     }
 }
 
-bool CStakesDBCache::removeStakeEntry(const CStakesDbEntry& entry) {
+bool CStakesDBCache::removeStakeEntry(const uint256& txid) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
     }
-    // no possible scenario to remove an inactive entry
-    assert(entry.isActive());
-    size_t periodIdx = entry.getPeriodIdx();
-    CAmount amount = entry.getAmount();
+    CStakesDbEntry stake = getStakeDbEntry(txid);
+    // no possible scenario to remove an inactive stake
+    assert(stake.isActive());
+    size_t periodIdx = stake.getPeriodIdx();
+    CAmount amount = stake.getAmount();
     m_amounts_by_periods[periodIdx] -= amount;
 
-    const uint256 stakeId = entry.getKey();
+    const uint256 stakeId = stake.getKey();
     m_active_stakes.erase(stakeId);
+    m_script_to_active_stakes[scriptToStr(stake.getScript())].erase(stakeId);
     auto it = m_stakes_map.find(stakeId);
     if (it != m_stakes_map.end()) {
         m_stakes_map.erase(it);
@@ -275,19 +286,18 @@ bool CStakesDBCache::removeStakeEntry(const CStakesDbEntry& entry) {
     return true;
 }
 
-std::set<uint256> CStakesDBCache::getStakeIdsForAddress(std::string address) {
+std::set<uint256> CStakesDBCache::getActiveStakeIdsForScript(const CScript& script) const {
     if (m_viewonly) {
-        return m_base_db->getStakeIdsForAddress(address);
+        return m_base_db->getActiveStakeIdsForScript(script);
     }
-    auto it = m_address_to_stakes_map.find(address);
-    if(it == m_address_to_stakes_map.end()) {
-        LogPrintf("ERROR: Address %s not found\n", address);
+    auto it = m_script_to_active_stakes.find(scriptToStr(script));
+    if(it == m_script_to_active_stakes.end()) {
         return std::set<uint256> {};
     }
     return it->second;
 }
 
-CStakesDbEntry CStakesDBCache::getStakeDbEntry(uint256 txid) {
+CStakesDbEntry CStakesDBCache::getStakeDbEntry(const uint256& txid) const {
     if (m_viewonly) {
         return m_base_db->getStakeDbEntry(txid);
     }
@@ -301,11 +311,11 @@ CStakesDbEntry CStakesDBCache::getStakeDbEntry(uint256 txid) {
     return it->second;
 }
 
-CStakesDbEntry CStakesDBCache::getStakeDbEntry(std::string txid) {
+CStakesDbEntry CStakesDBCache::getStakeDbEntry(std::string txid) const {
     return getStakeDbEntry(uint256S(txid));
 }
 
-bool CStakesDBCache::deactivateStake(uint256 txid, const bool fSetComplete) {
+bool CStakesDBCache::deactivateStake(const uint256& txid, const bool fSetComplete) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -315,10 +325,11 @@ bool CStakesDBCache::deactivateStake(uint256 txid, const bool fSetComplete) {
         stake.setInactive();
         stake.setComplete(fSetComplete);
         m_active_stakes.erase(txid);
+        m_script_to_active_stakes[scriptToStr(stake.getScript())].erase(txid);
         CAmount amount = stake.getAmount();
         size_t periodIdx = stake.getPeriodIdx();
         m_amounts_by_periods[periodIdx] -= amount;
-        addStakeEntry(stake);
+        m_stakes_map[txid] = stake;
     } else {
         return false;
     }
@@ -336,20 +347,7 @@ bool CStakesDBCache::flushDB() {
     return true;
 }
 
-bool CStakesDBCache::addAddressToMap(std::string address, uint256 txid) {
-    if (m_viewonly) {
-        LogPrintf("ERROR: Cannot modify a viewonly cache");
-        return false;
-    }
-    auto it = m_address_to_stakes_map.find(address);
-    if(it == m_address_to_stakes_map.end())
-        m_address_to_stakes_map[address] = std::set<uint256> {txid};
-    else
-        it->second.insert(txid);
-    return true;
-}
-
-StakesVector CStakesDBCache::getAllActiveStakes() {
+StakesVector CStakesDBCache::getAllActiveStakes() const {
     if (m_viewonly) {
         return m_base_db->getAllActiveStakes();
     }
@@ -375,7 +373,7 @@ StakesVector CStakesDBCache::getStakesCompletedAtHeight(const uint32_t height) {
     return res;
 }
 
-bool CStakesDBCache::reactivateStake(const uint256 txid, const uint32_t height) {
+bool CStakesDBCache::reactivateStake(const uint256& txid, const uint32_t height) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -385,28 +383,17 @@ bool CStakesDBCache::reactivateStake(const uint256 txid, const uint32_t height) 
         stake.setActive();
         stake.setComplete(height > stake.getCompleteBlock());
         m_active_stakes.insert(stake.getKey());
+        m_script_to_active_stakes[scriptToStr(stake.getScript())].insert(txid);
         CAmount amount = stake.getAmount();
         size_t periodIdx = stake.getPeriodIdx();
         m_amounts_by_periods[periodIdx] += amount;
-        addStakeEntry(stake);
+        m_stakes_map[txid] = stake;
     } else {
         return false;
     }
     return true;
 }
-
-bool CStakesDBCache::updateActiveStakes(const CStakesDbEntry& entry) {
-    if (m_viewonly) {
-        LogPrintf("ERROR: Cannot modify a viewonly cache");
-        return false;
-    }
-    if (entry.isActive()) {
-        m_active_stakes.insert(entry.getKey());
-    }
-    return true;
-}
-
-bool CStakesDBCache::setBestBlock(const uint256 hash) {
+bool CStakesDBCache::setBestBlock(const uint256& hash) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -430,9 +417,20 @@ uint256 CStakesDBCache::getBestBlock() const {
     return m_best_block_hash;
 }
 
-const AmountByPeriodArray& CStakesDBCache::getAmountsByPeriods() {
+const AmountByPeriodArray& CStakesDBCache::getAmountsByPeriods() const {
     if (m_viewonly) {
         return m_base_db->getAmountsByPeriods();
     }
     return m_amounts_by_periods;
+}
+
+// This method assumes that nothing else from stake reward is modified. Checks are not performed because they would need
+// DB lookups, which are too expensive. If
+bool CStakesDBCache::updateStakeEntry(const CStakesDbEntry &entry) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    m_stakes_map[entry.getKey()] = entry;
+    return true;
 }

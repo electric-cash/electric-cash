@@ -1479,7 +1479,7 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
         CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(params, globalRewardCoefficient, stake);
         stake.setReward(stake.getReward() + rewardForBlock);
         totalRewardForBlock += rewardForBlock;
-        stakes.addStakeEntry(stake);
+        stakes.updateStakeEntry(stake);
         if (height >= stake.getCompleteBlock()) {
             stakes.deactivateStake(stake.getKey(), true);
         }
@@ -1521,9 +1521,9 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             fStake = true;
             nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
             size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
-            stakes.addStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
-                                                nHeight + params.StakingPeriod()[nStakingPeriod] - 1,
-                                                nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
+            stakes.addNewStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
+                                                   nHeight + params.StakingPeriod()[nStakingPeriod] - 1,
+                                                   nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
@@ -1871,10 +1871,10 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
             if (stake.getDepositBlock(chainparams) >= pindex->nHeight) {
-                stakes.removeStakeEntry(stake);
+                stakes.removeStakeEntry(stake.getKey());
             }
             else {
-                stakes.addStakeEntry(stake);
+                stakes.updateStakeEntry(stake);
             }
         }
         stakes.stakingPool().increaseBalance(stakingRewardsForBlock);

@@ -143,7 +143,6 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
 
     def normal_withdrawal_test(self):
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
         deposit_amount = 300 * COIN
         staking_percentage = 5.0
         stake_length_months = 1
@@ -189,8 +188,8 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         expected_staking_pool_balance = node0_staking_balance + blocks_after_reward_reduction * 7.5 * COIN + \
                                         blocks_before_reward_reduction * staking_reward - expected_reward
 
-        assert abs(self.get_staking_pool_balance(
-            node_num=0) - expected_staking_pool_balance) <= 10_000, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) differs too much from expected value ({expected_staking_pool_balance})"
+        assert self.get_staking_pool_balance(
+            node_num=0) == expected_staking_pool_balance, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) differs from expected value ({expected_staking_pool_balance})"
 
 
 if __name__ == '__main__':
