@@ -39,7 +39,8 @@ bench_bench_elcash_SOURCES = \
   bench/bech32.cpp \
   bench/lockedpool.cpp \
   bench/poly1305.cpp \
-  bench/prevector.cpp
+  bench/prevector.cpp \
+  bench/stakes_db.cpp
 
 nodist_bench_bench_elcash_SOURCES = $(GENERATED_BENCH_FILES)
 

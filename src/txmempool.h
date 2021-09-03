@@ -20,6 +20,7 @@
 #include <optional.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>
+#include <staking/stakes_db.h>
 #include <sync.h>
 #include <random.h>
 
@@ -563,7 +564,7 @@ public:
      * all inputs are in the mapNextTx array). If sanity-checking is turned off,
      * check does nothing.
      */
-    void check(const CCoinsViewCache *pcoins) const;
+    void check(const CCoinsViewCache *pcoins, CStakesDBCache& stakes) const;
     void setSanityCheck(double dFrequency = 1.0) { LOCK(cs); nCheckFrequency = static_cast<uint32_t>(dFrequency * 4294967295.0); }
 
     // addUnchecked must updated state for all ancestors of a given transaction,

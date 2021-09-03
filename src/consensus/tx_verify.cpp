@@ -9,6 +9,7 @@
 #include <script/interpreter.h>
 #include <consensus/validation.h>
 #include <staking/transaction.h>
+#include <staking/staking_rewards_calculator.h>
 
 // TODO remove the following dependencies
 #include <chain.h>
@@ -157,7 +158,7 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     return nSigOps;
 }
 
-bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
+bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee, CStakesDBCache& stakes)
 {
     // are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {
@@ -184,15 +185,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
 
         if (coin.IsStake()) {
-            /* TODO: Receive the information about staking reward or penalty from stakers DB or coin object and modify nValueIn. Something along these lines:
-             if (coin.IsMatureStake()) {
-                  CAmount stakingReward = getReward();
-                  nValueIn += stakingReward;
-             else (
-                  CAmount stakingPenalty = getPenalty();
-                  nValueIn -= stakingPenalty;
+            CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
+            // If the coin is marked as stake, but there is no corresponding entry in stakers DB, there is
+            // some major internal error.
+            assert(stakeDbEntry.isValid());
+            if (stakeDbEntry.isComplete()) {
+                CAmount stakingReward = stakeDbEntry.getReward();
+                nValueIn += stakingReward;
+            } else {
+                auto stakingPenalty = CStakingRewardsCalculator::CalculatePenaltyForStake(stakeDbEntry);
+                nValueIn -= stakingPenalty;
              }
-             */
         }
     }
 

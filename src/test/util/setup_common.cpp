@@ -115,6 +115,8 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
     g_chainstate = MakeUnique<CChainState>();
     ::ChainstateActive().InitCoinsDB(
         /* cache_size_bytes */ 1 << 23, /* in_memory */ true, /* should_wipe */ false);
+    ::ChainstateActive().InitStakesDB(
+            /* cache_size_bytes */ 1 << 23, /* in_memory */ true, /* should_wipe */ false);
     assert(!::ChainstateActive().CanFlushToDisk());
     ::ChainstateActive().InitCoinsCache();
     assert(::ChainstateActive().CanFlushToDisk());

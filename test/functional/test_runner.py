@@ -233,6 +233,8 @@ BASE_SCRIPTS = [
     # staking tests
     'feature_staking_pool.py',
     'feature_staking_burn.py',
+    'feature_staking_reorg.py',
+    'feature_staking_deposit_withdrawal.py'
     
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time

@@ -17,6 +17,8 @@
 #include <policy/feerate.h>
 #include <protocol.h> // For CMessageHeader::MessageStartChars
 #include <script/script_error.h>
+#include <staking/stakes_db.h>
+#include <staking/staking_rewards_calculator.h>
 #include <sync.h>
 #include <txmempool.h> // For CTxMemPool::cs
 #include <txdb.h>
@@ -251,7 +253,7 @@ bool GetTransaction(const uint256& hash, CTransactionRef& tx, const Consensus::P
  * validationinterface callback.
  */
 bool ActivateBestChain(BlockValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
-CAmount GetBlockSubsidy(int nHeight);
+CAmount GetBlockSubsidy(int nHeight, int nStakingActivationHeight);
 
 /** Guess verification progress (as a fraction between 0.0=genesis and 1.0=current tip). */
 double GuessVerificationProgress(const ChainTxData& data, const CBlockIndex* pindex);
@@ -502,6 +504,12 @@ public:
         CBlockIndex** ppindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 };
 
+class StakesView {
+public:
+    CStakesDB m_dbview GUARDED_BY(cs_main);
+    StakesView(size_t cache_size_bytes, bool in_memory, bool should_wipe, const std::string& leveldb_name);
+};
+
 /**
  * A convenience class for constructing the CCoinsView* hierarchy used
  * to facilitate access to the UTXO set.
@@ -597,6 +605,9 @@ private:
     //! Manages the UTXO set, which is a reflection of the contents of `m_chain`.
     std::unique_ptr<CoinsViews> m_coins_views;
 
+    //! stake DB view
+    std::unique_ptr<StakesView> m_stakes_view;
+
 public:
     CChainState(BlockManager& blockman) : m_blockman(blockman) {}
     CChainState();
@@ -622,6 +633,13 @@ public:
     bool CanFlushToDisk() EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         return m_coins_views && m_coins_views->m_cacheview;
     }
+
+    void InitStakesDB(
+            size_t cache_size_bytes,
+            bool in_memory,
+            bool should_wipe,
+            std::string leveldb_name = "stakes");
+
 
     //! The current chain of blockheaders we consult and build on.
     //! @see CChain, CBlockIndex.
@@ -652,6 +670,11 @@ public:
     CCoinsViewErrorCatcher& CoinsErrorCatcher() EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     {
         return m_coins_views->m_catcherview;
+    }
+
+    CStakesDB& GetStakesDB()
+    {
+        return m_stakes_view->m_dbview;
     }
 
     //! Destructs all objects related to accessing the UTXO set.
@@ -703,9 +726,9 @@ public:
     bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Block (dis)connection on a given view:
-    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams);
+    DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* pindex, CCoinsViewCache& view, const CChainParams& chainparams, CStakesDBCache& stakes);
     bool ConnectBlock(const CBlock& block, BlockValidationState& state, CBlockIndex* pindex,
-                      CCoinsViewCache& view, const CChainParams& chainparams, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+                      CCoinsViewCache& view, const CChainParams& chainparams, CStakesDBCache& stakes, bool fJustCheck = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     // Apply the effects of a block disconnection on the UTXO set.
     bool DisconnectTip(BlockValidationState& state, const CChainParams& chainparams, DisconnectedBlockTransactions* disconnectpool) EXCLUSIVE_LOCKS_REQUIRED(cs_main, ::mempool.cs);
