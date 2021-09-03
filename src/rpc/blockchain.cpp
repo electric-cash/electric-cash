@@ -209,6 +209,21 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
     return result;
 }
 
+UniValue stakeToJSON(const CStakesDbEntry& stake)
+{
+    AssertLockNotHeld(cs_main); // For performance reasons
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("deposit_height", static_cast<int>(stake.getDepositBlock(Params())));
+    result.pushKV("staking_period", ::Params().StakingPeriod()[stake.getPeriodIdx()]);
+    result.pushKV("staking_amount", stake.getAmount());
+    result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
+    result.pushKV("fulfilled", stake.isComplete());
+    // TODO(mtwaro): access coin and fill this param
+    result.pushKV("paid_out", false);
+    return result;
+}
+
 static UniValue getblockcount(const JSONRPCRequest& request)
 {
             RPCHelpMan{"getblockcount",
@@ -1945,7 +1960,7 @@ static UniValue getblockstats(const JSONRPCRequest& request)
     ret_all.pushKV("minfeerate", (minfeerate == MAX_MONEY) ? 0 : minfeerate);
     ret_all.pushKV("mintxsize", mintxsize == MAX_BLOCK_SERIALIZED_SIZE ? 0 : mintxsize);
     ret_all.pushKV("outs", outputs);
-    ret_all.pushKV("subsidy", GetBlockSubsidy(pindex->nHeight));
+    ret_all.pushKV("subsidy", GetBlockSubsidy(pindex->nHeight, Params().GetConsensus().nStakingStartHeight));
     ret_all.pushKV("swtotal_size", swtotal_size);
     ret_all.pushKV("swtotal_weight", swtotal_weight);
     ret_all.pushKV("swtxs", swtxs);
@@ -2413,11 +2428,42 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
-    results.pushKV("staking_pool", CStakingPool::getInstance()->getBalance());
+    results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
 // TODO: remove dummy variables when ready
     results.pushKV("num_stakers", -1);
     results.pushKV("total_staked", -1);
     return results;
+}
+
+static UniValue getstakeinfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakeinfo",
+               "\nReturns information about a stake with a given <txid>, if it exists in the database.",
+               {{"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "TXID of deposit transaction"}},
+               RPCResult{
+                       RPCResult::Type::OBJ, "", "",
+                       {
+                               {RPCResult::Type::STR_HEX, "deposit_height", "Block height at which the stake was deposited."},
+                               {RPCResult::Type::NUM, "staking_period", "Length of a stake in number of blocks."},
+                               {RPCResult::Type::STR_AMOUNT, "staking_amount", "Staked amount in ELCASH."},
+                               {RPCResult::Type::STR_AMOUNT, "accumulated_reward", "Accumulated staking reward at the moment of request."},
+                               {RPCResult::Type::BOOL, "fulfilled", "Whether the stake is fulfilled."},
+                               {RPCResult::Type::BOOL, "paid_out", "Whether the stake was spent."},
+                       }
+               },
+               RPCExamples{
+                       HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                       + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+               }
+    }.Check(request);
+
+    uint256 hash(ParseHashV(request.params[0], "txid"));
+
+    const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(hash);
+    if (!stake.isValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Stake not found");
+    }
+    return stakeToJSON(stake);
 }
 
 void RegisterBlockchainRPCCommands(CRPCTable &t)
@@ -2453,6 +2499,7 @@ static const CRPCCommand commands[] =
 
     /* Staking methods*/
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
+    { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

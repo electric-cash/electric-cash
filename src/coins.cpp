@@ -87,20 +87,9 @@ void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possi
     cachedCoinsUsage += it->second.coin.DynamicMemoryUsage();
 }
 
-void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check, bool fStakingActive) {
+void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool check, bool fStake, size_t nStakeOutputNumber) {
     bool fCoinbase = tx.IsCoinBase();
-    bool fStake = false;
-    size_t nStakeOutputNumber = 0;
     const uint256& txid = tx.GetHash();
-
-    if (fStakingActive) {
-        // Check if the transaction is a staking deposit. If so, mark appropriate output as a stake.
-        CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
-        fStake = stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT;
-        if (fStake) {
-            nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
-        }
-    }
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         bool overwrite = check ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
         // Always set the possible_overwrite flag to AddCoin for coinbase txn, in order to correctly

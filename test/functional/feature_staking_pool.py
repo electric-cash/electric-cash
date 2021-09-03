@@ -19,7 +19,7 @@ class StakingPoolTest(BitcoinTestFramework):
     def reorg_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        starting_staking_balance = 1 * staking_reward
+        starting_staking_balance = 100 * staking_reward
 
         # assure that nodes start with the same height
         node0_height = self.nodes[0].getblockcount()
@@ -76,7 +76,7 @@ class StakingPoolTest(BitcoinTestFramework):
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance == target_staking_balance, f'Nodes staking balance different than {target_staking_balance}'
-        assert target_staking_balance == 35 * staking_reward, 'Wrong staking balance'
+        assert target_staking_balance == 134 * staking_reward, 'Wrong staking balance'
 
 
 if __name__ == '__main__':

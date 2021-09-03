@@ -151,7 +151,6 @@ static bool AppInit(int argc, char* argv[])
     } catch (...) {
         PrintExceptionContinue(nullptr, "AppInit()");
     }
-    CStakingPool::getInstance();
 
     if (!fRet)
     {

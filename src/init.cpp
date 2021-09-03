@@ -1579,6 +1579,12 @@ bool AppInitMain(NodeContext& node)
                 // At this point we're either in reindex or we've loaded a useful
                 // block tree into BlockIndex()!
 
+                // TODO: use a separate cache size parameter
+                ::ChainstateActive().InitStakesDB(
+                        /* cache_size_bytes */ nCoinDBCache,
+                        /* in_memory */ false,
+                        /* should_wipe */ fReset || fReindexChainState);
+
                 ::ChainstateActive().InitCoinsDB(
                     /* cache_size_bytes */ nCoinDBCache,
                     /* in_memory */ false,
