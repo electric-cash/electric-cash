@@ -204,12 +204,12 @@ public:
         consensus.defaultAssumeValid = uint256S("0x00");
 
         // AUX POW Parameters
-        consensus.nAuxpowChainId = 0x2137;
+        consensus.nAuxpowChainId = 0x2138;
         consensus.nAuxpowStartHeight = 1;
         consensus.fStrictChainId = false;
 
         // Staking parameters
-        consensus.nStakingStartHeight = 999999; // To be set later
+        consensus.nStakingStartHeight = 101; // To be set later
         stakingPeriod = {
                 12,
                 36,
