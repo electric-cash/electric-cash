@@ -2623,7 +2623,9 @@ bool CChainState::DisconnectTip(BlockValidationState& state, const CChainParams&
         CCoinsViewCache view(&CoinsTip());
         CStakesDBCache stakes(&GetStakesDB());
         assert(view.GetBestBlock() == pindexDelete->GetBlockHash());
-        assert(stakes.getBestBlock() == pindexDelete->GetBlockHash());
+        if (pindexDelete->nHeight >= chainparams.GetConsensus().nStakingStartHeight) {
+            assert(stakes.getBestBlock() == pindexDelete->GetBlockHash());
+        }
         if (DisconnectBlock(block, pindexDelete, view, chainparams, stakes) != DISCONNECT_OK) {
             stakes.drop();
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
@@ -4442,7 +4444,9 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
         if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
-            assert(stakes.getBestBlock() == pindex->GetBlockHash());
+            if (pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight) {
+                assert(stakes.getBestBlock() == pindex->GetBlockHash());
+            }
             DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins, chainparams, stakes);
             if (res == DISCONNECT_FAILED) {
                 return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
