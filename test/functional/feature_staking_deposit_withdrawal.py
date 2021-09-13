@@ -174,7 +174,11 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, StakingTransactionsMixi
         # send staking deposit transaction
         stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
         # mine some blocks
-        self.nodes[0].generate(stake_length_blocks + 1)
+        num_div = 54
+        for i in range(num_div):
+            self.nodes[0].generate(stake_length_blocks // num_div)
+            self.sync_all()
+        self.nodes[0].generate(1)
         self.sync_all()
         # try to spend the stake
 
