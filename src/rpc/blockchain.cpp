@@ -2416,7 +2416,7 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
                     RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::NUM, "staking_pool", "current staking pool balance"},
-                            {RPCResult::Type::NUM, "num_stakers", "current number of stakers"},
+                            {RPCResult::Type::NUM, "num_stakes", "current number of stakes"},
                             {RPCResult::Type::NUM, "total_staked", "total staked amount (network-wide)"},
                         }
                },
@@ -2429,9 +2429,11 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
     results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
-// TODO: remove dummy variables when ready
-    results.pushKV("num_stakers", -1);
-    results.pushKV("total_staked", -1);
+    results.pushKV("num_stakes", ::ChainstateActive().GetStakesDB().getAllActiveStakes().size());
+    CAmount totalStaked{0};
+    for(const auto& value : ::ChainstateActive().GetStakesDB().getAmountsByPeriods())
+        totalStaked += value;
+    results.pushKV("total_staked", totalStaked);
     return results;
 }
 
