@@ -16,6 +16,7 @@ STAKING_PENALTY_PERCENTAGE = 3.0
 class StakingDepositWithdrawalTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
+        self.rpc_timeout = 120  # Wait for up to 120 seconds
 
     def run_test(self):
         self.early_withdrawal_test()
