@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v0.26.0 (2021-09-14)
+### Feature
+* **regtest:** Create regtest setup ([`be15b0b`](https://github.com/electric-cash/electric-cash/commit/be15b0b1b91c85371c2a5feab858c83609d78c49))
+
 ## v0.25.0 (2021-01-26)
 ### Feature
 * Readme ([#15](https://github.com/electric-cash/electric-cash/issues/15)) ([`0f257d1`](https://github.com/electric-cash/electric-cash/commit/0f257d116f231ae5728edc3fc1e3c13389ee514c))
