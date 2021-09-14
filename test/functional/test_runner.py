@@ -236,6 +236,7 @@ BASE_SCRIPTS = [
     'feature_staking_reorg.py',
     'feature_staking_deposit_withdrawal.py',
     'rpc_getstakinginfo.py',
+    'rpc_getstakesforaddress.py',
     
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time

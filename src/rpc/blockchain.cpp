@@ -14,6 +14,7 @@
 #include <core_io.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <key_io.h>
 #include <node/coinstats.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
@@ -2468,6 +2469,33 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
     return stakeToJSON(stake);
 }
 
+static UniValue getstakesforaddress(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakesforaddress",
+               "\nReturns the list of stakes indexes for all active stakes.\n",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "ELCASH address"}},
+               RPCResult{
+                    RPCResult::Type::ARR, "", "",
+                        {{RPCResult::Type::STR_HEX, "txid", "active staking index"}}
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+                       + HelpExampleRpc("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+               },
+    }.Check(request);
+
+    LOCK(cs_main);
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    UniValue results(UniValue::VARR);
+    for(const auto& stakeId : ::ChainstateActive().GetStakesDB().getActiveStakeIdsForScript(GetScriptForDestination(DecodeDestination(destination)))) {
+        results.push_back(stakeId.GetHex());
+    }
+    return results;
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2502,6 +2530,7 @@ static const CRPCCommand commands[] =
     /* Staking methods*/
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
     { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
+    { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },
