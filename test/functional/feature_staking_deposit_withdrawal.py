@@ -27,48 +27,12 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
     def get_stake_reward(self, txid: str, node_num: int) -> float:
         return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
 
-    @staticmethod
-    def create_tx_inputs_and_outputs(stake_address: str, change_address: str, deposit_amount: decimal.Decimal,
-                                     utxo: dict):
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-        # tx outputs
-        tx_output_staking_deposit_header = {
-            "data": bytes([STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, 0x00]).hex()
-        }
-
-        tx_output_stake = {
-            stake_address: deposit_amount / COIN
-        }
-
-        change_amount = (utxo["amount"] * COIN - deposit_amount - fee) / COIN
-        if change_amount > 0.0001:
-            tx_output_change = {
-                change_address: change_amount
-            }
-            return [tx_input], [tx_output_staking_deposit_header, tx_output_stake, tx_output_change]
-        else:
-            return [tx_input], [tx_output_staking_deposit_header, tx_output_stake]
+    def get_stake_amount(self, txid: str, node_num: int) -> float:
+        return self.nodes[node_num].getstakeinfo(txid)['staking_amount']
 
     def send_staking_deposit_tx(self, stake_address: str, deposit_amount: decimal.Decimal, node_num: int,
                                 change_address: str = None):
-        i = 0
-        while True:
-            unspent = self.nodes[node_num].listunspent()[i]
-            if unspent["amount"] * COIN >= deposit_amount:
-                break
-            i = i + 1
-        if not change_address:
-            change_address = self.nodes[node_num].getnewaddress()
-        tx_inputs, tx_outputs = self.create_tx_inputs_and_outputs(stake_address, change_address, deposit_amount,
-                                                                  unspent)
-        # create, sign and send staking burn transaction
-        raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
-        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
-        txid = self.nodes[0].sendrawtransaction(signed_raw_tx['hex'])
+        txid = self.nodes[node_num].depositstake(deposit_amount, 4320, stake_address)
         return txid
 
     def spend_stake(self, node_num: int, stake_txid: str, stake_address: str, early_withdrawal: bool = False,
@@ -99,7 +63,8 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
     def early_withdrawal_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        deposit_amount = 400 * COIN
+        deposit_value = 400
+        deposit_amount = deposit_value * COIN
         staking_penalty = int(deposit_amount * STAKING_PENALTY_PERCENTAGE / 100.0)
 
         node0_height = self.nodes[0].getblockcount()
@@ -122,10 +87,11 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         assert node0_height == node1_height == (starting_height + 10), 'Difference in nodes height'
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
         # mine some blocks
         self.nodes[0].generate(3)
         self.sync_all()
+        assert self.get_stake_amount(stake_id, 1) == deposit_value, f"Stake amount different than expected: {self.get_stake_amount(stake_id, 1)}, {deposit_value}"
 
         # try to spend the stake
         # verify that the stake cannot be spent without paying the penalty
@@ -143,7 +109,8 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
 
     def normal_withdrawal_test(self):
         staking_reward = 50 * COIN
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
@@ -170,7 +137,7 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         assert node0_height == node1_height, 'Difference in nodes height'
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
         # mine some blocks
         self.nodes[0].generate(stake_length_blocks + 1)
         self.sync_all()

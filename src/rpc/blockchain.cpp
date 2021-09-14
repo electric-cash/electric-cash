@@ -216,7 +216,7 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     UniValue result(UniValue::VOBJ);
     result.pushKV("deposit_height", static_cast<int>(stake.getDepositBlock(Params())));
     result.pushKV("staking_period", ::Params().StakingPeriod()[stake.getPeriodIdx()]);
-    result.pushKV("staking_amount", stake.getAmount());
+    result.pushKV("staking_amount", ValueFromAmount(stake.getAmount()));
     result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
     result.pushKV("fulfilled", stake.isComplete());
     // TODO(mtwaro): access coin and fill this param

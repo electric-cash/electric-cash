@@ -35,6 +35,7 @@
 #include <stdint.h>
 
 #include <univalue.h>
+#include <staking/transaction.h>
 
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
@@ -4269,6 +4270,100 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
     return result;
 }
 
+static UniValue depositstake(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    RPCHelpMan{"depositstake",
+               "\nDeposit coins for stake" +
+               HELP_REQUIRING_PASSPHRASE,
+               {
+                        {"amount", RPCArg::Type::NUM, RPCArg::Optional::NO, "Amount of ELCASH to stake.", "\"\""},
+                        {"period", RPCArg::Type::NUM, RPCArg::Optional::NO, "Length of a stake expressed in blocks number.", "\"\""},
+                        {"address", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Send a deposit to a given address. If no address is provided, the stake is deposited to a wallet default staking address."},
+                        {"subtractfeefromamount", RPCArg::Type::BOOL, /* default */ "false", "The fee will be deducted from the amount being sent.\n The recipient will receive less bitcoins than you enter in the amount field."},
+                        },
+            RPCResult{
+        RPCResult::Type::STR_HEX, "txid", "The stake ID"
+                                          },
+                                          RPCExamples{
+        "\nSend a one-month long stake to default wallet staking address:\n"
+        + HelpExampleCli("depositstake", "12.345 4320") +
+        "\nSend a one-year long stake to a specific address:\n"
+        + HelpExampleCli("depositstake","12.345 51840 " + EXAMPLE_ADDRESS[0]) +
+        "\nAs a JSON-RPC call\n"
+        + HelpExampleRpc("depositstake", "12.345, 51840, " + EXAMPLE_ADDRESS[0])
+        }
+        }.Check(request);
+
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[0]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
+
+    uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().StakingPeriod());
+    CTxDestination dest;
+    CCoinControl coin_control;
+    if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {
+        dest = DecodeDestination(request.params[2].get_str());
+        if (!IsValidDestination(dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        }
+    } else {
+        // TODO(mtwaro): create a getter for wallet staking address instead of this
+        const OutputType output_type = OutputType::BECH32;
+        ReserveDestination reservedest(pwallet, output_type);
+        bool ret = reservedest.GetReservedDestination(dest, true);
+        if (!ret)
+        {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Keypool ran out, please call keypoolrefill first");
+        }
+    }
+
+    bool fSubtractFeeFromAmount = false;
+    if (!request.params[3].isEmpty()) {
+        fSubtractFeeFromAmount = request.params[3].get_bool();
+    }
+
+    CScript destScript = GetScriptForDestination(dest);
+
+    // TODO(mtwaro): move to a separate method
+    std::vector<uint8_t> stakingDepHeader = {STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, period_index};
+    CScript stakeHeaderScript = CScript() << OP_RETURN << stakingDepHeader;
+
+
+    std::vector<CRecipient> vecSend;
+    vecSend.push_back({stakeHeaderScript, 0, false});
+    vecSend.push_back({destScript, nAmount, fSubtractFeeFromAmount});
+
+    mapValue_t mapValue;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    // Send
+    CAmount nFeeRequired = 0;
+    int nChangePosRet = 2;
+    std::string strFailReason;
+    CTransactionRef tx;
+    bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strFailReason, coin_control);
+    if (!fCreated)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    return tx->GetHash().GetHex();
+}
+
 UniValue abortrescan(const JSONRPCRequest& request); // in rpcdump.cpp
 UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 UniValue importprivkey(const JSONRPCRequest& request);
@@ -4293,6 +4388,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "backupwallet",                     &backupwallet,                  {"destination"} },
     { "wallet",             "bumpfee",                          &bumpfee,                       {"txid", "options"} },
     { "wallet",             "createwallet",                     &createwallet,                  {"wallet_name", "disable_private_keys", "blank", "passphrase", "avoid_reuse"} },
+    { "wallet",             "depositstake",                     &depositstake,                   {"amount", "period", "address", "subtractfeefromamount"}  },
     { "wallet",             "dumpprivkey",                      &dumpprivkey,                   {"address"}  },
     { "wallet",             "dumpwallet",                       &dumpwallet,                    {"filename"} },
     { "wallet",             "encryptwallet",                    &encryptwallet,                 {"passphrase"} },
