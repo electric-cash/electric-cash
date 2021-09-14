@@ -3,7 +3,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from feature_staking_deposit_withdrawal import StakingTransactionsMixin
 
 
-class StakingRPCMethodsTest(BitcoinTestFramework, StakingTransactionsMixin):
+class GetStakingInfoTest(BitcoinTestFramework, StakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
         self.rpc_timeout = 120
@@ -56,4 +56,4 @@ class StakingRPCMethodsTest(BitcoinTestFramework, StakingTransactionsMixin):
 
 
 if __name__ == '__main__':
-    StakingRPCMethodsTest().main()
+    GetStakingInfoTest().main()
