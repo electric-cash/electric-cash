@@ -13,20 +13,7 @@ STAKING_TX_DEPOSIT_SUBHEADER = 0x44
 STAKING_PENALTY_PERCENTAGE = 3.0
 
 
-class StakingDepositWithdrawalTest(BitcoinTestFramework):
-    def set_test_params(self):
-        self.num_nodes = 2
-
-    def run_test(self):
-        self.early_withdrawal_test()
-        self.normal_withdrawal_test()
-
-    def get_staking_pool_balance(self, node_num: int) -> int:
-        return self.nodes[node_num].getstakinginfo()['staking_pool']
-
-    def get_stake_reward(self, txid: str, node_num: int) -> float:
-        return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
-
+class StakingTransactionsMixin:
     @staticmethod
     def create_tx_inputs_and_outputs(stake_address: str, change_address: str, deposit_amount: decimal.Decimal,
                                      utxo: dict):
@@ -68,7 +55,7 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         # create, sign and send staking burn transaction
         raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
         signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
-        txid = self.nodes[0].sendrawtransaction(signed_raw_tx['hex'])
+        txid = self.nodes[node_num].sendrawtransaction(signed_raw_tx['hex'])
         return txid
 
     def spend_stake(self, node_num: int, stake_txid: str, stake_address: str, early_withdrawal: bool = False,
@@ -95,6 +82,21 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
                                     self.nodes[0].sendrawtransaction, signed_raw_tx["hex"])
         else:
             return self.nodes[node_num].sendrawtransaction(signed_raw_tx["hex"])
+
+
+class StakingDepositWithdrawalTest(BitcoinTestFramework, StakingTransactionsMixin):
+    def set_test_params(self):
+        self.num_nodes = 2
+
+    def run_test(self):
+        self.early_withdrawal_test()
+        self.normal_withdrawal_test()
+
+    def get_staking_pool_balance(self, node_num: int) -> int:
+            return self.nodes[node_num].getstakinginfo()['staking_pool']
+
+    def get_stake_reward(self, txid: str, node_num: int) -> float:
+        return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
 
     def early_withdrawal_test(self):
         starting_height = 200
@@ -172,7 +174,11 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         # send staking deposit transaction
         stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
         # mine some blocks
-        self.nodes[0].generate(stake_length_blocks + 1)
+        num_div = 54
+        for i in range(num_div):
+            self.nodes[0].generate(stake_length_blocks // num_div)
+            self.sync_all()
+        self.nodes[0].generate(1)
         self.sync_all()
         # try to spend the stake
 
