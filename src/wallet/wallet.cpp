@@ -35,6 +35,7 @@
 #include <assert.h>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <staking/transaction.h>
 
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
@@ -4387,4 +4388,20 @@ void CWallet::ConnectScriptPubKeyManNotifiers()
         spk_man->NotifyWatchonlyChanged.connect(NotifyWatchonlyChanged);
         spk_man->NotifyCanGetAddressesChanged.connect(NotifyCanGetAddressesChanged);
     }
+}
+
+CScript CWallet::CreateStakingDepositHeaderScript(const uint8_t period_index, const uint32_t output_index) {
+    std::stringstream ss {};
+    ss << STAKING_TX_HEADER << STAKING_TX_DEPOSIT_SUBHEADER;
+    WriteCompactSize(ss, output_index);
+    ss << period_index;
+    CScript stakeHeaderScript = CScript() << OP_RETURN << ToByteVector(ss.str());
+    return stakeHeaderScript;
+}
+
+CScript CWallet::CreateStakingBurnHeaderScript(const CAmount amount) {
+    std::stringstream ss {};
+    ss << STAKING_TX_HEADER << STAKING_TX_BURN_SUBHEADER;
+    CScript stakeHeaderScript = CScript() << OP_RETURN << ToByteVector(ss.str());
+    return stakeHeaderScript;
 }

@@ -4310,7 +4310,7 @@ static UniValue depositstake(const JSONRPCRequest& request)
 
     // Amount
     CAmount nAmount = AmountFromValue(request.params[0]);
-    if (nAmount <= 0)
+    if (nAmount <= stakingParams::MIN_STAKING_AMOUNT)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
     uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().StakingPeriod());
@@ -4338,10 +4338,7 @@ static UniValue depositstake(const JSONRPCRequest& request)
     }
 
     CScript destScript = GetScriptForDestination(dest);
-
-    // TODO(mtwaro): move to a separate method
-    std::vector<uint8_t> stakingDepHeader = {STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, period_index};
-    CScript stakeHeaderScript = CScript() << OP_RETURN << stakingDepHeader;
+    CScript stakeHeaderScript = CWallet::CreateStakingDepositHeaderScript(period_index, 1);
 
 
     std::vector<CRecipient> vecSend;
@@ -4355,6 +4352,70 @@ static UniValue depositstake(const JSONRPCRequest& request)
     // Send
     CAmount nFeeRequired = 0;
     int nChangePosRet = 2;
+    std::string strFailReason;
+    CTransactionRef tx;
+    bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strFailReason, coin_control);
+    if (!fCreated)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    return tx->GetHash().GetHex();
+}
+
+static UniValue burnforstaking(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    RPCHelpMan{"burnforstaking",
+               "\nDeposit coins for stake" +
+               HELP_REQUIRING_PASSPHRASE,
+               {
+        {"amount", RPCArg::Type::NUM, RPCArg::Optional::NO, "Amount of ELCASH to stake.", "\"\""},},
+        RPCResult{
+        RPCResult::Type::STR_HEX, "txid", "The stake ID"
+        },
+        RPCExamples{
+        "\nBurn 1234.5678 ELCASH for staking:\n"
+        + HelpExampleCli("burnforstaking", "1234.5678") +
+        "\nAs a JSON-RPC call\n"
+        + HelpExampleRpc("burnforstaking", "1234.5678")
+    }
+    }.Check(request);
+
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[0]);
+    if (nAmount <= 0)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
+
+
+    bool fSubtractFeeFromAmount = false;
+    if (!request.params[1].isEmpty()) {
+        fSubtractFeeFromAmount = request.params[1].get_bool();
+    }
+    CScript stakeHeaderScript = CWallet::CreateStakingBurnHeaderScript(nAmount);
+
+    std::vector<CRecipient> vecSend;
+    vecSend.push_back({stakeHeaderScript, nAmount, false});
+
+    mapValue_t mapValue;
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    // Send
+    CCoinControl coin_control;
+    CAmount nFeeRequired = 0;
+    int nChangePosRet = 1;
     std::string strFailReason;
     CTransactionRef tx;
     bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strFailReason, coin_control);
@@ -4387,8 +4448,9 @@ static const CRPCCommand commands[] =
     { "wallet",             "addmultisigaddress",               &addmultisigaddress,            {"nrequired","keys","label","address_type"} },
     { "wallet",             "backupwallet",                     &backupwallet,                  {"destination"} },
     { "wallet",             "bumpfee",                          &bumpfee,                       {"txid", "options"} },
+    { "wallet",             "burnforstaking",                   &burnforstaking,                {"amount"} },
     { "wallet",             "createwallet",                     &createwallet,                  {"wallet_name", "disable_private_keys", "blank", "passphrase", "avoid_reuse"} },
-    { "wallet",             "depositstake",                     &depositstake,                   {"amount", "period", "address", "subtractfeefromamount"}  },
+    { "wallet",             "depositstake",                     &depositstake,                  {"amount", "period", "address", "subtractfeefromamount"}  },
     { "wallet",             "dumpprivkey",                      &dumpprivkey,                   {"address"}  },
     { "wallet",             "dumpwallet",                       &dumpwallet,                    {"filename"} },
     { "wallet",             "encryptwallet",                    &encryptwallet,                 {"passphrase"} },

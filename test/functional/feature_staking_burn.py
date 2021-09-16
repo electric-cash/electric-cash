@@ -22,45 +22,14 @@ class StakingBurnTest(BitcoinTestFramework):
     def get_staking_pool_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
 
-    @staticmethod
-    def create_staking_burn_tx_input(change_address: str, amount_to_burn: decimal.Decimal, utxo: dict):
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-        # tx outputs
-        amount_to_burn_bin = int(amount_to_burn).to_bytes(8, "little")
-        tx_output_staking_burn_header = {
-            "data": (bytes([STAKING_TX_HEADER, STAKING_TX_BURN_SUBHEADER]) + amount_to_burn_bin).hex()
-        }
-        change_amount = (utxo["amount"] * COIN - amount_to_burn - fee) / COIN
-        if change_amount > 0.0001:
-            tx_output_change = {
-                change_address: change_amount
-            }
-            return [tx_input], [tx_output_staking_burn_header, tx_output_change]
-        else:
-            return [tx_input], [tx_output_staking_burn_header]
-
-    def send_staking_burn_tx(self, change_address: str, amount_to_burn: decimal.Decimal, node_num: int):
-
-        i = 0
-        while True:
-            unspent = self.nodes[node_num].listunspent()[i]
-            if unspent["amount"] * COIN >= amount_to_burn:
-                break
-            i = i + 1
-        tx_inputs, tx_outputs = self.create_staking_burn_tx_input(change_address, amount_to_burn, unspent)
-        # create, sign and send staking burn transaction
-        raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
-        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
-        self.nodes[0].sendrawtransaction(signed_raw_tx['hex'])
+    def send_staking_burn_tx(self, value_to_burn: float, node_num: int):
+        return self.nodes[node_num].burnforstaking(value_to_burn)
 
     def staking_burn_simple_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        amount_to_burn = 400 * COIN
+        value_to_burn = 400.0
+        amount_to_burn = value_to_burn * COIN
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
@@ -82,7 +51,7 @@ class StakingBurnTest(BitcoinTestFramework):
         assert node0_height == node1_height == (starting_height + 10), 'Difference in nodes height'
 
         # send staking burn transaction
-        self.send_staking_burn_tx(addr1, amount_to_burn, node_num=0)
+        txid = self.send_staking_burn_tx(value_to_burn, node_num=0)
 
         # check if staking pool balance wasn't increased yet
         assert self.get_staking_pool_balance(
@@ -100,7 +69,8 @@ class StakingBurnTest(BitcoinTestFramework):
 
     def staking_burn_reorg_test(self):
         staking_reward = 50 * COIN
-        amount_to_burn = 300 * COIN
+        value_to_burn = 300
+        amount_to_burn = value_to_burn * COIN
 
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
@@ -130,7 +100,7 @@ class StakingBurnTest(BitcoinTestFramework):
         node0_staking_balance = self.get_staking_pool_balance(node_num=0)
 
         # send staking burn transaction at node 0
-        self.send_staking_burn_tx(addr1, amount_to_burn, node_num=0)
+        self.send_staking_burn_tx(value_to_burn, node_num=0)
 
         # check if staking pool balance hasn't increased yet
         assert self.get_staking_pool_balance(

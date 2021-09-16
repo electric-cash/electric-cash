@@ -1225,6 +1225,9 @@ public:
 
     //! Connect the signals from ScriptPubKeyMans to the signals in CWallet
     void ConnectScriptPubKeyManNotifiers();
+
+    static CScript CreateStakingDepositHeaderScript(const uint8_t period_index, const uint32_t output_index);
+    static CScript CreateStakingBurnHeaderScript(const CAmount amount);
 };
 
 /**
