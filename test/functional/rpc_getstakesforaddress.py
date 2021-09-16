@@ -1,4 +1,3 @@
-from test_framework.authproxy import JSONRPCException
 from test_framework.messages import COIN
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
