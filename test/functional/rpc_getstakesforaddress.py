@@ -1,6 +1,7 @@
 from test_framework.authproxy import JSONRPCException
 from test_framework.messages import COIN
 from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import assert_raises_rpc_error
 from feature_staking_deposit_withdrawal import StakingTransactionsMixin
 
 
@@ -72,11 +73,7 @@ class GetStakesForAddressTest(BitcoinTestFramework, StakingTransactionsMixin):
         assert txids_set == set(self.nodes[0].getstakesforaddress(addr0))
 
     def getstakesforaddress_rpc_invalid_address_test(self):
-        try:
-            self.nodes[0].getstakesforaddress('invalid-address')
-            assert False, 'Not raised JSONRPCException'
-        except JSONRPCException as e:
-            assert str(e).startswith('Invalid ELCASH address')
+        assert_raises_rpc_error(-5, 'Invalid ELCASH address', self.nodes[0].getstakesforaddress, 'invalid-address')
 
 
 if __name__ == "__main__":
