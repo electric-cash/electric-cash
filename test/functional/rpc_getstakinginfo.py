@@ -1,9 +1,9 @@
+from staking_fixtures import DepositStakingTransactionsMixin
 from test_framework.messages import COIN
 from test_framework.test_framework import BitcoinTestFramework
-from feature_staking_deposit_withdrawal import StakingTransactionsMixin
 
 
-class GetStakingInfoTest(BitcoinTestFramework, StakingTransactionsMixin):
+class GetStakingInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
         self.rpc_timeout = 120

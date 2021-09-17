@@ -15,7 +15,8 @@ Test the following RPCs:
 from collections import OrderedDict
 from decimal import Decimal
 from io import BytesIO
-from test_framework.messages import CTransaction, ToHex
+from staking_fixtures import DepositStakingTransactionsMixin, BurnStakingTransactionsMixin
+from test_framework.messages import CTransaction, ToHex, COIN
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
