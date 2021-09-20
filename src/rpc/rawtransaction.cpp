@@ -28,6 +28,7 @@
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <staking/transaction.h>
 #include <uint256.h>
 #include <util/moneystr.h>
 #include <util/strencodings.h>
@@ -46,6 +47,32 @@
  * by the RPCs. This can be overridden with the maxfeerate argument.
  */
 static const CFeeRate DEFAULT_MAX_RAW_TX_FEE_RATE{COIN / 10};
+
+bool checkIfStakeUsedInWithdrawalTransaction(const CStakesDbEntry& stake)
+{
+    assert(stake.isValid());
+    return !::ChainstateActive().CoinsTip().HaveCoin(COutPoint{stake.getKey(), stake.getNumOutput()});
+}
+
+std::string getTransactionType(const CTransaction& tx)
+{
+    uint256 hash{tx.GetHash()};
+    const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(hash);
+    if(stake.isValid() && checkIfStakeUsedInWithdrawalTransaction(stake)) {
+        return "STAKING_WITHDRAWAL";
+    }
+    StakingTransactionType txType{CStakingTransactionParser{MakeTransactionRef(tx)}.GetStakingTxType()};
+    switch(txType) {
+        case StakingTransactionType::NONE:
+            return "NONE";
+        case StakingTransactionType::DEPOSIT:
+            return "STAKING_DEPOSIT";
+        case StakingTransactionType::BURN:
+            return "STAKING_BURN";
+        default:
+            return "NONE";
+    }
+}
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
@@ -66,6 +93,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.pushKV("confirmations", 1 + ::ChainActive().Height() - pindex->nHeight);
                 entry.pushKV("time", pindex->GetBlockTime());
                 entry.pushKV("blocktime", pindex->GetBlockTime());
+                entry.pushKV("tx_type", getTransactionType(tx));
             }
             else
                 entry.pushKV("confirmations", 0);
@@ -151,6 +179,7 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
                              {RPCResult::Type::NUM, "confirmations", "The confirmations"},
                              {RPCResult::Type::NUM_TIME, "blocktime", "The block time expressed in " + UNIX_EPOCH_TIME},
                              {RPCResult::Type::NUM, "time", "Same as \"blocktime\""},
+                             {RPCResult::Type::STR, "tx_type", "Transaction type, including staking and governance types"},
                         }
                     },
                 },

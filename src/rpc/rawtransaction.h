@@ -10,5 +10,6 @@ class UniValue;
 class uint256;
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+bool checkIfStakeUsedInWithdrawalTransaction(const CStakesDbEntry& stake);
 
 #endif // ELCASH_RPC_RAWTRANSACTION_H

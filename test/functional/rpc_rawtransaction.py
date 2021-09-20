@@ -489,5 +489,47 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[2].sendrawtransaction(hexstring=rawTxSigned['hex'], maxfeerate='0.20000000')
 
 
+class RawTransactionTypesTest(BitcoinTestFramework, DepositStakingTransactionsMixin, BurnStakingTransactionsMixin):
+    def set_test_params(self):
+        self.num_nodes = 1
+        self.extra_args = [
+            ["-txindex"],
+        ]
+
+    def run_test(self):
+        self.deposit_and_withdrawal_tx_types_test()
+        self.burn_and_withdrawal_tx_types_test()
+
+    def burn_and_withdrawal_tx_types_test(self):
+        addr1 = self.nodes[0].getnewaddress()
+        self.nodes[0].generatetoaddress(10, addr1)
+
+        stake_id = self.send_staking_burn_tx(addr1, amount_to_burn=300 * COIN, node_num=0)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        assert tx_type == 'STAKING_BURN', f'Transaction of type \'{tx_type}\' is not STAKING_BURN'
+
+    def deposit_and_withdrawal_tx_types_test(self):
+        addr1 = self.nodes[0].getnewaddress()
+        self.nodes[0].generatetoaddress(10, addr1)
+
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount=300 * COIN, node_num=0)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
+
+        non_staking_txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        assert tx_type == 'STAKING_WITHDRAWAL', f'Transaction of type \'{tx_type}\' is not STAKING_WITHDRAWAL'
+
+        tx_type = self.nodes[0].getrawtransaction(non_staking_txid, 1)['tx_type']
+        assert tx_type == 'NONE', f'Transaction of type \'{tx_type}\' is not NONE'
+
+
 if __name__ == '__main__':
     RawTransactionsTest().main()
+    RawTransactionTypesTest().main()
