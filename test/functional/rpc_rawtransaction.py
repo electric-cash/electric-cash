@@ -520,14 +520,14 @@ class RawTransactionTypesTest(BitcoinTestFramework, DepositStakingTransactionsMi
         tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
         assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
 
-        non_staking_txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
+        withdrawal_txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
         self.nodes[0].generate(1)
 
         tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
-        assert tx_type == 'STAKING_WITHDRAWAL', f'Transaction of type \'{tx_type}\' is not STAKING_WITHDRAWAL'
+        assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
 
-        tx_type = self.nodes[0].getrawtransaction(non_staking_txid, 1)['tx_type']
-        assert tx_type == 'NONE', f'Transaction of type \'{tx_type}\' is not NONE'
+        tx_type = self.nodes[0].getrawtransaction(withdrawal_txid, 1)['tx_type']
+        assert tx_type == 'STAKING_WITHDRAWAL', f'Transaction of type \'{tx_type}\' is not STAKING_WITHDRAWAL'
 
 
 if __name__ == '__main__':

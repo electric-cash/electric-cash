@@ -48,17 +48,20 @@
  */
 static const CFeeRate DEFAULT_MAX_RAW_TX_FEE_RATE{COIN / 10};
 
-bool checkIfStakeUsedInWithdrawalTransaction(const CStakesDbEntry& stake)
+bool checkIfWithdrawalTransaction(const CTransaction& tx)
 {
-    assert(stake.isValid());
-    return !::ChainstateActive().CoinsTip().HaveCoin(COutPoint{stake.getKey(), stake.getNumOutput()});
+    for(const auto& input : CMutableTransaction{tx}.vin) {
+        const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(input.prevout.hash);
+        if(stake.isValid()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::string getTransactionType(const CTransaction& tx)
 {
-    uint256 hash{tx.GetHash()};
-    const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(hash);
-    if(stake.isValid() && checkIfStakeUsedInWithdrawalTransaction(stake)) {
+    if(checkIfWithdrawalTransaction(tx)) {
         return "STAKING_WITHDRAWAL";
     }
     StakingTransactionType txType{CStakingTransactionParser{MakeTransactionRef(tx)}.GetStakingTxType()};
