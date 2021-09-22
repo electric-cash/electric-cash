@@ -1,5 +1,5 @@
-from staking_fixtures import DepositStakingTransactionsMixin
 from test_framework.messages import COIN
+from test_framework.staking_utils import DepositStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
 

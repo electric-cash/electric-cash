@@ -1,7 +1,7 @@
 import math
 
-from staking_fixtures import DepositStakingTransactionsMixin, STAKING_PENALTY_PERCENTAGE
 from test_framework.messages import COIN
+from test_framework.staking_utils import DepositStakingTransactionsMixin, STAKING_PENALTY_PERCENTAGE
 from test_framework.test_framework import BitcoinTestFramework
 
 class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransactionsMixin):

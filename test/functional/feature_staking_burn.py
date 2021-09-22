@@ -1,5 +1,5 @@
-from staking_fixtures import BurnStakingTransactionsMixin
 from test_framework.messages import COIN
+from test_framework.staking_utils import BurnStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     connect_nodes,
