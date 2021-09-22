@@ -507,7 +507,7 @@ class RawTransactionTypesTest(BitcoinTestFramework, DepositStakingTransactionsMi
         stake_id = self.send_staking_burn_tx(addr1, amount_to_burn=300 * COIN, node_num=0)
         self.nodes[0].generate(1)
 
-        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
         assert tx_type == 'STAKING_BURN', f'Transaction of type \'{tx_type}\' is not STAKING_BURN'
 
     def deposit_and_withdrawal_tx_types_test(self):
@@ -517,16 +517,16 @@ class RawTransactionTypesTest(BitcoinTestFramework, DepositStakingTransactionsMi
         stake_id = self.send_staking_deposit_tx(addr1, deposit_amount=300 * COIN, node_num=0)
         self.nodes[0].generate(1)
 
-        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
         assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
 
         withdrawal_txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
         self.nodes[0].generate(1)
 
-        tx_type = self.nodes[0].getrawtransaction(stake_id, 1)['tx_type']
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
         assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
 
-        tx_type = self.nodes[0].getrawtransaction(withdrawal_txid, 1)['tx_type']
+        tx_type = self.nodes[0].getrawtransaction(withdrawal_txid, True)['tx_type']
         assert tx_type == 'STAKING_WITHDRAWAL', f'Transaction of type \'{tx_type}\' is not STAKING_WITHDRAWAL'
 
 
