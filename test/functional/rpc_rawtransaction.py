@@ -63,6 +63,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         super().setup_network()
         connect_nodes(self.nodes[0], 2)
 
+    def test_against_none_tx_type(self, raw_transaction_output: dict):
+        tx_type = raw_transaction_output.get('tx_type', None)
+        assert tx_type == 'NONE', f'Transaction of type \'{tx_type}\' is not NONE'
+
     def run_test(self):
         self.log.info('prepare some coins for multiple *rawtransaction commands')
         self.nodes[2].generate(1)
@@ -225,10 +229,12 @@ class RawTransactionsTest(BitcoinTestFramework):
         gottx = self.nodes[0].getrawtransaction(tx, True, block1)
         assert_equal(gottx['txid'], tx)
         assert_equal(gottx['in_active_chain'], True)
+        self.test_against_none_tx_type(gottx)
         # We should not have the 'in_active_chain' flag when we don't provide a block
         gottx = self.nodes[0].getrawtransaction(tx, True)
         assert_equal(gottx['txid'], tx)
         assert 'in_active_chain' not in gottx
+        self.test_against_none_tx_type(gottx)
         # We should not get the tx if we provide an unrelated block
         assert_raises_rpc_error(-5, "No such transaction found", self.nodes[0].getrawtransaction, tx, True, block2)
         # An invalid block hash should raise the correct errors
@@ -271,6 +277,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         assert_equal(self.nodes[2].getbalance(), bal+Decimal('1.20000000')) #node2 has both keys of the 2of2 ms addr., tx should affect the balance
 
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         # 2of3 test from different nodes
         bal = self.nodes[2].getbalance()
@@ -290,6 +298,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
+
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         #THIS IS AN INCOMPLETE FEATURE
         #NODE2 HAS TWO OF THREE KEY AND THE FUNDS SHOULD BE SPENDABLE AND COUNT AT BALANCE CALCULATION
@@ -335,6 +346,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(self.nodes[2].getbalance(), bal) # the funds of a 2of2 multisig tx should not be marked as spendable
+
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         txDetails = self.nodes[0].gettransaction(txId, True)
         rawTx2 = self.nodes[0].decoderawtransaction(txDetails['hex'])
@@ -419,6 +433,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawtx   = self.nodes[0].createrawtransaction(inputs, outputs)
         decrawtx= self.nodes[0].decoderawtransaction(rawtx)
         assert_equal(decrawtx['vin'][0]['sequence'], 4294967294)
+
+        # 11. tx type - for non staking transaction it should be 'NONE'
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         ####################################
         # TRANSACTION VERSION NUMBER TESTS #
