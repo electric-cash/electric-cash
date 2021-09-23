@@ -8,6 +8,7 @@
 #include <amount.h>
 #include <primitives/transaction.h>
 #include <random.h>
+#include <staking/stakes_db.h>
 
 //! target minimum change amount
 static constexpr CAmount MIN_CHANGE{COIN / 100};
@@ -16,7 +17,7 @@ static const CAmount MIN_FINAL_CHANGE = MIN_CHANGE/2;
 
 class CInputCoin {
 public:
-    CInputCoin(const CTransactionRef& tx, unsigned int i)
+    CInputCoin(const CTransactionRef& tx, unsigned int i, const CStakesDbEntry& stakeIn = {})
     {
         if (!tx)
             throw std::invalid_argument("tx should not be null");
@@ -25,10 +26,13 @@ public:
 
         outpoint = COutPoint(tx->GetHash(), i);
         txout = tx->vout[i];
+        stake = stakeIn;
+        // modify coin value by stake reward/penalty
+        txout.nValue += stake.getRewardOrPenalty();
         effective_value = txout.nValue;
     }
 
-    CInputCoin(const CTransactionRef& tx, unsigned int i, int input_bytes) : CInputCoin(tx, i)
+    CInputCoin(const CTransactionRef& tx, unsigned int i, int input_bytes, const CStakesDbEntry& stakeIn = {}) : CInputCoin(tx, i, stakeIn)
     {
         m_input_bytes = input_bytes;
     }
@@ -36,6 +40,7 @@ public:
     COutPoint outpoint;
     CTxOut txout;
     CAmount effective_value;
+    CStakesDbEntry stake;
 
     /** Pre-computed estimated size of this output as a fully-signed input in a transaction. Can be -1 if it could not be calculated */
     int m_input_bytes{-1};

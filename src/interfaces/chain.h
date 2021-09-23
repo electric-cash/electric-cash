@@ -20,6 +20,7 @@ class CRPCCommand;
 class CScheduler;
 class Coin;
 class uint256;
+class CStakesDbEntry;
 enum class MemPoolRemovalReason;
 enum class RBFTransactionState;
 struct CBlockLocator;
@@ -141,6 +142,9 @@ public:
     //! the current chain UTXO set. Iterates through all the keys in the map and
     //! populates the values.
     virtual void findCoins(std::map<COutPoint, Coin>& coins) = 0;
+
+    //! Look up stake information
+    virtual CStakesDbEntry getStake(const uint256& hash) = 0;
 
     //! Estimate fraction of total transactions verified if blocks up to
     //! the specified block hash are verified.

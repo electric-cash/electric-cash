@@ -955,7 +955,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, CWalletTx::Co
              * the mostly recently created transactions from newer versions of the wallet.
              */
 
-            // loop though all outputs
+            // loop through all outputs
             for (const CTxOut& txout: tx.vout) {
                 for (const auto& spk_man_pair : m_spk_managers) {
                     spk_man_pair.second->MarkUnusedAddresses(txout.scriptPubKey);
@@ -2193,11 +2193,17 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             continue;
         }
 
+        // Check if the transaction is a stake
+        const CStakesDbEntry stake = getStakeInfo(wtx);
+
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             if (wtx.tx->vout[i].nValue < nMinimumAmount || wtx.tx->vout[i].nValue > nMaximumAmount)
                 continue;
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
+                continue;
+            //! incomplete stakes can be spent only if explicitly selected in coinControl
+            if (stake.isValid() && i == stake.getNumOutput() && !stake.isComplete() && !(coinControl && coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))
                 continue;
 
             if (IsLockedCoin(entry.first, i))
@@ -2221,7 +2227,8 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             bool solvable = provider ? IsSolvable(*provider, wtx.tx->vout[i].scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
-            vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
+            vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly),
+                                     stake.getNumOutput() == i ? stake : CStakesDbEntry()));
 
             // Checks the sum amount of all UTXO's.
             if (nMinimumSumAmount != MAX_MONEY) {
@@ -2238,6 +2245,15 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             }
         }
     }
+}
+
+const CStakesDbEntry CWallet::getStakeInfo(const CWalletTx& wtx) const {
+    // first parse the transaction and check if it has a deposit format to minimize database lookups
+    if (CStakingTransactionParser(wtx.tx).GetStakingTxType() != StakingTransactionType::DEPOSIT) {
+        return CStakesDbEntry();
+    }
+    CStakesDbEntry stake = chain().getStake(wtx.tx->GetHash());
+    return stake;
 }
 
 std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins(interfaces::Chain::Lock& locked_chain) const
@@ -2371,7 +2387,7 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
         {
             if (!out.fSpendable)
                  continue;
-            nValueRet += out.tx->tx->vout[out.i].nValue;
+            nValueRet += out.tx->tx->vout[out.i].nValue + out.stake.getRewardOrPenalty();
             setCoinsRet.insert(out.GetInputCoin());
         }
         return (nValueRet >= nTargetValue);
@@ -2394,7 +2410,8 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
                 return false;
             }
             // Just to calculate the marginal byte size
-            CInputCoin coin(wtx.tx, outpoint.n, wtx.GetSpendSize(outpoint.n, false));
+            CStakesDbEntry stake = getStakeInfo(wtx);
+            CInputCoin coin(wtx.tx, outpoint.n, wtx.GetSpendSize(outpoint.n, false), stake);
             nValueFromPresetInputs += coin.txout.nValue;
             if (coin.m_input_bytes <= 0) {
                 return false; // Not solvable, can't estimate size for fee
@@ -3078,7 +3095,6 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
 {
     auto locked_chain = chain().lock();
     LOCK(cs_wallet);
-
     CWalletTx wtxNew(this, std::move(tx));
     wtxNew.mapValue = std::move(mapValue);
     wtxNew.vOrderForm = std::move(orderForm);

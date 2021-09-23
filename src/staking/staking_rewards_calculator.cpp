@@ -1,6 +1,7 @@
 #include "staking_rewards_calculator.h"
+#include <staking/stakes_db.h>
 
-CAmount CStakingRewardsCalculator::CalculateRewardForStake(const CChainParams& params, double globalRewardCoefficient, const CStakesDbEntry &stake) {
+CAmount CStakingRewardsCalculator::CalculateBlockRewardForStake(const CChainParams& params, double globalRewardCoefficient, const CStakesDbEntry &stake) {
     CAmount amount = stake.getAmount();
     size_t periodIdx = stake.getPeriodIdx();
     double percentage = params.StakingRewardPercentage()[periodIdx];

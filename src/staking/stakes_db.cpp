@@ -1,4 +1,5 @@
 #include <staking/stakes_db.h>
+#include <staking/staking_rewards_calculator.h>
 
 
 namespace DBHeaders {

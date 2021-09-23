@@ -37,6 +37,8 @@
 #include <vector>
 
 #include <boost/signals2/signal.hpp>
+#include <staking/transaction.h>
+#include <staking/staking_rewards_calculator.h>
 
 using LoadWalletFn = std::function<void(std::unique_ptr<interfaces::Wallet> wallet)>;
 
@@ -572,6 +574,8 @@ public:
     /** Whether to use the maximum sized, 72 byte signature when calculating the size of the input spend. This should only be set when watch-only outputs are allowed */
     bool use_max_sig;
 
+    CStakesDbEntry stake = {};
+
     /**
      * Whether this output is considered safe to spend. Unconfirmed transactions
      * from outside keys and unconfirmed replacement transactions are considered
@@ -579,7 +583,7 @@ public:
      */
     bool fSafe;
 
-    COutput(const CWalletTx *txIn, int iIn, int nDepthIn, bool fSpendableIn, bool fSolvableIn, bool fSafeIn, bool use_max_sig_in = false)
+    COutput(const CWalletTx *txIn, int iIn, int nDepthIn, bool fSpendableIn, bool fSolvableIn, bool fSafeIn, bool use_max_sig_in = false, CStakesDbEntry stakeIn = {})
     {
         tx = txIn; i = iIn; nDepth = nDepthIn; fSpendable = fSpendableIn; fSolvable = fSolvableIn; fSafe = fSafeIn; nInputBytes = -1; use_max_sig = use_max_sig_in;
         // If known and signable by the given wallet, compute nInputBytes
@@ -587,13 +591,14 @@ public:
         if (fSpendable && tx) {
             nInputBytes = tx->GetSpendSize(i, use_max_sig);
         }
+        stake = std::move(stakeIn);
     }
 
     std::string ToString() const;
 
     inline CInputCoin GetInputCoin() const
     {
-        return CInputCoin(tx->tx, i, nInputBytes);
+        return CInputCoin(tx->tx, i, nInputBytes, stake);
     }
 };
 
@@ -1228,6 +1233,8 @@ public:
 
     static CScript CreateStakingDepositHeaderScript(const uint8_t period_index, const uint32_t output_index);
     static CScript CreateStakingBurnHeaderScript(const CAmount amount);
+
+    const CStakesDbEntry getStakeInfo(const CWalletTx& wtx) const;
 };
 
 /**

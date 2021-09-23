@@ -37,7 +37,7 @@ private:
     bool valid = false;
     bool active;
 public:
-    CStakesDbEntry() {};
+    CStakesDbEntry() = default;
     CStakesDbEntry(const uint256& txidIn, CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn);
     CAmount getAmount() const { return amount; }
     void setReward(const CAmount rewardIn);
@@ -63,6 +63,21 @@ public:
                3 * sizeof(bool) +
                txid.size() +
                script.size();
+    }
+    //! WARNING: This function may return a negative unsigned integer as a penalty, therefore its output
+    //! should be used only in addition or subtraction operations, e.g.
+    //! a + stake.getRewardOrPenalty();
+    //! In-header implementation so that the wallet lib can use this method.
+    CAmount getRewardOrPenalty() const {
+        if (isValid() && isComplete()) {
+            return getReward();
+        }
+        else if (isValid() && isActive()) {
+            return -static_cast<CAmount>(floor(
+                    stakingParams::STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE *
+                    static_cast<double>(getAmount()) / 100.0));;
+        }
+        return 0;
     }
 
     template<typename Stream>

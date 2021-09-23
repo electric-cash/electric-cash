@@ -269,6 +269,12 @@ public:
         return true;
     }
     void findCoins(std::map<COutPoint, Coin>& coins) override { return FindCoins(m_node, coins); }
+
+    CStakesDbEntry getStake(const uint256& hash) override {
+        CStakesDBCache cache(&::ChainstateActive().GetStakesDB(), true);
+        return cache.getStakeDbEntry(hash);
+    }
+
     double guessVerificationProgress(const uint256& block_hash) override
     {
         LOCK(cs_main);
