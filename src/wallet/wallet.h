@@ -392,6 +392,13 @@ public:
 
     Confirmation m_confirm;
 
+    // staking information
+    mutable bool m_stake_info_loaded = false;
+    mutable CStakesDbEntry m_stake;
+
+    void loadStakeInfo() const;
+    void refreshStakeInfo() const;
+
     template<typename Stream>
     void Serialize(Stream& s) const
     {
@@ -479,6 +486,8 @@ public:
     // having to resolve the issue of member access into incomplete type CWallet.
     CAmount GetAvailableCredit(bool fUseCache = true, const isminefilter& filter = ISMINE_SPENDABLE) const NO_THREAD_SAFETY_ANALYSIS;
     CAmount GetImmatureWatchOnlyCredit(const bool fUseCache = true) const;
+    CAmount GetActiveStakedCredit() const;
+    CAmount GetProjectedStakingRewardCredit() const;
     CAmount GetChange() const;
 
     // Get the marginal bytes if spending the specified output from this transaction
@@ -925,6 +934,8 @@ public:
         CAmount m_watchonly_trusted{0};
         CAmount m_watchonly_untrusted_pending{0};
         CAmount m_watchonly_immature{0};
+        CAmount m_staked{0};
+        CAmount m_staking_rewards{0};
     };
     Balance GetBalance(int min_depth = 0, bool avoid_reuse = true) const;
     CAmount GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;

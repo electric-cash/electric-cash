@@ -1905,26 +1905,33 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& filter
 {
     if (pwallet == nullptr)
         return 0;
-
     // Avoid caching ismine for NO or ALL cases (could remove this check and simplify in the future).
     bool allow_cache = (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (IsImmatureCoinBase())
         return 0;
-
-    if (fUseCache && allow_cache && m_amounts[AVAILABLE_CREDIT].m_cached[filter]) {
+    loadStakeInfo();
+    if (fUseCache && allow_cache && m_amounts[AVAILABLE_CREDIT].m_cached[filter] && !m_stake.isValid()) {
         return m_amounts[AVAILABLE_CREDIT].m_value[filter];
     }
 
     bool allow_used_addresses = (filter & ISMINE_USED) || !pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE);
     CAmount nCredit = 0;
     uint256 hashTx = GetHash();
+    size_t stakeOutputNumber = m_stake.getNumOutput();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
         if (!pwallet->IsSpent(hashTx, i) && (allow_used_addresses || !pwallet->IsSpentKey(hashTx, i))) {
             const CTxOut &txout = tx->vout[i];
-            nCredit += pwallet->GetCredit(txout, filter);
+            if (m_stake.isValid() && i == stakeOutputNumber) {
+                if (m_stake.isActive()) {}
+                else {
+                    nCredit += pwallet->IsMine(txout) & filter ? m_stake.getAmount() + m_stake.getReward() : 0;
+                }
+            } else {
+                nCredit += pwallet->GetCredit(txout, filter);
+            }
             if (!MoneyRange(nCredit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
         }
@@ -2083,6 +2090,7 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
         for (const auto& entry : mapWallet)
         {
             const CWalletTx& wtx = entry.second;
+            wtx.refreshStakeInfo();
             const bool is_trusted{wtx.IsTrusted(*locked_chain, trusted_parents)};
             const int tx_depth{wtx.GetDepthInMainChain()};
             const CAmount tx_credit_mine{wtx.GetAvailableCredit(/* fUseCache */ true, ISMINE_SPENDABLE | reuse_filter)};
@@ -2097,6 +2105,8 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
             }
             ret.m_mine_immature += wtx.GetImmatureCredit();
             ret.m_watchonly_immature += wtx.GetImmatureWatchOnlyCredit();
+            ret.m_staked += wtx.GetActiveStakedCredit();
+            ret.m_staking_rewards += wtx.GetProjectedStakingRewardCredit();
         }
     }
     return ret;
@@ -4204,6 +4214,34 @@ bool CWalletTx::IsImmatureCoinBase() const
 {
     // note GetBlocksToMaturity is 0 for non-coinbase tx
     return GetBlocksToMaturity() > 0;
+}
+
+CAmount CWalletTx::GetProjectedStakingRewardCredit() const {
+    loadStakeInfo();
+    if (m_stake.isValid() && m_stake.isActive()) {
+        return m_stake.getReward();
+    }
+    return 0;
+}
+
+void CWalletTx::loadStakeInfo() const {
+    if (!m_stake_info_loaded) {
+        m_stake = pwallet->getStakeInfo(*this);
+        m_stake_info_loaded = true;
+    }
+}
+
+CAmount CWalletTx::GetActiveStakedCredit() const {
+    loadStakeInfo();
+    if (m_stake.isValid() && m_stake.isActive()) {
+        return m_stake.getAmount();
+    }
+    return 0;
+}
+
+void CWalletTx::refreshStakeInfo() const {
+    if (m_stake_info_loaded && !m_stake.isValid() && !isUnconfirmed()) return;
+    m_stake = pwallet->getStakeInfo(*this);
 }
 
 std::vector<OutputGroup> CWallet::GroupOutputs(const std::vector<COutput>& outputs, bool single_coin) const {
