@@ -10,5 +10,6 @@ class UniValue;
 class uint256;
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
+bool checkIfWithdrawalTransaction(const CTransaction& tx);
 
 #endif // ELCASH_RPC_RAWTRANSACTION_H

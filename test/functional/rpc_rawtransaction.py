@@ -15,7 +15,8 @@ Test the following RPCs:
 from collections import OrderedDict
 from decimal import Decimal
 from io import BytesIO
-from test_framework.messages import CTransaction, ToHex
+from test_framework.messages import CTransaction, ToHex, COIN
+from test_framework.staking_utils import DepositStakingTransactionsMixin, BurnStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -61,6 +62,10 @@ class RawTransactionsTest(BitcoinTestFramework):
     def setup_network(self):
         super().setup_network()
         connect_nodes(self.nodes[0], 2)
+
+    def test_against_none_tx_type(self, raw_transaction_output: dict):
+        tx_type = raw_transaction_output.get('tx_type', None)
+        assert tx_type == 'NONE', f'Transaction of type \'{tx_type}\' is not NONE'
 
     def run_test(self):
         self.log.info('prepare some coins for multiple *rawtransaction commands')
@@ -224,10 +229,12 @@ class RawTransactionsTest(BitcoinTestFramework):
         gottx = self.nodes[0].getrawtransaction(tx, True, block1)
         assert_equal(gottx['txid'], tx)
         assert_equal(gottx['in_active_chain'], True)
+        self.test_against_none_tx_type(gottx)
         # We should not have the 'in_active_chain' flag when we don't provide a block
         gottx = self.nodes[0].getrawtransaction(tx, True)
         assert_equal(gottx['txid'], tx)
         assert 'in_active_chain' not in gottx
+        self.test_against_none_tx_type(gottx)
         # We should not get the tx if we provide an unrelated block
         assert_raises_rpc_error(-5, "No such transaction found", self.nodes[0].getrawtransaction, tx, True, block2)
         # An invalid block hash should raise the correct errors
@@ -270,6 +277,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         assert_equal(self.nodes[2].getbalance(), bal+Decimal('1.20000000')) #node2 has both keys of the 2of2 ms addr., tx should affect the balance
 
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         # 2of3 test from different nodes
         bal = self.nodes[2].getbalance()
@@ -289,6 +298,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
+
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         #THIS IS AN INCOMPLETE FEATURE
         #NODE2 HAS TWO OF THREE KEY AND THE FUNDS SHOULD BE SPENDABLE AND COUNT AT BALANCE CALCULATION
@@ -334,6 +346,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
 
         assert_equal(self.nodes[2].getbalance(), bal) # the funds of a 2of2 multisig tx should not be marked as spendable
+
+        # test tx_type for multisig tx
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
 
         txDetails = self.nodes[0].gettransaction(txId, True)
         rawTx2 = self.nodes[0].decoderawtransaction(txDetails['hex'])
@@ -419,6 +434,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         decrawtx= self.nodes[0].decoderawtransaction(rawtx)
         assert_equal(decrawtx['vin'][0]['sequence'], 4294967294)
 
+        # 11. tx type - for non staking transaction it should be 'NONE'
+        self.test_against_none_tx_type(self.nodes[0].getrawtransaction(txId, True))
+
         ####################################
         # TRANSACTION VERSION NUMBER TESTS #
         ####################################
@@ -488,5 +506,47 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[2].sendrawtransaction(hexstring=rawTxSigned['hex'], maxfeerate='0.20000000')
 
 
+class RawTransactionTypesTest(BitcoinTestFramework, DepositStakingTransactionsMixin, BurnStakingTransactionsMixin):
+    def set_test_params(self):
+        self.num_nodes = 1
+        self.extra_args = [
+            ["-txindex"],
+        ]
+
+    def run_test(self):
+        self.deposit_and_withdrawal_tx_types_test()
+        self.burn_and_withdrawal_tx_types_test()
+
+    def burn_and_withdrawal_tx_types_test(self):
+        addr1 = self.nodes[0].getnewaddress()
+        self.nodes[0].generatetoaddress(10, addr1)
+
+        stake_id = self.send_staking_burn_tx(addr1, amount_to_burn=300 * COIN, node_num=0)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
+        assert tx_type == 'STAKING_BURN', f'Transaction of type \'{tx_type}\' is not STAKING_BURN'
+
+    def deposit_and_withdrawal_tx_types_test(self):
+        addr1 = self.nodes[0].getnewaddress()
+        self.nodes[0].generatetoaddress(10, addr1)
+
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount=300 * COIN, node_num=0)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
+        assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
+
+        withdrawal_txid = self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
+        self.nodes[0].generate(1)
+
+        tx_type = self.nodes[0].getrawtransaction(stake_id, True)['tx_type']
+        assert tx_type == 'STAKING_DEPOSIT', f'Transaction of type \'{tx_type}\' is not STAKING_DEPOSIT'
+
+        tx_type = self.nodes[0].getrawtransaction(withdrawal_txid, True)['tx_type']
+        assert tx_type == 'STAKING_WITHDRAWAL', f'Transaction of type \'{tx_type}\' is not STAKING_WITHDRAWAL'
+
+
 if __name__ == '__main__':
     RawTransactionsTest().main()
+    RawTransactionTypesTest().main()

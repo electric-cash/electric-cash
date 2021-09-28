@@ -1,10 +1,10 @@
 from test_framework.messages import COIN
+from test_framework.staking_utils import DepositStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
-from feature_staking_deposit_withdrawal import StakingTransactionsMixin
 
 
-class GetStakesForAddressTest(BitcoinTestFramework, StakingTransactionsMixin):
+class GetStakesForAddressTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
         self.rpc_timeout = 120
