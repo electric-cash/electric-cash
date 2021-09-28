@@ -2888,9 +2888,14 @@ static UniValue listunspent(const JSONRPCRequest& request)
                             {RPCResult::Type::BOOL, "safe", "Whether this output is considered safe to spend. Unconfirmed transactions\n"
                                                             "from outside keys and unconfirmed replacement transactions are considered unsafe\n"
                                                             "and are not eligible for spending by fundrawtransaction and sendtoaddress."},
-                        }},
-                    }
-                },
+                            {RPCResult::Type::OBJ, "stake_info", "Staking information if the output is a stake.",
+                             {
+                                { RPCResult::Type::STR_AMOUNT, "reward", "Current reward" },
+                                { RPCResult::Type::BOOL, "complete", "Whether the stake is complete and can be paid out without penalty" },
+                                { RPCResult::Type::NUM, "completion_block", "Block in which the stake becomes complete"}
+                            }}
+                        }}
+                    }},
                 RPCExamples{
                     HelpExampleCli("listunspent", "")
             + HelpExampleCli("listunspent", "6 9999999 \"[\\\"" + EXAMPLE_ADDRESS[0] + "\\\",\\\"" + EXAMPLE_ADDRESS[1] + "\\\"]\"")
@@ -2966,6 +2971,7 @@ static UniValue listunspent(const JSONRPCRequest& request)
         cctl.m_avoid_address_reuse = false;
         cctl.m_min_depth = nMinDepth;
         cctl.m_max_depth = nMaxDepth;
+        cctl.m_spend_incomplete_stakes = true;
         auto locked_chain = pwallet->chain().lock();
         LOCK(pwallet->cs_wallet);
         pwallet->AvailableCoins(*locked_chain, vecOutputs, !include_unsafe, &cctl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount);
@@ -3044,6 +3050,12 @@ static UniValue listunspent(const JSONRPCRequest& request)
         }
         if (avoid_reuse) entry.pushKV("reused", reused);
         entry.pushKV("safe", out.fSafe);
+        if (out.stake.isValid()) {
+            UniValue stake(UniValue::VOBJ);
+            stake.pushKV("reward", ValueFromAmount(out.stake.getReward()));
+            stake.pushKV("complete", out.stake.isComplete());
+            stake.pushKV("completion_block", static_cast<int>(out.stake.getCompleteBlock()));
+        }
         results.push_back(entry);
     }
 
@@ -4447,7 +4459,8 @@ static UniValue getstakes(const JSONRPCRequest& request)
             { RPCResult::Type::STR_HEX, "id", "Stake ID" },
             { RPCResult::Type::STR_AMOUNT, "amount", "Staked amount" },
             { RPCResult::Type::STR_AMOUNT, "reward", "Current reward" },
-            { RPCResult::Type::NUM, "completion_block", "Block in which the stake becomes complete"}
+            { RPCResult::Type::NUM, "completion_block", "Block in which the stake becomes complete"},
+            { RPCResult::Type::STR, "address", "Address of the stake"}
         }
         },
         RPCExamples{
@@ -4473,8 +4486,12 @@ static UniValue getstakes(const JSONRPCRequest& request)
         entry.pushKV("amount", ValueFromAmount(stake.getAmount()));
         entry.pushKV("reward", stake.getReward());
         entry.pushKV("completion_block", static_cast<int>(stake.getCompleteBlock()));
+        CTxDestination dest;
+        ExtractDestination(stake.getScript(), dest);
+        entry.pushKV("address", EncodeDestination(dest));
         results.push_back(entry);
     }
+
     return results;
 }
 
