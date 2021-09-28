@@ -936,6 +936,7 @@ public:
         CAmount m_watchonly_immature{0};
         CAmount m_staked{0};
         CAmount m_staking_rewards{0};
+        CAmount m_staking_penalties{0};
     };
     Balance GetBalance(int min_depth = 0, bool avoid_reuse = true) const;
     CAmount GetAvailableBalance(const CCoinControl* coinControl = nullptr) const;
@@ -1246,6 +1247,7 @@ public:
     static CScript CreateStakingBurnHeaderScript(const CAmount amount);
 
     const CStakesDbEntry getStakeInfo(const CWalletTx& wtx) const;
+    std::vector<CStakesDbEntry> GetStakes() const;
 };
 
 /**

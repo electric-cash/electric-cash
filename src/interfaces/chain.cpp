@@ -275,6 +275,10 @@ public:
         return cache.getStakeDbEntry(hash);
     }
 
+    CAmount calculatePenaltyForStake(const CStakesDbEntry& stake) override {
+        return CStakingRewardsCalculator::CalculatePenaltyForStake(stake);
+    }
+
     double guessVerificationProgress(const uint256& block_hash) override
     {
         LOCK(cs_main);

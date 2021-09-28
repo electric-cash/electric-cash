@@ -2106,7 +2106,26 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
             ret.m_mine_immature += wtx.GetImmatureCredit();
             ret.m_watchonly_immature += wtx.GetImmatureWatchOnlyCredit();
             ret.m_staked += wtx.GetActiveStakedCredit();
+            ret.m_staking_penalties += chain().calculatePenaltyForStake(wtx.m_stake);
             ret.m_staking_rewards += wtx.GetProjectedStakingRewardCredit();
+        }
+    }
+    return ret;
+}
+
+std::vector<CStakesDbEntry> CWallet::GetStakes() const
+{
+    std::vector<CStakesDbEntry> ret;
+    {
+        auto locked_chain = chain().lock();
+        LOCK(cs_wallet);
+        for (const auto& entry : mapWallet)
+        {
+            const CWalletTx& wtx = entry.second;
+            wtx.refreshStakeInfo();
+            if (wtx.m_stake.isValid() && wtx.m_stake.isActive()) {
+                ret.push_back(wtx.m_stake);
+            }
         }
     }
     return ret;

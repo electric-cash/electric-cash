@@ -737,6 +737,7 @@ static UniValue getbalance(const JSONRPCRequest& request)
                     {"minconf", RPCArg::Type::NUM, /* default */ "0", "Only include transactions confirmed at least this many times."},
                     {"include_watchonly", RPCArg::Type::BOOL, /* default */ "true for watch-only wallets, otherwise false", "Also include balance in watch-only addresses (see 'importaddress')"},
                     {"avoid_reuse", RPCArg::Type::BOOL, /* default */ "true", "(only available if avoid_reuse wallet flag is set) Do not include balance in dirty outputs; addresses are considered dirty if they have previously been used in a transaction."},
+                    {"include_incomplete_stakes", RPCArg::Type::BOOL, "false", "Include value of incomplete stakes (reduced by penalty) in returned balance"},
                 },
                 RPCResult{
                     RPCResult::Type::STR_AMOUNT, "amount", "The total amount in " + CURRENCY_UNIT + " received for this wallet."
@@ -772,9 +773,13 @@ static UniValue getbalance(const JSONRPCRequest& request)
 
     bool avoid_reuse = GetAvoidReuseFlag(pwallet, request.params[3]);
 
-    const auto bal = pwallet->GetBalance(min_depth, avoid_reuse);
+    bool include_incomplete_stakes = !request.params[4].isEmpty() && request.params[4].get_bool();
 
-    return ValueFromAmount(bal.m_mine_trusted + (include_watchonly ? bal.m_watchonly_trusted : 0));
+    const auto bal = pwallet->GetBalance(min_depth, avoid_reuse);
+    CAmount ret = bal.m_mine_trusted;
+    if (include_watchonly) ret += bal.m_watchonly_trusted;
+    if (include_incomplete_stakes) ret += bal.m_staked - bal.m_staking_penalties;
+    return ValueFromAmount(ret);
 }
 
 static UniValue getunconfirmedbalance(const JSONRPCRequest &request)
@@ -4425,6 +4430,54 @@ static UniValue burnforstaking(const JSONRPCRequest& request)
     return tx->GetHash().GetHex();
 }
 
+static UniValue getstakes(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    const CWallet* const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    RPCHelpMan{"getstakes",
+               "\nReturns the information about active stakes.\n",
+               {},
+        RPCResult{
+        RPCResult::Type::ARR, "", "", {
+            { RPCResult::Type::STR_HEX, "id", "Stake ID" },
+            { RPCResult::Type::STR_AMOUNT, "amount", "Staked amount" },
+            { RPCResult::Type::STR_AMOUNT, "reward", "Current reward" },
+            { RPCResult::Type::NUM, "completion_block", "Block in which the stake becomes complete"}
+        }
+        },
+        RPCExamples{
+        "\nBasic call\n"
+        + HelpExampleCli("getstakes", "") +
+        "\nAs a JSON-RPC call\n"
+        + HelpExampleRpc("getstakes", "\"*\", 6")
+        },
+        }.Check(request);
+
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+
+    const auto stakes = pwallet->GetStakes();
+    UniValue results(UniValue::VARR);
+    for (const auto& stake : stakes) {
+        UniValue entry(UniValue::VOBJ);
+        entry.pushKV("id", stake.getKey().GetHex());
+        entry.pushKV("amount", ValueFromAmount(stake.getAmount()));
+        entry.pushKV("reward", stake.getReward());
+        entry.pushKV("completion_block", static_cast<int>(stake.getCompleteBlock()));
+        results.push_back(entry);
+    }
+    return results;
+}
+
 UniValue abortrescan(const JSONRPCRequest& request); // in rpcdump.cpp
 UniValue dumpprivkey(const JSONRPCRequest& request); // in rpcdump.cpp
 UniValue importprivkey(const JSONRPCRequest& request);
@@ -4464,6 +4517,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "gettransaction",                   &gettransaction,                {"txid","include_watchonly","verbose"} },
     { "wallet",             "getunconfirmedbalance",            &getunconfirmedbalance,         {} },
     { "wallet",             "getbalances",                      &getbalances,                   {} },
+    { "wallet",             "getstakes",                        &getstakes,                     {} },
     { "wallet",             "getwalletinfo",                    &getwalletinfo,                 {} },
     { "wallet",             "importaddress",                    &importaddress,                 {"address","label","rescan","p2sh"} },
     { "wallet",             "importmulti",                      &importmulti,                   {"requests","options"} },

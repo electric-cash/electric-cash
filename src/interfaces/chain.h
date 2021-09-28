@@ -146,6 +146,9 @@ public:
     //! Look up stake information
     virtual CStakesDbEntry getStake(const uint256& hash) = 0;
 
+    //! Look up stake information
+    virtual CAmount calculatePenaltyForStake(const CStakesDbEntry& stake) = 0;
+
     //! Estimate fraction of total transactions verified if blocks up to
     //! the specified block hash are verified.
     virtual double guessVerificationProgress(const uint256& block_hash) = 0;
