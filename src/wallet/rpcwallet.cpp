@@ -4339,13 +4339,10 @@ static UniValue depositstake(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
     } else {
-        // TODO(mtwaro): create a getter for wallet staking address instead of this
-        const OutputType output_type = OutputType::BECH32;
-        ReserveDestination reservedest(pwallet, output_type);
-        bool ret = reservedest.GetReservedDestination(dest, true);
-        if (!ret)
-        {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Keypool ran out, please call keypoolrefill first");
+        OutputType output_type = pwallet->m_default_address_type;
+        std::string error;
+        if (!pwallet->GetNewDestination(output_type, "staking", dest, error)) {
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error);
         }
     }
 
@@ -4439,6 +4436,102 @@ static UniValue burnforstaking(const JSONRPCRequest& request)
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     pwallet->CommitTransaction(tx, std::move(mapValue), {} /* orderForm */);
+    return tx->GetHash().GetHex();
+}
+
+static UniValue withdrawstake(const JSONRPCRequest& request)
+{
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    RPCHelpMan{"withdrawstake",
+               "\nWithdraws an incomplete stake and sends the amount minus fee to a provided address." +
+               HELP_REQUIRING_PASSPHRASE,
+               {
+                    {"id", RPCArg::Type::STR, RPCArg::Optional::NO, "ID of a stake being withdrawn"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "Address to withdraw the stake to. If not provided, a new address will be generated."},
+                    {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment used to store what the transaction is for.\n"
+                    "                             This is not part of the transaction, just kept in your wallet."},
+                    {"comment_to", RPCArg::Type::STR, RPCArg::Optional::OMITTED_NAMED_ARG, "A comment to store the name of the person or organization\n"
+                   "                             to which you're sending the transaction. This is not part of the \n"
+                   "                             transaction, just kept in your wallet."},
+                    {"replaceable", RPCArg::Type::BOOL, /* default */ "wallet default", "Allow this transaction to be replaced by a transaction with higher fees via BIP 125"},
+                    {"conf_target", RPCArg::Type::NUM, /* default */ "wallet default", "Confirmation target (in blocks)"},
+                    {"estimate_mode", RPCArg::Type::STR, /* default */ "UNSET", "The fee estimate mode, must be one of:\n"
+                                                                                                            "\"UNSET\"\n"
+                                                                                                            "\"ECONOMICAL\"\n"
+                                                                                                            "\"CONSERVATIVE\""},
+                    },
+                                                                  RPCResult{
+        RPCResult::Type::STR_HEX, "txid", "The transaction id."
+        },
+        RPCExamples{
+        HelpExampleCli("withdrawstake", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \""  + EXAMPLE_ADDRESS[0] + "\"")
+        + HelpExampleRpc("withdrawstake", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\" \"" + EXAMPLE_ADDRESS[0] + "\", \"donation\", \"seans outpost\"")
+        },
+        }.Check(request);
+
+    // Make sure the results are valid at least up to the most recent block
+    // the user could have gotten from another RPC command prior to now
+    pwallet->BlockUntilSyncedToCurrentChain();
+
+    auto locked_chain = pwallet->chain().lock();
+    LOCK(pwallet->cs_wallet);
+
+    uint256 stakeId(ParseHashV(request.params[0], "id"));
+    CStakesDbEntry stake = pwallet->chain().getStake(stakeId);
+    if (!(stake.isValid() && !stake.isComplete())) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "There is no active stake with provided ID.");
+    }
+
+    CCoinControl coin_control;
+    coin_control.fAllowOtherInputs = false;
+    coin_control.Select(COutPoint(stakeId, stake.getNumOutput()));
+
+    CAmount nAmount = stake.getAmount() - pwallet->chain().calculatePenaltyForStake(stake);
+
+    CTxDestination dest;
+    if (!request.params[1].isNull() && !request.params[1].get_str().empty()) {
+        dest = DecodeDestination(request.params[1].get_str());
+        if (!IsValidDestination(dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        }
+    } else {
+        OutputType output_type = pwallet->m_default_address_type;
+        std::string error;
+        if (!pwallet->GetNewDestination(output_type, "", dest, error)) {
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, error);
+        }
+    }
+
+    // Wallet comments
+    mapValue_t mapValue;
+    if (!request.params[2].isNull() && !request.params[2].get_str().empty())
+        mapValue["comment"] = request.params[2].get_str();
+    if (!request.params[3].isNull() && !request.params[3].get_str().empty())
+        mapValue["to"] = request.params[3].get_str();
+
+    if (!request.params[4].isEmpty()) {
+        coin_control.m_signal_bip125_rbf = request.params[5].get_bool();
+    }
+
+    if (!request.params[5].isEmpty()) {
+        coin_control.m_confirm_target = ParseConfirmTarget(request.params[6], pwallet->chain().estimateMaxBlocks());
+    }
+
+    if (!request.params[6].isEmpty()) {
+        if (!FeeModeFromString(request.params[7].get_str(), coin_control.m_fee_mode)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid estimate_mode parameter");
+        }
+    }
+
+    EnsureWalletIsUnlocked(pwallet);
+
+    CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, true, coin_control, std::move(mapValue));
     return tx->GetHash().GetHex();
 }
 
@@ -4571,6 +4664,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout"} },
     { "wallet",             "walletpassphrasechange",           &walletpassphrasechange,        {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletprocesspsbt",                &walletprocesspsbt,             {"psbt","sign","sighashtype","bip32derivs"} },
+    { "wallet",             "withdrawstake",                   &withdrawstake,                {"id","address","comment","comment_to","replaceable","conf_target","estimate_mode"} },
 };
 // clang-format on
 

@@ -82,7 +82,7 @@ class StakingReorgTest(BitcoinTestFramework):
                     expected_reward: int = 0, expected_rpc_err: int = None):
         unspent = [u for u in self.nodes[node_num].listunspent() if
                    u["txid"] == stake_txid and u["address"] == stake_address]
-        assert len(unspent) == 1
+        assert len(unspent) == 1, unspent
         utxo = unspent[0]
         staking_penalty = int(
             utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0

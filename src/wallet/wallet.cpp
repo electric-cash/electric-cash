@@ -2231,8 +2231,8 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
-            //! incomplete stakes can be spent only if explicitly selected in coinControl
-            if (stake.isValid() && i == stake.getNumOutput() && !stake.isComplete() && !(coinControl && coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))
+
+            if (stake.isValid() && i == stake.getNumOutput() && stake.isActive() && !(coinControl && (coinControl->m_spend_incomplete_stakes ||  (coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))))
                 continue;
 
             if (IsLockedCoin(entry.first, i))
