@@ -220,8 +220,7 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     result.pushKV("staking_amount", stake.getAmount());
     result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
     result.pushKV("fulfilled", stake.isComplete());
-    // TODO(mtwaro): access coin and fill this param
-    result.pushKV("paid_out", false);
+    result.pushKV("paid_out", !::ChainstateActive().CoinsTip().HaveCoin(COutPoint{stake.getKey(), stake.getNumOutput()}));
     return result;
 }
 
@@ -2455,8 +2454,8 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
                        }
                },
                RPCExamples{
-                       HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-                       + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                       HelpExampleCli("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
+                       + HelpExampleRpc("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
                }
     }.Check(request);
 
