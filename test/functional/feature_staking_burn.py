@@ -1,17 +1,13 @@
-import decimal
-
 from test_framework.messages import COIN
+from test_framework.staking_utils import BurnStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     connect_nodes,
     disconnect_nodes,
 )
 
-STAKING_TX_HEADER = 0x53
-STAKING_TX_BURN_SUBHEADER = 0x42
 
-
-class StakingBurnTest(BitcoinTestFramework):
+class StakingBurnTest(BitcoinTestFramework, BurnStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
 

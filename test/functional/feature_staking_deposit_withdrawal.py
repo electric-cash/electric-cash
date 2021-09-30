@@ -1,19 +1,10 @@
-import decimal
 import math
 
 from test_framework.messages import COIN
+from test_framework.staking_utils import DepositStakingTransactionsMixin, STAKING_PENALTY_PERCENTAGE
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import (
-    assert_raises_rpc_error,
-)
 
-STAKING_TX_HEADER = 0x53
-STAKING_TX_BURN_SUBHEADER = 0x42
-STAKING_TX_DEPOSIT_SUBHEADER = 0x44
-STAKING_PENALTY_PERCENTAGE = 3.0
-
-
-class StakingDepositWithdrawalTest(BitcoinTestFramework):
+class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
 
@@ -22,7 +13,7 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         self.normal_withdrawal_test()
 
     def get_staking_pool_balance(self, node_num: int) -> int:
-        return self.nodes[node_num].getstakinginfo()['staking_pool']
+            return self.nodes[node_num].getstakinginfo()['staking_pool']
 
     def get_stake_reward(self, txid: str, node_num: int) -> float:
         return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
@@ -34,31 +25,6 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
                                 change_address: str = None):
         txid = self.nodes[node_num].depositstake(deposit_amount, 4320, stake_address)
         return txid
-
-    def spend_stake(self, node_num: int, stake_txid: str, stake_address: str, early_withdrawal: bool = False,
-                    expected_reward: int = 0, expected_rpc_err: int = None):
-        unspent = [u for u in self.nodes[node_num].listunspent() if
-                   u["txid"] == stake_txid and u["address"] == stake_address]
-        assert len(unspent) == 1, unspent
-        utxo = unspent[0]
-        staking_penalty = int(
-            utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0
-        reward = expected_reward if not early_withdrawal else 0
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-        tx_output = {
-            stake_address: (utxo["amount"] * COIN - fee - staking_penalty + reward) / COIN
-        }
-        raw_tx = self.nodes[node_num].createrawtransaction([tx_input], [tx_output])
-        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
-        if expected_rpc_err is not None:
-            assert_raises_rpc_error(expected_rpc_err, None,
-                                    self.nodes[0].sendrawtransaction, signed_raw_tx["hex"])
-        else:
-            return self.nodes[node_num].sendrawtransaction(signed_raw_tx["hex"])
 
     def early_withdrawal_test(self):
         starting_height = 200
@@ -139,7 +105,11 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework):
         # send staking deposit transaction
         stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
         # mine some blocks
-        self.nodes[0].generate(stake_length_blocks + 1)
+        num_div = 54
+        for i in range(num_div):
+            self.nodes[0].generate(stake_length_blocks // num_div)
+            self.sync_all()
+        self.nodes[0].generate(1)
         self.sync_all()
         # try to spend the stake
 

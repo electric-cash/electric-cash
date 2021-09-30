@@ -14,6 +14,7 @@
 #include <core_io.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <key_io.h>
 #include <node/coinstats.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
@@ -219,8 +220,7 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     result.pushKV("staking_amount", ValueFromAmount(stake.getAmount()));
     result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
     result.pushKV("fulfilled", stake.isComplete());
-    // TODO(mtwaro): access coin and fill this param
-    result.pushKV("paid_out", false);
+    result.pushKV("paid_out", !::ChainstateActive().CoinsTip().HaveCoin(COutPoint{stake.getKey(), stake.getNumOutput()}));
     return result;
 }
 
@@ -2416,7 +2416,7 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
                     RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::NUM, "staking_pool", "current staking pool balance"},
-                            {RPCResult::Type::NUM, "num_stakers", "current number of stakers"},
+                            {RPCResult::Type::NUM, "num_stakes", "current number of stakes"},
                             {RPCResult::Type::NUM, "total_staked", "total staked amount (network-wide)"},
                         }
                },
@@ -2429,9 +2429,11 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
     results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
-// TODO: remove dummy variables when ready
-    results.pushKV("num_stakers", -1);
-    results.pushKV("total_staked", -1);
+    results.pushKV("num_stakes", ::ChainstateActive().GetStakesDB().getAllActiveStakes().size());
+    CAmount totalStaked{0};
+    for(const auto& value : ::ChainstateActive().GetStakesDB().getAmountsByPeriods())
+        totalStaked += value;
+    results.pushKV("total_staked", totalStaked);
     return results;
 }
 
@@ -2452,8 +2454,8 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
                        }
                },
                RPCExamples{
-                       HelpExampleCli("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
-                       + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
+                       HelpExampleCli("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
+                       + HelpExampleRpc("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
                }
     }.Check(request);
 
@@ -2464,6 +2466,33 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Stake not found");
     }
     return stakeToJSON(stake);
+}
+
+static UniValue getstakesforaddress(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakesforaddress",
+               "\nReturns the list of stakes indexes for all active stakes.\n",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "ELCASH address"}},
+               RPCResult{
+                    RPCResult::Type::ARR, "", "",
+                        {{RPCResult::Type::STR_HEX, "txid", "active staking index"}}
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+                       + HelpExampleRpc("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+               },
+    }.Check(request);
+
+    LOCK(cs_main);
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    UniValue results(UniValue::VARR);
+    for(const auto& stakeId : ::ChainstateActive().GetStakesDB().getActiveStakeIdsForScript(GetScriptForDestination(DecodeDestination(destination)))) {
+        results.push_back(stakeId.GetHex());
+    }
+    return results;
 }
 
 void RegisterBlockchainRPCCommands(CRPCTable &t)
@@ -2500,6 +2529,7 @@ static const CRPCCommand commands[] =
     /* Staking methods*/
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
     { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
+    { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },
