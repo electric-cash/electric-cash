@@ -1,3 +1,5 @@
+import decimal
+
 import math
 
 from test_framework.messages import COIN
@@ -21,9 +23,9 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
     def get_stake_amount(self, txid: str, node_num: int) -> float:
         return self.nodes[node_num].getstakeinfo(txid)['staking_amount']
 
-    def send_staking_deposit_tx(self, stake_address: str, deposit_amount: decimal.Decimal, node_num: int,
+    def send_staking_deposit_tx(self, stake_address: str, deposit_value: decimal.Decimal, node_num: int,
                                 change_address: str = None):
-        txid = self.nodes[node_num].depositstake(deposit_amount, 4320, stake_address)
+        txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
         return txid
 
     def early_withdrawal_test(self):

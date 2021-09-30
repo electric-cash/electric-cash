@@ -19,7 +19,8 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
 
     def getstakeinfo_rpc_test(self):
         month_stake_length_blocks = 30 * 144
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
 
@@ -48,7 +49,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * 1, 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == False
@@ -62,7 +63,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * (1 + blocks_to_mine), 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == False
@@ -76,7 +77,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * month_stake_length_blocks, 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == True
         assert stake_info['paid_out'] == False
@@ -93,7 +94,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * month_stake_length_blocks, 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == True
         assert stake_info['paid_out'] == True
@@ -108,7 +109,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * 1, 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == False
@@ -119,7 +120,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * (1 + 100), 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == False
@@ -132,7 +133,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
 
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
-        assert stake_info['staking_amount'] == deposit_amount, 'Wrong staking amount'
+        assert stake_info['staking_amount'] == deposit_value, 'Wrong staking amount'
         assert stake_info['accumulated_reward'] * COIN == expected_reward_per_block * (1 + 100), 'Wrong accumulated reward'
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == True

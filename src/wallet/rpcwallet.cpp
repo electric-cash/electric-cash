@@ -1382,6 +1382,8 @@ static void ListTransactions(interfaces::Chain::Lock& locked_chain, const CWalle
                     } else {
                         entry.pushKV("category", "stake");
                     }
+                } else {
+                    entry.pushKV("category", "receive");
                 }
             }
             CAmount amount = r.amount;
@@ -1454,7 +1456,9 @@ UniValue listtransactions(const JSONRPCRequest& request)
                                 "\"receive\"               Non-coinbase transactions received.\n"
                                 "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
                                 "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                                "\"orphan\"                Orphaned coinbase transactions received."},
+                                "\"orphan\"                Orphaned coinbase transactions received."
+                                "\"stake\"                 Active or prematurely spent stake.\n"
+                                "\"stake-completed\"       Completed stake." },
                             {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and is positive\n"
                                 "for all other categories"},
                             {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
@@ -1571,7 +1575,9 @@ static UniValue listsinceblock(const JSONRPCRequest& request)
                                     "\"receive\"               Non-coinbase transactions received.\n"
                                     "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
                                     "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                                    "\"orphan\"                Orphaned coinbase transactions received."},
+                                    "\"orphan\"                Orphaned coinbase transactions received."
+                                    "\"stake\"                 Active or prematurely spent stake.\n"
+                                    "\"stake-completed\"       Completed stake." },
                                 {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and is positive\n"
                                     "for all other categories"},
                                 {RPCResult::Type::NUM, "vout", "the vout value"},
