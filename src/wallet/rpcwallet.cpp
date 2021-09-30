@@ -1374,9 +1374,22 @@ static void ListTransactions(interfaces::Chain::Lock& locked_chain, const CWalle
             }
             else
             {
-                entry.pushKV("category", "receive");
+                wtx.loadStakeInfo();
+                if (wtx.m_stake.isValid()) {
+                    if (wtx.m_stake.isComplete())
+                    {
+                        entry.pushKV("category", "stake-completed");
+                    } else {
+                        entry.pushKV("category", "stake");
+                    }
+                }
             }
-            entry.pushKV("amount", ValueFromAmount(r.amount));
+            CAmount amount = r.amount;
+            if (wtx.m_stake.isValid() && wtx.m_stake.isComplete()) {
+                amount += wtx.m_stake.getReward();
+            }
+            entry.pushKV("amount", ValueFromAmount(amount));
+
             if (address_book_entry) {
                 entry.pushKV("label", label);
             }
@@ -1704,7 +1717,9 @@ static UniValue gettransaction(const JSONRPCRequest& request)
                                     "\"receive\"               Non-coinbase transactions received.\n"
                                     "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
                                     "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                                    "\"orphan\"                Orphaned coinbase transactions received."},
+                                    "\"orphan\"                Orphaned coinbase transactions received.\n"
+                                    "\"stake\"                 Active or prematurely spent stake.\n"
+                                    "\"stake-completed\"       Completed stake." },
                                 {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
                                 {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
                                 {RPCResult::Type::NUM, "vout", "the vout value"},
