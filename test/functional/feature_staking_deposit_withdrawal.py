@@ -1,3 +1,5 @@
+import decimal
+
 import math
 
 from test_framework.messages import COIN
@@ -18,10 +20,19 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
     def get_stake_reward(self, txid: str, node_num: int) -> float:
         return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
 
+    def get_stake_amount(self, txid: str, node_num: int) -> float:
+        return self.nodes[node_num].getstakeinfo(txid)['staking_amount']
+
+    def send_staking_deposit_tx(self, stake_address: str, deposit_value: decimal.Decimal, node_num: int,
+                                change_address: str = None):
+        txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
+        return txid
+
     def early_withdrawal_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
-        deposit_amount = 400 * COIN
+        deposit_value = 400
+        deposit_amount = deposit_value * COIN
         staking_penalty = int(deposit_amount * STAKING_PENALTY_PERCENTAGE / 100.0)
 
         node0_height = self.nodes[0].getblockcount()
@@ -44,10 +55,11 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
         assert node0_height == node1_height == (starting_height + 10), 'Difference in nodes height'
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
         # mine some blocks
         self.nodes[0].generate(3)
         self.sync_all()
+        assert self.get_stake_amount(stake_id, 1) == deposit_value, f"Stake amount different than expected: {self.get_stake_amount(stake_id, 1)}, {deposit_value}"
 
         # try to spend the stake
         # verify that the stake cannot be spent without paying the penalty
@@ -65,7 +77,8 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
 
     def normal_withdrawal_test(self):
         staking_reward = 50 * COIN
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
@@ -92,7 +105,7 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
         assert node0_height == node1_height, 'Difference in nodes height'
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
         # mine some blocks
         num_div = 54
         for i in range(num_div):

@@ -2,6 +2,8 @@
 #define ELCASH_STAKINGPARAMS_H
 
 #include <amount.h>
+#include <cstddef>
+
 namespace stakingParams {
     constexpr size_t NUM_STAKING_PERIODS = 4;
     constexpr size_t BLOCKS_PER_YEAR = 360 * 144;

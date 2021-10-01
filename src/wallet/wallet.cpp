@@ -35,6 +35,7 @@
 #include <assert.h>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <staking/transaction.h>
 
 const std::map<uint64_t,std::string> WALLET_FLAG_CAVEATS{
     {WALLET_FLAG_AVOID_REUSE,
@@ -954,7 +955,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, CWalletTx::Co
              * the mostly recently created transactions from newer versions of the wallet.
              */
 
-            // loop though all outputs
+            // loop through all outputs
             for (const CTxOut& txout: tx.vout) {
                 for (const auto& spk_man_pair : m_spk_managers) {
                     spk_man_pair.second->MarkUnusedAddresses(txout.scriptPubKey);
@@ -1904,26 +1905,33 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& filter
 {
     if (pwallet == nullptr)
         return 0;
-
     // Avoid caching ismine for NO or ALL cases (could remove this check and simplify in the future).
     bool allow_cache = (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (IsImmatureCoinBase())
         return 0;
-
-    if (fUseCache && allow_cache && m_amounts[AVAILABLE_CREDIT].m_cached[filter]) {
+    loadStakeInfo();
+    if (fUseCache && allow_cache && m_amounts[AVAILABLE_CREDIT].m_cached[filter] && !m_stake.isValid()) {
         return m_amounts[AVAILABLE_CREDIT].m_value[filter];
     }
 
     bool allow_used_addresses = (filter & ISMINE_USED) || !pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE);
     CAmount nCredit = 0;
     uint256 hashTx = GetHash();
+    size_t stakeOutputNumber = m_stake.getNumOutput();
     for (unsigned int i = 0; i < tx->vout.size(); i++)
     {
         if (!pwallet->IsSpent(hashTx, i) && (allow_used_addresses || !pwallet->IsSpentKey(hashTx, i))) {
             const CTxOut &txout = tx->vout[i];
-            nCredit += pwallet->GetCredit(txout, filter);
+            if (m_stake.isValid() && i == stakeOutputNumber) {
+                if (m_stake.isActive()) {}
+                else {
+                    nCredit += pwallet->IsMine(txout) & filter ? m_stake.getAmount() + m_stake.getReward() : 0;
+                }
+            } else {
+                nCredit += pwallet->GetCredit(txout, filter);
+            }
             if (!MoneyRange(nCredit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
         }
@@ -2082,6 +2090,7 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
         for (const auto& entry : mapWallet)
         {
             const CWalletTx& wtx = entry.second;
+            wtx.refreshStakeInfo();
             const bool is_trusted{wtx.IsTrusted(*locked_chain, trusted_parents)};
             const int tx_depth{wtx.GetDepthInMainChain()};
             const CAmount tx_credit_mine{wtx.GetAvailableCredit(/* fUseCache */ true, ISMINE_SPENDABLE | reuse_filter)};
@@ -2096,6 +2105,27 @@ CWallet::Balance CWallet::GetBalance(const int min_depth, bool avoid_reuse) cons
             }
             ret.m_mine_immature += wtx.GetImmatureCredit();
             ret.m_watchonly_immature += wtx.GetImmatureWatchOnlyCredit();
+            ret.m_staked += wtx.GetActiveStakedCredit();
+            ret.m_staking_penalties += chain().calculatePenaltyForStake(wtx.m_stake);
+            ret.m_staking_rewards += wtx.GetProjectedStakingRewardCredit();
+        }
+    }
+    return ret;
+}
+
+std::vector<CStakesDbEntry> CWallet::GetStakes() const
+{
+    std::vector<CStakesDbEntry> ret;
+    {
+        auto locked_chain = chain().lock();
+        LOCK(cs_wallet);
+        for (const auto& entry : mapWallet)
+        {
+            const CWalletTx& wtx = entry.second;
+            wtx.refreshStakeInfo();
+            if (wtx.m_stake.isValid() && wtx.m_stake.isActive()) {
+                ret.push_back(wtx.m_stake);
+            }
         }
     }
     return ret;
@@ -2192,11 +2222,17 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             continue;
         }
 
+        // Check if the transaction is a stake
+        const CStakesDbEntry stake = getStakeInfo(wtx);
+
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             if (wtx.tx->vout[i].nValue < nMinimumAmount || wtx.tx->vout[i].nValue > nMaximumAmount)
                 continue;
 
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
+                continue;
+
+            if (stake.isValid() && i == stake.getNumOutput() && stake.isActive() && !(coinControl && (coinControl->m_spend_incomplete_stakes ||  (coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))))
                 continue;
 
             if (IsLockedCoin(entry.first, i))
@@ -2220,7 +2256,8 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             bool solvable = provider ? IsSolvable(*provider, wtx.tx->vout[i].scriptPubKey) : false;
             bool spendable = ((mine & ISMINE_SPENDABLE) != ISMINE_NO) || (((mine & ISMINE_WATCH_ONLY) != ISMINE_NO) && (coinControl && coinControl->fAllowWatchOnly && solvable));
 
-            vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly)));
+            vCoins.push_back(COutput(&wtx, i, nDepth, spendable, solvable, safeTx, (coinControl && coinControl->fAllowWatchOnly),
+                                     stake.getNumOutput() == i ? stake : CStakesDbEntry()));
 
             // Checks the sum amount of all UTXO's.
             if (nMinimumSumAmount != MAX_MONEY) {
@@ -2237,6 +2274,15 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             }
         }
     }
+}
+
+const CStakesDbEntry CWallet::getStakeInfo(const CWalletTx& wtx) const {
+    // first parse the transaction and check if it has a deposit format to minimize database lookups
+    if (CStakingTransactionParser(wtx.tx).GetStakingTxType() != StakingTransactionType::DEPOSIT) {
+        return CStakesDbEntry();
+    }
+    CStakesDbEntry stake = chain().getStake(wtx.tx->GetHash());
+    return stake;
 }
 
 std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins(interfaces::Chain::Lock& locked_chain) const
@@ -2370,7 +2416,7 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
         {
             if (!out.fSpendable)
                  continue;
-            nValueRet += out.tx->tx->vout[out.i].nValue;
+            nValueRet += out.tx->tx->vout[out.i].nValue + out.stake.getRewardOrPenalty();
             setCoinsRet.insert(out.GetInputCoin());
         }
         return (nValueRet >= nTargetValue);
@@ -2393,7 +2439,8 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
                 return false;
             }
             // Just to calculate the marginal byte size
-            CInputCoin coin(wtx.tx, outpoint.n, wtx.GetSpendSize(outpoint.n, false));
+            CStakesDbEntry stake = getStakeInfo(wtx);
+            CInputCoin coin(wtx.tx, outpoint.n, wtx.GetSpendSize(outpoint.n, false), stake);
             nValueFromPresetInputs += coin.txout.nValue;
             if (coin.m_input_bytes <= 0) {
                 return false; // Not solvable, can't estimate size for fee
@@ -3077,7 +3124,6 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
 {
     auto locked_chain = chain().lock();
     LOCK(cs_wallet);
-
     CWalletTx wtxNew(this, std::move(tx));
     wtxNew.mapValue = std::move(mapValue);
     wtxNew.vOrderForm = std::move(orderForm);
@@ -4189,6 +4235,34 @@ bool CWalletTx::IsImmatureCoinBase() const
     return GetBlocksToMaturity() > 0;
 }
 
+CAmount CWalletTx::GetProjectedStakingRewardCredit() const {
+    loadStakeInfo();
+    if (m_stake.isValid() && m_stake.isActive()) {
+        return m_stake.getReward();
+    }
+    return 0;
+}
+
+void CWalletTx::loadStakeInfo() const {
+    if (!m_stake_info_loaded) {
+        m_stake = pwallet->getStakeInfo(*this);
+        m_stake_info_loaded = true;
+    }
+}
+
+CAmount CWalletTx::GetActiveStakedCredit() const {
+    loadStakeInfo();
+    if (m_stake.isValid() && m_stake.isActive()) {
+        return m_stake.getAmount();
+    }
+    return 0;
+}
+
+void CWalletTx::refreshStakeInfo() const {
+    if (m_stake_info_loaded && !m_stake.isValid() && !isUnconfirmed()) return;
+    m_stake = pwallet->getStakeInfo(*this);
+}
+
 std::vector<OutputGroup> CWallet::GroupOutputs(const std::vector<COutput>& outputs, bool single_coin) const {
     std::vector<OutputGroup> groups;
     std::map<CTxDestination, OutputGroup> gmap;
@@ -4387,4 +4461,20 @@ void CWallet::ConnectScriptPubKeyManNotifiers()
         spk_man->NotifyWatchonlyChanged.connect(NotifyWatchonlyChanged);
         spk_man->NotifyCanGetAddressesChanged.connect(NotifyCanGetAddressesChanged);
     }
+}
+
+CScript CWallet::CreateStakingDepositHeaderScript(const uint8_t period_index, const uint32_t output_index) {
+    std::stringstream ss {};
+    ss << STAKING_TX_HEADER << STAKING_TX_DEPOSIT_SUBHEADER;
+    WriteCompactSize(ss, output_index);
+    ss << period_index;
+    CScript stakeHeaderScript = CScript() << OP_RETURN << ToByteVector(ss.str());
+    return stakeHeaderScript;
+}
+
+CScript CWallet::CreateStakingBurnHeaderScript(const CAmount amount) {
+    std::stringstream ss {};
+    ss << STAKING_TX_HEADER << STAKING_TX_BURN_SUBHEADER;
+    CScript stakeHeaderScript = CScript() << OP_RETURN << ToByteVector(ss.str());
+    return stakeHeaderScript;
 }

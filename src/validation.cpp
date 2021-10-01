@@ -1476,7 +1476,8 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
     CAmount totalRewardForBlock = 0;
     for (auto stake: activeStakes) {
         assert(stake.isActive());
-        CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(params, globalRewardCoefficient, stake);
+        CAmount rewardForBlock = CStakingRewardsCalculator::CalculateBlockRewardForStake(params,
+                                                                                         globalRewardCoefficient, stake);
         stake.setReward(stake.getReward() + rewardForBlock);
         totalRewardForBlock += rewardForBlock;
         stakes.updateStakeEntry(stake);
@@ -1867,7 +1868,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         for (auto& stake : stakes.getAllActiveStakes()) {
             // Do not decrease reward for reactivated prematurely-spent stakes, as it was not increased in original block
             if (prematureStakeIds.count(stake.getKey()) > 0) continue;
-            CAmount rewardForBlock = CStakingRewardsCalculator::CalculateRewardForStake(chainparams, globalStakingRewardCoefficient, stake);
+            CAmount rewardForBlock = CStakingRewardsCalculator::CalculateBlockRewardForStake(chainparams,
+                                                                                             globalStakingRewardCoefficient,
+                                                                                             stake);
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
             if (stake.getDepositBlock(chainparams) >= pindex->nHeight) {

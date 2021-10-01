@@ -48,6 +48,8 @@ public:
     int m_min_depth = DEFAULT_MIN_DEPTH;
     //! Maximum chain depth value for coin availability
     int m_max_depth = DEFAULT_MAX_DEPTH;
+    //! Spend incomplete stakes
+    bool m_spend_incomplete_stakes = false;
 
     CCoinControl()
     {

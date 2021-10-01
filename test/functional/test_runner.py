@@ -238,6 +238,7 @@ BASE_SCRIPTS = [
     'rpc_getstakinginfo.py',
     'rpc_getstakesforaddress.py',
     'rpc_getstakeinfo.py',
+    'wallet_staking.py'
     
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time

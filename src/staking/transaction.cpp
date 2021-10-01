@@ -77,17 +77,8 @@ StakingTransactionType CStakingTransactionParser::ValidateStakingBurnTx() {
     const uint8_t header = ser_readdata8(ds);
     const uint8_t subheader = ser_readdata8(ds);
     assert(op == OP_RETURN || header == STAKING_TX_HEADER || subheader == STAKING_TX_BURN_SUBHEADER);
-    if (ds.size() < STAKING_BURN_TX_HEADER_SIZE - STAKING_HEADER_SIZE) {
-        return StakingTransactionType::NONE;
-    }
-    CAmount amount;
-    try {
-        amount = static_cast<CAmount>(ser_readdata64(ds));
-    } catch(...) {
-        return StakingTransactionType::NONE;
-    }
-
-    if (!MoneyRange(amount)) {
+    CAmount amount = tx->vout[0].nValue;
+    if (!MoneyRange(amount) || amount == 0) {
         return StakingTransactionType::NONE;
     }
 
