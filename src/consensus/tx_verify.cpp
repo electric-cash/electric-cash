@@ -186,10 +186,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         if (coin.IsStake()) {
             CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
-            // If the coin is marked as stake, but there is no corresponding entry in stakers DB, there is
-            // some major internal error.
-            assert(stakeDbEntry.isValid());
-            if (stakeDbEntry.isComplete()) {
+            if (stakeDbEntry.isValid() && stakeDbEntry.isComplete()) {
                 CAmount stakingReward = stakeDbEntry.getReward();
                 nValueIn += stakingReward;
             } else {

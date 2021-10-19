@@ -1245,8 +1245,8 @@ public:
 
     static CScript CreateStakingDepositHeaderScript(const uint8_t period_index, const uint32_t output_index);
     static CScript CreateStakingBurnHeaderScript(const CAmount amount);
-
     const CStakesDbEntry getStakeInfo(const CWalletTx& wtx) const;
+    void fillStakeInfo(const CWalletTx& wtx, bool& isStake, bool& isActive, size_t& nOutputIndex, CStakesDbEntry& stake) const;
     std::vector<CStakesDbEntry> GetStakes() const;
 };
 
