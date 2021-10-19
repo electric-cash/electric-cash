@@ -28,6 +28,22 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
         txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
         return txid
 
+    def assure_same_height(self, height):
+        last_node_height = self.nodes[0].getblockcount()
+        for index, node in enumerate(self.nodes):
+            node_height = node.getblockcount()
+            assert node_height == last_node_height == height, f'Difference in nodes height at node index: {index}'
+            last_node_height = node_height
+
+    def assure_same_staking_balance(self):
+        # assure that staking balance is the same on both nodes
+
+        last_balance = self.get_staking_pool_balance(node_num=0)
+        for index, _ in enumerate(self.nodes):
+            balance = self.get_staking_pool_balance(node_num=index)
+            assert last_balance == balance, f'Difference in nodes balance at index: {index}'
+            last_balance = balance
+
     def early_withdrawal_test(self):
         starting_height = 200
         staking_reward = 50 * COIN
@@ -35,27 +51,23 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
         deposit_amount = deposit_value * COIN
         staking_penalty = int(deposit_amount * STAKING_PENALTY_PERCENTAGE / 100.0)
 
-        node0_height = self.nodes[0].getblockcount()
-        node1_height = self.nodes[1].getblockcount()
-        assert node0_height == node1_height == starting_height, f'Starting nodes height different than ' \
-                                                                f'{starting_height, node0_height, node1_height}'
+        self.assure_same_height(starting_height)
 
         # generate 10 blocks on node 0, then sync nodes and check height and staking balance
+        generated_blocks = 100
         addr1 = self.nodes[0].getnewaddress()
-        self.nodes[0].generatetoaddress(10, addr1)
+        self.nodes[0].generatetoaddress(generated_blocks, addr1)
+
         self.sync_all()
+        self.assure_same_staking_balance()
+        self.assure_same_height(starting_height+generated_blocks)
 
-        # assure that staking balance is the same on both nodes
-        node0_staking_balance = self.get_staking_pool_balance(node_num=0)
-        node1_staking_balance = self.get_staking_pool_balance(node_num=1)
-        assert node0_staking_balance == node1_staking_balance
-
-        node0_height = self.nodes[0].getblockcount()
-        node1_height = self.nodes[1].getblockcount()
-        assert node0_height == node1_height == (starting_height + 10), 'Difference in nodes height'
+        staking_balance_before = self.get_staking_pool_balance(node_num=0)
 
         # send staking deposit transaction
         stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
+        for _ in range(150):
+            self.send_staking_deposit_tx(addr1, 6, node_num=0)
         # mine some blocks
         self.nodes[0].generate(3)
         self.sync_all()
@@ -71,9 +83,10 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
 
         # check if staking pool balance increased by the penalty
         self.nodes[0].generate(1)
-        expected_staking_pool_balance = node0_staking_balance + 4 * staking_reward + staking_penalty
-        assert self.get_staking_pool_balance(
-            node_num=0) == expected_staking_pool_balance, f"Staking pool balance ({self.get_staking_pool_balance(node_num=0)}) is not equal to expected value ({expected_staking_pool_balance})"
+
+        staking_balance_after = self.get_staking_pool_balance(node_num=0)
+        expected_staking_pool_balance = staking_balance_before + 4 * staking_reward + staking_penalty
+        assert staking_balance_after == expected_staking_pool_balance, f"Staking pool balance ({staking_balance_after}) is not equal to expected value ({expected_staking_pool_balance})"
 
     def normal_withdrawal_test(self):
         staking_reward = 50 * COIN
