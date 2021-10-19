@@ -4278,11 +4278,7 @@ CAmount CWalletTx::GetProjectedStakingRewardCredit() const {
 
 void CWalletTx::loadStakeInfo() const {
     if (!m_stake_info_loaded) {
-        CStakesDbEntry stake;
-        bool isStake = false, isActiveStake = false;
-        size_t numStakingOutput = 0;
-        pwallet->fillStakeInfo(*this, isStake, isActiveStake, numStakingOutput, stake);
-        m_stake = stake;
+        m_stake = pwallet->getStakeInfo(*this);
         m_stake_info_loaded = true;
     }
 }
