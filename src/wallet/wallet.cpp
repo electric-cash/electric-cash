@@ -2223,7 +2223,10 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
         }
 
         // Check if the transaction is a stake
-        const CStakesDbEntry stake = getStakeInfo(wtx);
+        CStakesDbEntry stake;
+        bool isStake = false, isActiveStake = false;
+        size_t numStakingOutput = 0;
+        fillStakeInfo(wtx, isStake, isActiveStake, numStakingOutput, stake);
 
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             if (wtx.tx->vout[i].nValue < nMinimumAmount || wtx.tx->vout[i].nValue > nMaximumAmount)
@@ -2232,7 +2235,7 @@ void CWallet::AvailableCoins(interfaces::Chain::Lock& locked_chain, std::vector<
             if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(entry.first, i)))
                 continue;
 
-            if (stake.isValid() && i == stake.getNumOutput() && stake.isActive() && !(coinControl && (coinControl->m_spend_incomplete_stakes ||  (coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))))
+            if (isStake && i == numStakingOutput && isActiveStake && !(coinControl && (coinControl->m_spend_incomplete_stakes || (coinControl->HasSelected() && coinControl->IsSelected(COutPoint(entry.first, i))))))
                 continue;
 
             if (IsLockedCoin(entry.first, i))
@@ -2283,6 +2286,36 @@ const CStakesDbEntry CWallet::getStakeInfo(const CWalletTx& wtx) const {
     }
     CStakesDbEntry stake = chain().getStake(wtx.tx->GetHash());
     return stake;
+}
+
+void CWallet::fillStakeInfo(const CWalletTx& wtx, bool& isStake, bool& isActive, size_t& nOutputIndex, CStakesDbEntry& stake) const {
+    // first parse the transaction and check if it has a deposit format to minimize database lookups
+    CStakingTransactionParser stx(wtx.tx);
+    if (stx.GetStakingTxType() != StakingTransactionType::DEPOSIT) {
+        isStake = false;
+        isActive = false;
+        nOutputIndex = 0;
+        return;
+    }
+    stake = chain().getStake(wtx.tx->GetHash());
+    if (stake.isValid()) {
+        isStake = true;
+        nOutputIndex = stake.getNumOutput();
+        isActive = stake.isActive();
+        return;
+    } else if (wtx.InMempool()) {
+        // Potential stake in mempool
+        isStake = true;
+        nOutputIndex = stx.GetStakingDepositTxMetadata().nOutputIndex, CScript();
+        isActive = true;
+        return;
+    } else {
+        isStake = false;
+        isActive = false;
+        nOutputIndex = 0;
+        return;
+    }
+
 }
 
 std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins(interfaces::Chain::Lock& locked_chain) const

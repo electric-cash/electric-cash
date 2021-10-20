@@ -74,7 +74,11 @@ class StakingTest(BitcoinTestFramework):
 
         # try spending a complete stake
         assert len(self.nodes[1].getstakes()) == 1, self.nodes[1].getstakes()
-        self.nodes[1].generate(4320)
+        num_div = 54
+        for i in range(num_div):
+            self.nodes[0].generate(4320 // num_div)
+            self.sync_all()
+
         assert self.nodes[1].getstakeinfo(stakeid1)["fulfilled"]
         txid = self.nodes[1].sendtoaddress(node1_addr, 1957)
         assert len(txid) > 0

@@ -33,49 +33,8 @@ class StakingReorgTest(BitcoinTestFramework):
     def get_stake_reward(self, txid: str, node_num: int) -> float:
         return self.nodes[node_num].getstakeinfo(txid)['accumulated_reward']
 
-    @staticmethod
-    def create_tx_inputs_and_outputs(stake_address: str, change_address: str, deposit_amount: decimal.Decimal, deposit_idx: int,
-                                     utxo: dict):
-        fee = COIN // 1000
-        tx_input = {
-            "txid": utxo["txid"],
-            "vout": utxo["vout"]
-        }
-        # tx outputs
-        tx_output_staking_deposit_header = {
-            "data": bytes([STAKING_TX_HEADER, STAKING_TX_DEPOSIT_SUBHEADER, 0x01, deposit_idx]).hex()
-        }
-
-        tx_output_stake = {
-            stake_address: deposit_amount / COIN
-        }
-
-        change_amount = (utxo["amount"] * COIN - deposit_amount - fee) / COIN
-        if change_amount > 0.0001:
-            tx_output_change = {
-                change_address: change_amount
-            }
-            return [tx_input], [tx_output_staking_deposit_header, tx_output_stake, tx_output_change]
-        else:
-            return [tx_input], [tx_output_staking_deposit_header, tx_output_stake]
-
-    def send_staking_deposit_tx(self, stake_address: str, deposit_amount: decimal.Decimal, period_idx: int, node_num: int,
-                                change_address: str = None):
-        i = 0
-        while True:
-            unspent = self.nodes[node_num].listunspent()[i]
-            if unspent["amount"] * COIN >= deposit_amount:
-                break
-            i = i + 1
-
-        if not change_address:
-            change_address = self.nodes[node_num].getnewaddress()
-        tx_inputs, tx_outputs = self.create_tx_inputs_and_outputs(stake_address, change_address, deposit_amount, period_idx,
-                                                                  unspent)
-        # create, sign and send staking burn transaction
-        raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
-        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
-        txid = self.nodes[0].sendrawtransaction(signed_raw_tx['hex'])
+    def send_staking_deposit_tx(self, stake_address: str, deposit_value: float, period: int, node_num: int):
+        txid = self.nodes[node_num].depositstake(deposit_value, period, stake_address)
         return txid
 
     def spend_stake(self, node_num: int, stake_txid: str, stake_address: str, early_withdrawal: bool = False,
@@ -104,7 +63,8 @@ class StakingReorgTest(BitcoinTestFramework):
             return self.nodes[node_num].sendrawtransaction(signed_raw_tx["hex"])
 
     def reorg_recalculate_reward(self):
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
         staking_reward = 50 * COIN
@@ -119,7 +79,7 @@ class StakingReorgTest(BitcoinTestFramework):
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance, f'Starting staking balance difference: {node0_staking_balance, node1_staking_balance}'
-        stake_txid = self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
+        stake_txid = self.send_staking_deposit_tx(addr1, deposit_value, 4320, 0)
         # generate 15 blocks on node 0, then sync nodes and check height and staking balance
         self.nodes[0].generate(15)
         self.sync_all()
@@ -173,7 +133,7 @@ class StakingReorgTest(BitcoinTestFramework):
         assert node0_reward == node1_reward == node1_expected_reward, f'Difference in staking rewards: {node0_reward, node1_reward, node1_expected_reward}'
 
     def reorg_cancelled_deposit_tx(self):
-        deposit_amount = 300 * COIN
+        deposit_value = 300
         starting_height = 200
         staking_reward = 50 * COIN
         starting_staking_balance = 100 * staking_reward
@@ -208,7 +168,7 @@ class StakingReorgTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[0], 1)
         disconnect_nodes(self.nodes[1], 2)
 
-        self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
+        self.send_staking_deposit_tx(addr1, deposit_value, 4320, 0)
         self.nodes[0].generate(22)
         self.nodes[1].generate(29)
 
@@ -239,7 +199,8 @@ class StakingReorgTest(BitcoinTestFramework):
         assert node0_staking_balance == node1_staking_balance == target_staking_balance, f'Nodes staking balance ({node0_staking_balance, node1_staking_balance}) different than {target_staking_balance}'
 
     def reorg_premature_stake_spend(self):
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
@@ -260,7 +221,7 @@ class StakingReorgTest(BitcoinTestFramework):
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance, f'Starting staking balance difference: {node0_staking_balance, node1_staking_balance}'
-        stake_txid = self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
+        stake_txid = self.send_staking_deposit_tx(addr1, deposit_value, 4320, 0)
         # generate blocks in parts to shorten the synchronization
         num_div = 108
         self.nodes[0].generate(stake_length_blocks // num_div - 10)
@@ -318,7 +279,8 @@ class StakingReorgTest(BitcoinTestFramework):
         assert node0_reward == node1_reward == node1_expected_reward, f'Difference in staking rewards: {node0_reward, node1_reward, node1_expected_reward}'
 
     def reorg_mature_stake_spend(self):
-        deposit_amount = 300 * COIN
+        deposit_value = 300
+        deposit_amount = deposit_value * COIN
         staking_percentage = 5.0
         stake_length_months = 1
         stake_length_blocks = stake_length_months * 30 * 144
@@ -339,7 +301,7 @@ class StakingReorgTest(BitcoinTestFramework):
         node0_staking_balance = self.get_staking_balance(node_num=0)
         node1_staking_balance = self.get_staking_balance(node_num=1)
         assert node0_staking_balance == node1_staking_balance, f'Starting staking balance difference: {node0_staking_balance, node1_staking_balance}'
-        stake_txid = self.send_staking_deposit_tx(addr1, deposit_amount, 0, 0)
+        stake_txid = self.send_staking_deposit_tx(addr1, deposit_value, 4320, 0)
         # generate 15 blocks on node 0, then sync nodes and check height and staking balance
         num_div = 54
         self.nodes[0].generate(stake_length_blocks // num_div - 10)
