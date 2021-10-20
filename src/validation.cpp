@@ -1506,9 +1506,7 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
                     stakingPenalties += CStakingRewardsCalculator::CalculatePenaltyForStake(stakeDbEntry);
                     stakingPenalties += stakeDbEntry.getReward();
                 }
-                if (!fJustCheck) {
-                    stakes.deactivateStake(stakeDbEntry.getKey(), fStakeComplete);
-                }
+                stakes.deactivateStake(stakeDbEntry.getKey(), fStakeComplete);
             }
         }
     }
@@ -4004,7 +4002,7 @@ bool TestBlockValidity(BlockValidationState& state, const CChainParams& chainpar
     AssertLockHeld(cs_main);
     assert(pindexPrev && pindexPrev == ::ChainActive().Tip());
     CCoinsViewCache viewNew(&::ChainstateActive().CoinsTip());
-    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB());
     uint256 block_hash(block.GetHash());
     CBlockIndex indexDummy(block);
     indexDummy.pprev = pindexPrev;
