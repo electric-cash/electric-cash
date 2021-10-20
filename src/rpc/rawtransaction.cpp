@@ -52,7 +52,7 @@ bool checkIfWithdrawalTransaction(const CTransaction& tx)
 {
     for(const auto& input : CMutableTransaction{tx}.vin) {
         const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(input.prevout.hash);
-        if(stake.isValid()) {
+        if(stake.isValid() && stake.getNumOutput() == input.prevout.n) {
             return true;
         }
     }
@@ -61,13 +61,14 @@ bool checkIfWithdrawalTransaction(const CTransaction& tx)
 
 std::string getTransactionType(const CTransaction& tx)
 {
-    if(checkIfWithdrawalTransaction(tx)) {
-        return "STAKING_WITHDRAWAL";
-    }
     StakingTransactionType txType{CStakingTransactionParser{MakeTransactionRef(tx)}.GetStakingTxType()};
     switch(txType) {
         case StakingTransactionType::NONE:
-            return "NONE";
+            if (checkIfWithdrawalTransaction(tx)) {
+                return "STAKING_WITHDRAWAL";
+            } else {
+                return "NONE";
+            }
         case StakingTransactionType::DEPOSIT:
             return "STAKING_DEPOSIT";
         case StakingTransactionType::BURN:
