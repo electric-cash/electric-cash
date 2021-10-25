@@ -10,6 +10,7 @@ namespace DBHeaders {
     const std::string BEST_BLOCK_HASH = "best_block_hash";
     const std::string STAKING_POOL = "staking_pool";
     const std::string FLUSH_ONGOING = "flush_ongoing";
+    const std::string FREE_TX_INFO = "free_tx_info";
 }
 
 std::string scriptToStr(const CScript& script) {
@@ -111,6 +112,13 @@ std::set<uint256> CStakesDB::getActiveStakeIdsForScript(const CScript& script) {
     return it->second;
 }
 
+CFreeTxInfo CStakesDB::getFreeTxInfoForScript(const CScript &script) const {
+    auto it = m_free_tx_info.find(scriptToStr(script));
+    if (it == m_free_tx_info.end())
+        return {};
+    return it->second;
+}
+
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LOCK(cs_main);
     verifyFlushState();
@@ -123,6 +131,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_active_stakes = cache->m_active_stakes;
     m_staking_pool = cache->m_staking_pool;
     m_stakes_completed_at_block_height = cache->m_stakes_completed_at_block_height;
+    m_free_tx_info = cache->m_free_tx_info;
     m_amounts_by_periods = cache->m_amounts_by_periods;
     m_best_block_hash = cache->m_best_block_hash;
     dumpHelpStates();
@@ -197,6 +206,10 @@ void CStakesDB::initHelpStates() {
         CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.load();
     }
+    {
+        CSerializer<FreeTxInfoMap> serializer{m_free_tx_info, m_db_wrapper, DBHeaders::FREE_TX_INFO};
+        serializer.load();
+    }
 
     m_db_wrapper.Read(DBHeaders::STAKING_POOL, m_staking_pool);
     m_db_wrapper.Read(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
@@ -220,6 +233,10 @@ void CStakesDB::dumpHelpStates() {
         CSerializer<AmountByPeriodArray> serializer{m_amounts_by_periods, m_db_wrapper, DBHeaders::AMOUNT_BY_PERIOD};
         serializer.dump();
     }
+    {
+        CSerializer<FreeTxInfoMap> serializer{m_free_tx_info, m_db_wrapper, DBHeaders::FREE_TX_INFO};
+        serializer.dump();
+    }
 
     m_db_wrapper.Write(DBHeaders::STAKING_POOL, m_staking_pool);
     m_db_wrapper.Write(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
@@ -234,6 +251,7 @@ CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_s
         m_script_to_active_stakes.insert(m_base_db->getScriptMap().begin(), m_base_db->getScriptMap().end());
         m_best_block_hash = m_base_db->getBestBlock();
         m_amounts_by_periods = m_base_db->getAmountsByPeriods();
+        m_free_tx_info.insert(m_base_db->getFreeTxInfoMap().begin(), m_base_db->getFreeTxInfoMap().end());
     }
 }
 
@@ -426,7 +444,7 @@ const AmountByPeriodArray& CStakesDBCache::getAmountsByPeriods() const {
 }
 
 // This method assumes that nothing else from stake reward is modified. Checks are not performed because they would need
-// DB lookups, which are too expensive. If
+// DB lookups, which are too expensive.
 bool CStakesDBCache::updateStakeEntry(const CStakesDbEntry &entry) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
@@ -435,3 +453,33 @@ bool CStakesDBCache::updateStakeEntry(const CStakesDbEntry &entry) {
     m_stakes_map[entry.getKey()] = entry;
     return true;
 }
+
+CFreeTxInfo CStakesDBCache::getFreeTxInfoForScript(const CScript &script) const {
+    if (m_viewonly) {
+        return m_base_db->getFreeTxInfoForScript(script);
+    }
+    auto it = m_free_tx_info.find(scriptToStr(script));
+    if (it == m_free_tx_info.end())
+        return {};
+    return it->second;
+}
+
+bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const int nHeight) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    std::string scriptString = scriptToStr(script);
+    CFreeTxInfo freeTxInfoEx = getFreeTxInfoForScript(script);
+    if (freeTxInfoEx.isValid()) {
+        LogPrintf("ERROR: Free tx info for script %s already exists\n", scriptString);
+        return false;
+    }
+    uint32_t used_limit = 0;
+    uint32_t limit = 1000000; // TODO(mtwaro): calculation function
+    StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
+    CFreeTxInfo freeTxInfo(used_limit, limit, nHeight, activeStakes);
+    m_free_tx_info.insert(std::pair<std::string, CFreeTxInfo>(scriptString, freeTxInfo));
+    return true;
+}
+
