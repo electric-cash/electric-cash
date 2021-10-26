@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
 BOOST_AUTO_TEST_CASE(dump_and_load) {
     std::set<uint256> list_of_ids;
     uint256 txid1 = InsecureRand256(), txid2 = InsecureRand256(), bestBlockHash = InsecureRand256();
-    CScript script1(0x1234), script2(0x4321);
+    CScript script1(0x1234), script2(0x4321), script3(0x1111);
     CAmount amount1 = 10 * COIN, amount2 = 5 * COIN;
     CAmount reward1 = 1234567, reward2 = 0;
     size_t period1 = 0, period2 = 2;
@@ -179,6 +179,7 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
         cache.setBestBlock(bestBlockHash);
         cache.addNewStakeEntry(entry1);
         cache.addNewStakeEntry(entry2);
+        cache.createFreeTxInfoForScript(script1, 23456);
         cache.flushDB();
     }
     // reload DB from disk
@@ -214,6 +215,25 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     BOOST_CHECK(cache.stakingPool().getBalance() == stakingPoolBalance);
 
     BOOST_CHECK(cache.getBestBlock() == bestBlockHash);
+
+    CFreeTxInfo freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
+    CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
+    BOOST_CHECK(freeTxInfo1.isValid());
+    BOOST_CHECK(!freeTxInfo2.isValid());
+    BOOST_CHECK(freeTxInfo1.getLimit() == 1000000); // TODO(mtwaro): change this after limit calculation is ready
+    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 0);
+    BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
+
+    BOOST_CHECK(cache.registerFreeTransaction(script1, 500000, 23456));
+    BOOST_CHECK(cache.registerFreeTransaction(script2, 500000, 23456));
+    BOOST_CHECK(!cache.registerFreeTransaction(script3, 500000, 23456));
+
+    freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
+    freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
+    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 500000);
+    BOOST_CHECK(freeTxInfo2.isValid());
+    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 500000);
+
 
 }
 

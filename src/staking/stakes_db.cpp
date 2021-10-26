@@ -464,7 +464,7 @@ CFreeTxInfo CStakesDBCache::getFreeTxInfoForScript(const CScript &script) const 
     return it->second;
 }
 
-bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const int nHeight) {
+bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -478,8 +478,37 @@ bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const int 
     uint32_t used_limit = 0;
     uint32_t limit = 1000000; // TODO(mtwaro): calculation function
     StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
+    if (activeStakes.empty()) {
+        return false;
+    }
     CFreeTxInfo freeTxInfo(used_limit, limit, nHeight, activeStakes);
     m_free_tx_info.insert(std::pair<std::string, CFreeTxInfo>(scriptString, freeTxInfo));
+    return true;
+}
+
+bool CStakesDBCache::registerFreeTransaction(const CScript& script, const uint32_t txSize, const uint32_t nHeight) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    std::string scriptString = scriptToStr(script);
+    CFreeTxInfo freeTxInfo = getFreeTxInfoForScript(script);
+    if (!freeTxInfo.isValid()) {
+        if (!createFreeTxInfoForScript(script, nHeight)) {
+            return false;
+        }
+        freeTxInfo = getFreeTxInfoForScript(script);
+    }
+    assert(freeTxInfo.isValid());
+    std::set<uint256> activeStakeIdsChain = getActiveStakeIdsForScript(script);
+    if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
+        freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
+    }
+    if (freeTxInfo.getUsedLimit() + txSize > freeTxInfo.getLimit()) {
+        return false;
+    }
+    freeTxInfo.setUsedLimit(freeTxInfo.getUsedLimit() + txSize);
+    m_free_tx_info[scriptString] = freeTxInfo;
     return true;
 }
 

@@ -183,7 +183,7 @@ public:
     const ScriptToStakesMap& getScriptMap() const { return m_script_to_active_stakes;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
-    const FreeTxInfoMap getFreeTxInfoMap() const { return m_free_tx_info; }
+    const FreeTxInfoMap& getFreeTxInfoMap() const { return m_free_tx_info; }
     void initCache();
     void dropCache();
     void initHelpStates();
@@ -233,7 +233,10 @@ public:
     const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
     CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
-    bool createFreeTxInfoForScript(const CScript& script, const int nHeight);
+
+    // TODO(mtwaro): maybe move the following functions to some higher abstraction class
+    bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight);
+    bool registerFreeTransaction(const CScript &script, const uint32_t txSize, const uint32_t nHeight);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H
