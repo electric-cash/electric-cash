@@ -1540,6 +1540,13 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, b
     UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
+bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight) {
+    const COutPoint &prevout = tx.vin[0].prevout;
+    const Coin& coin = inputs.AccessCoin(prevout);
+    const CScript staker_script = coin.out.scriptPubKey;
+    return stakes.registerFreeTransaction(staker_script, tx.GetTotalSize(), nHeight);
+}
+
 bool CScriptCheck::operator()() {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
     const CScriptWitness *witness = &ptxTo->vin[nIn].scriptWitness;
