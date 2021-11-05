@@ -86,7 +86,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     // available to code in elcash-common, so we query them here and push the
     // data into the returned UniValue.
     TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags());
-
+    entry.pushKV("tx_type", getTransactionType(tx));
     if (!hashBlock.IsNull()) {
         LOCK(cs_main);
 
@@ -97,7 +97,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.pushKV("confirmations", 1 + ::ChainActive().Height() - pindex->nHeight);
                 entry.pushKV("time", pindex->GetBlockTime());
                 entry.pushKV("blocktime", pindex->GetBlockTime());
-                entry.pushKV("tx_type", getTransactionType(tx));
             }
             else
                 entry.pushKV("confirmations", 0);
