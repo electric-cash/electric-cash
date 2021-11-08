@@ -666,10 +666,14 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // CoinsViewCache instead of create its own
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
-    CStakesDBCache stakes(&m_stakes, true);
+    CStakesDBCache stakes(&m_stakes);
     CAmount nFees = 0;
     if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, stakes)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
+    }
+
+    if (nFees == 0 && !CheckIfEligibleFreeTx(tx, m_view, stakes, 0)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
     }
 
     // Check for non-standard pay-to-script-hash in inputs
@@ -1544,7 +1548,7 @@ bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CSta
     const COutPoint &prevout = tx.vin[0].prevout;
     const Coin& coin = inputs.AccessCoin(prevout);
     const CScript staker_script = coin.out.scriptPubKey;
-    return stakes.registerFreeTransaction(staker_script, tx.GetTotalSize(), nHeight);
+    return stakes.registerFreeTransaction(staker_script, tx, nHeight);
 }
 
 bool CScriptCheck::operator()() {

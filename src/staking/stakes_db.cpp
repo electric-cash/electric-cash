@@ -475,18 +475,17 @@ bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint
         LogPrintf("ERROR: Free tx info for script %s already exists\n", scriptString);
         return false;
     }
-    uint32_t used_limit = 0;
     uint32_t limit = 1000000; // TODO(mtwaro): calculation function
     StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
     if (activeStakes.empty()) {
         return false;
     }
-    CFreeTxInfo freeTxInfo(used_limit, limit, nHeight, activeStakes);
-    m_free_tx_info.insert(std::pair<std::string, CFreeTxInfo>(scriptString, freeTxInfo));
+    CFreeTxInfo freeTxInfo(limit, nHeight, activeStakes);
+    m_free_tx_info.insert(std::make_pair(scriptString, freeTxInfo));
     return true;
 }
 
-bool CStakesDBCache::registerFreeTransaction(const CScript& script, const uint32_t txSize, const uint32_t nHeight) {
+bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTransaction& tx, const uint32_t nHeight) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -500,14 +499,24 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const uint32
         freeTxInfo = getFreeTxInfoForScript(script);
     }
     assert(freeTxInfo.isValid());
+    if (nHeight > 0 && freeTxInfo.getCurrentWindowStartHeight() == 0) {
+        freeTxInfo.setCurrentWindowStartHeight(nHeight);
+    }
     std::set<uint256> activeStakeIdsChain = getActiveStakeIdsForScript(script);
     if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
         freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
     }
-    if (freeTxInfo.getUsedLimit() + txSize > freeTxInfo.getLimit()) {
-        return false;
+    if (nHeight == 0) {
+        if (!freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
+            return false;
+        }
     }
-    freeTxInfo.setUsedLimit(freeTxInfo.getUsedLimit() + txSize);
+    if (nHeight > 0) {
+        if (!freeTxInfo.increaseUsedConfirmedLimit(tx.GetTotalSize())) {
+            return false;
+        }
+        freeTxInfo.removeUnconfirmedTxId(tx.GetHash());
+    }
     m_free_tx_info[scriptString] = freeTxInfo;
     return true;
 }
