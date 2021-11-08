@@ -672,10 +672,6 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
-    if (nFees == 0 && !CheckIfEligibleFreeTx(tx, m_view, stakes, 0)) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
-    }
-
     // Check for non-standard pay-to-script-hash in inputs
     if (fRequireStandard && !AreInputsStandard(tx, m_view)) {
         return state.Invalid(TxValidationResult::TX_INPUTS_NOT_STANDARD, "bad-txns-nonstandard-inputs");
@@ -712,7 +708,13 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     // No transactions are allowed below minRelayTxFee except from disconnected
     // blocks
-    if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) return false;
+    if (nFees == 0) {
+        if (!CheckIfEligibleFreeTx(tx, m_view, stakes, 0)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
+        }
+    } else {
+        if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) return false;
+    }
 
     if (nAbsurdFee && nFees > nAbsurdFee)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD,
