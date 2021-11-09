@@ -707,12 +707,14 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     // No transactions are allowed below minRelayTxFee except from disconnected
     // blocks
-    if (nFees == 0) {
-        if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0)) {
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
+    if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
+        if (nFees == 0) {
+            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0)) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
+            }
+        } else {
+            return false;
         }
-    } else {
-        if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) return false;
     }
 
     if (nAbsurdFee && nFees > nAbsurdFee)
