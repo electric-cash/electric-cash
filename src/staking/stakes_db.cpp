@@ -475,7 +475,7 @@ bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint
         LogPrintf("ERROR: Free tx info for script %s already exists\n", scriptString);
         return false;
     }
-    uint32_t limit = 1000000; // TODO(mtwaro): calculation function
+    uint32_t limit = 1000; // TODO(mtwaro): calculation function
     StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
     if (activeStakes.empty()) {
         return false;

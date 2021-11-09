@@ -436,7 +436,7 @@ namespace {
 class MemPoolAccept
 {
 public:
-    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool), m_stakes(::ChainstateActive().GetStakesDB()),
+    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool), m_stakes(&::ChainstateActive().GetStakesDB()),
         m_limit_ancestors(gArgs.GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT)),
         m_limit_ancestor_size(gArgs.GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000),
         m_limit_descendants(gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT)),
@@ -524,7 +524,7 @@ private:
     CCoinsViewCache m_view;
     CCoinsViewMemPool m_viewmempool;
     CCoinsView m_dummy;
-    CStakesDB& m_stakes;
+    CStakesDBCache m_stakes;
 
     // The package limits in effect at the time of invocation.
     const size_t m_limit_ancestors;
@@ -666,9 +666,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // CoinsViewCache instead of create its own
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
-    CStakesDBCache stakes(&m_stakes);
     CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, stakes)) {
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
@@ -709,7 +708,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // No transactions are allowed below minRelayTxFee except from disconnected
     // blocks
     if (nFees == 0) {
-        if (!CheckIfEligibleFreeTx(tx, m_view, stakes, 0)) {
+        if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
         }
     } else {
@@ -1015,6 +1014,7 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
+    m_stakes.flushDB();
     return true;
 }
 

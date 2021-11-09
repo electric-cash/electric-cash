@@ -118,3 +118,50 @@ class BurnStakingTransactionsMixin(SpendStakeMixin):
         raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
         signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
         return self.nodes[node_num].sendrawtransaction(signed_raw_tx['hex'])
+
+
+class FreeTransactionMixin:
+    @staticmethod
+    def create_tx_inputs_and_outputs(receiving_addresses: list, change_address: str, amount: decimal.Decimal,
+                                     staking_utxo: dict):
+
+        tx_input = {
+            "txid": staking_utxo["txid"],
+            "vout": staking_utxo["vout"]
+        }
+
+        tx_output_recipients = [
+            {
+                receiving_address: amount / len(receiving_addresses) / COIN
+            } for receiving_address in receiving_addresses
+        ]
+
+        change_amount = (staking_utxo["amount"] * COIN - amount) / COIN
+        if change_amount > 0.0001:
+            tx_output_change = {
+                change_address: change_amount
+            }
+            return [tx_input], tx_output_recipients + [tx_output_change]
+        else:
+            return [tx_input], tx_output_recipients
+
+    def send_free_tx(self, recipient_addresses: list, amount: decimal.Decimal, node_num: int, staking_addr: str,
+                                change_address: str = None):
+        unspent = None
+        for u in self.nodes[node_num].listunspent():
+            if u["amount"] * COIN >= amount and u["address"] == staking_addr:
+                unspent = u
+                break
+        if not unspent:
+            raise Exception("No appropriate utxo found.")
+
+        if not change_address:
+            change_address = self.nodes[node_num].getnewaddress()
+        tx_inputs, tx_outputs = self.create_tx_inputs_and_outputs(recipient_addresses, change_address, amount,
+                                                                  unspent)
+        # create, sign and send staking burn transaction
+        raw_tx = self.nodes[node_num].createrawtransaction(tx_inputs, tx_outputs)
+        signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)
+        txid = self.nodes[node_num].sendrawtransaction(signed_raw_tx['hex'])
+        return txid
+
