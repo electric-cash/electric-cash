@@ -237,7 +237,7 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
     BOOST_CHECK(freeTxInfo1.isValid());
     BOOST_CHECK(!freeTxInfo2.isValid());
-    BOOST_CHECK(freeTxInfo1.getLimit() == 1000000); // TODO(mtwaro): change this after limit calculation is ready
+    BOOST_CHECK(freeTxInfo1.getLimit() == 1000); // TODO(mtwaro): change this after limit calculation is ready
     BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == 0);
     BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
 
