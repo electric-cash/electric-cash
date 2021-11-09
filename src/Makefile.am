@@ -197,6 +197,7 @@ ELCASH_CORE_H = \
   script/standard.h \
   shutdown.h \
   staking/stakes_db.h \
+  staking/free_tx_info.h \
   staking/staking_pool.h \
   staking/transaction.h \
   staking/staking_rewards_calculator.h \

@@ -3,6 +3,7 @@
 #include <amount.h>
 #include <uint256.h>
 #include <script/script.h>
+#include <staking/free_tx_info.h>
 #include <staking/staking_pool.h>
 #include <staking/stakingparams.h>
 #include <map>
@@ -148,6 +149,7 @@ typedef std::set<uint256> StakeIdsSet;
 typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
 typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodArray;
+typedef std::map<std::string, CFreeTxInfo> FreeTxInfoMap;
 
 class CStakesDB {
 private:
@@ -156,6 +158,7 @@ private:
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+    FreeTxInfoMap m_free_tx_info {};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
 
@@ -173,12 +176,14 @@ public:
     std::set<uint256> getActiveStakeIdsForScript(const CScript& script);
     StakesVector getAllActiveStakes() const;
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
     CStakingPool& stakingPool();
     uint256 getBestBlock();
     const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
     const ScriptToStakesMap& getScriptMap() const { return m_script_to_active_stakes;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
+    const FreeTxInfoMap& getFreeTxInfoMap() const { return m_free_tx_info; }
     void initCache();
     void dropCache();
     void initHelpStates();
@@ -205,6 +210,7 @@ private:
     ScriptToStakesMap m_script_to_active_stakes {};
     StakeIdsSet m_stakes_to_remove {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+    FreeTxInfoMap m_free_tx_info {};
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
@@ -226,6 +232,11 @@ public:
     uint256 getBestBlock() const;
     const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
+    CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
+
+    // TODO(mtwaro): maybe move the following functions to some higher abstraction class
+    bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight);
+    bool registerFreeTransaction(const CScript &script, const uint32_t txSize, const uint32_t nHeight);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H
