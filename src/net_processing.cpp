@@ -1921,6 +1921,193 @@ void static ProcessOrphanTx(CConnman* connman, CTxMemPool& mempool, std::set<uin
     }
 }
 
+bool ProcessMessageTX(CNode* pfrom, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CTxMemPool& mempool, CConnman* connman, BanMan* banman, const std::atomic<bool>& interruptMsgProc)
+{
+    auto start = std::chrono::system_clock::now();
+    auto log_time = std::ofstream("time_acceptance.log", std::ofstream::app);
+    log_time << '\n';
+
+    LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(NetMsgType::TX), vRecv.size(), pfrom->GetId());
+    if (gArgs.IsArgSet("-dropmessagestest") && GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0)
+    {
+        LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
+        return true;
+    }
+
+    if (pfrom->nVersion == 0) {
+        // Must have a version message before anything else
+        LOCK(cs_main);
+        Misbehaving(pfrom->GetId(), 1);
+        return false;
+    }
+
+    // At this point, the outgoing message serialization version can't change.
+    const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
+
+    // Stop processing the transaction early if
+    // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
+    // or if this peer is supposed to be a block-relay-only peer
+    auto e1 = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(e1 - start);
+    log_time << elapsed.count() << ", ";
+    if ((!g_relay_txes && !pfrom->HasPermission(PF_RELAY)) || (pfrom->m_tx_relay == nullptr))
+    {
+        LogPrint(BCLog::NET, "transaction sent in violation of protocol peer=%d\n", pfrom->GetId());
+        pfrom->fDisconnect = true;
+        return true;
+    }
+
+    CTransactionRef ptx;
+    vRecv >> ptx;
+    const CTransaction& tx = *ptx;
+
+    CInv inv(MSG_TX, tx.GetHash());
+    pfrom->AddInventoryKnown(inv);
+
+    LOCK2(cs_main, g_cs_orphans);
+
+    TxValidationState state;
+
+    CNodeState* nodestate = State(pfrom->GetId());
+    nodestate->m_tx_download.m_tx_announced.erase(inv.hash);
+    nodestate->m_tx_download.m_tx_in_flight.erase(inv.hash);
+    EraseTxRequest(inv.hash);
+
+    std::list<CTransactionRef> lRemovedTxn;
+    auto e2 = std::chrono::system_clock::now();
+    elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(e2 - e1);
+    log_time << elapsed.count() << ", ";
+    if (!AlreadyHave(inv, mempool) &&
+        AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
+        auto e3 = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(e3 - e2);
+        log_time << elapsed.count() << ", ";
+
+        mempool.check(&::ChainstateActive().CoinsTip());
+        RelayTransaction(tx.GetHash(), *connman);
+
+        auto e4 = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(e4 - e3);
+        log_time << elapsed.count() << ", ";
+
+        for (unsigned int i = 0; i < tx.vout.size(); i++) {
+            auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(inv.hash, i));
+            if (it_by_prev != mapOrphanTransactionsByPrev.end()) {
+                for (const auto& elem : it_by_prev->second) {
+                    pfrom->orphan_work_set.insert(elem->first);
+                }
+            }
+        }
+
+        pfrom->nLastTXTime = GetTime();
+
+        LogPrint(BCLog::MEMPOOL, "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
+            pfrom->GetId(),
+            tx.GetHash().ToString(),
+            mempool.size(), mempool.DynamicMemoryUsage() / 1000);
+
+        // Recursively process any orphan transactions that depended on this one
+        ProcessOrphanTx(connman, mempool, pfrom->orphan_work_set, lRemovedTxn);
+
+        auto e5 = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(e5 - e4);
+        log_time << elapsed.count() << ',';
+    }
+    else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
+    {
+        bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
+        for (const CTxIn& txin : tx.vin) {
+            if (recentRejects->contains(txin.prevout.hash)) {
+                fRejectedParents = true;
+                break;
+            }
+        }
+        if (!fRejectedParents) {
+            uint32_t nFetchFlags = GetFetchFlags(pfrom);
+            const auto current_time = GetTime<std::chrono::microseconds>();
+
+            for (const CTxIn& txin : tx.vin) {
+                CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
+                pfrom->AddInventoryKnown(_inv);
+                if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv.hash, current_time);
+            }
+            AddOrphanTx(ptx, pfrom->GetId());
+
+            // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
+            unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+            unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
+            if (nEvicted > 0) {
+                LogPrint(BCLog::MEMPOOL, "mapOrphan overflow, removed %u tx\n", nEvicted);
+            }
+        } else {
+            LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
+            // We will continue to reject this tx since it has rejected
+            // parents so avoid re-requesting it from other peers.
+            recentRejects->insert(tx.GetHash());
+        }
+    } else {
+        if ((!tx.HasWitness() && state.GetResult() != TxValidationResult::TX_WITNESS_MUTATED) ||
+                state.GetResult() == TxValidationResult::TX_INPUTS_NOT_STANDARD) {
+            // Do not use rejection cache for witness transactions or
+            // witness-stripped transactions, as they can have been malleated.
+            // See https://github.com/electric-cash/electric-cash/issues/8279 for details.
+            // However, if the transaction failed for TX_INPUTS_NOT_STANDARD,
+            // then we know that the witness was irrelevant to the policy
+            // failure, since this check depends only on the txid
+            // (the scriptPubKey being spent is covered by the txid).
+            assert(recentRejects);
+            recentRejects->insert(tx.GetHash());
+            if (RecursiveDynamicUsage(*ptx) < 100000) {
+                AddToCompactExtraTransactions(ptx);
+            }
+        } else if (tx.HasWitness() && RecursiveDynamicUsage(*ptx) < 100000) {
+            AddToCompactExtraTransactions(ptx);
+        }
+
+        if (pfrom->HasPermission(PF_FORCERELAY)) {
+            // Always relay transactions received from whitelisted peers, even
+            // if they were already in the mempool,
+            // allowing the node to function as a gateway for
+            // nodes hidden behind it.
+            if (!mempool.exists(tx.GetHash())) {
+                LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom->GetId());
+            } else {
+                LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom->GetId());
+                RelayTransaction(tx.GetHash(), *connman);
+            }
+        }
+    }
+
+    for (const CTransactionRef& removedTx : lRemovedTxn)
+        AddToCompactExtraTransactions(removedTx);
+
+    // If a tx has been detected by recentRejects, we will have reached
+    // this point and the tx will have been ignored. Because we haven't run
+    // the tx through AcceptToMemoryPool, we won't have computed a DoS
+    // score for it or determined exactly why we consider it invalid.
+    //
+    // This means we won't penalize any peer subsequently relaying a DoSy
+    // tx (even if we penalized the first peer who gave it to us) because
+    // we have to account for recentRejects showing false positives. In
+    // other words, we shouldn't penalize a peer if we aren't *sure* they
+    // submitted a DoSy tx.
+    //
+    // Note that recentRejects doesn't just record DoSy or invalid
+    // transactions, but any tx not accepted by the mempool, which may be
+    // due to node policy (vs. consensus). So we can't blanket penalize a
+    // peer simply for relaying a tx that our recentRejects has caught,
+    // regardless of false positives.
+
+    if (state.IsInvalid())
+    {
+        LogPrint(BCLog::MEMPOOLREJ, "%s from peer=%d was not accepted: %s\n", tx.GetHash().ToString(),
+            pfrom->GetId(),
+            state.ToString());
+        MaybePunishNodeForTx(pfrom->GetId(), state);
+    }
+    return true;
+}
+
 bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CTxMemPool& mempool, CConnman* connman, BanMan* banman, const std::atomic<bool>& interruptMsgProc)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(msg_type), vRecv.size(), pfrom->GetId());
@@ -2516,153 +2703,6 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
         // in the SendMessages logic.
         nodestate->pindexBestHeaderSent = pindex ? pindex : ::ChainActive().Tip();
         connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::HEADERS, vHeaders));
-        return true;
-    }
-
-    if (msg_type == NetMsgType::TX) {
-        // Stop processing the transaction early if
-        // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
-        // or if this peer is supposed to be a block-relay-only peer
-        if ((!g_relay_txes && !pfrom->HasPermission(PF_RELAY)) || (pfrom->m_tx_relay == nullptr))
-        {
-            LogPrint(BCLog::NET, "transaction sent in violation of protocol peer=%d\n", pfrom->GetId());
-            pfrom->fDisconnect = true;
-            return true;
-        }
-
-        CTransactionRef ptx;
-        vRecv >> ptx;
-        const CTransaction& tx = *ptx;
-
-        CInv inv(MSG_TX, tx.GetHash());
-        pfrom->AddInventoryKnown(inv);
-
-        LOCK2(cs_main, g_cs_orphans);
-
-        TxValidationState state;
-
-        CNodeState* nodestate = State(pfrom->GetId());
-        nodestate->m_tx_download.m_tx_announced.erase(inv.hash);
-        nodestate->m_tx_download.m_tx_in_flight.erase(inv.hash);
-        EraseTxRequest(inv.hash);
-
-        std::list<CTransactionRef> lRemovedTxn;
-
-        if (!AlreadyHave(inv, mempool) &&
-            AcceptToMemoryPool(mempool, state, ptx, &lRemovedTxn, false /* bypass_limits */, 0 /* nAbsurdFee */)) {
-            mempool.check(&::ChainstateActive().CoinsTip());
-            RelayTransaction(tx.GetHash(), *connman);
-            for (unsigned int i = 0; i < tx.vout.size(); i++) {
-                auto it_by_prev = mapOrphanTransactionsByPrev.find(COutPoint(inv.hash, i));
-                if (it_by_prev != mapOrphanTransactionsByPrev.end()) {
-                    for (const auto& elem : it_by_prev->second) {
-                        pfrom->orphan_work_set.insert(elem->first);
-                    }
-                }
-            }
-
-            pfrom->nLastTXTime = GetTime();
-
-            LogPrint(BCLog::MEMPOOL, "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
-                pfrom->GetId(),
-                tx.GetHash().ToString(),
-                mempool.size(), mempool.DynamicMemoryUsage() / 1000);
-
-            // Recursively process any orphan transactions that depended on this one
-            ProcessOrphanTx(connman, mempool, pfrom->orphan_work_set, lRemovedTxn);
-        }
-        else if (state.GetResult() == TxValidationResult::TX_MISSING_INPUTS)
-        {
-            bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
-            for (const CTxIn& txin : tx.vin) {
-                if (recentRejects->contains(txin.prevout.hash)) {
-                    fRejectedParents = true;
-                    break;
-                }
-            }
-            if (!fRejectedParents) {
-                uint32_t nFetchFlags = GetFetchFlags(pfrom);
-                const auto current_time = GetTime<std::chrono::microseconds>();
-
-                for (const CTxIn& txin : tx.vin) {
-                    CInv _inv(MSG_TX | nFetchFlags, txin.prevout.hash);
-                    pfrom->AddInventoryKnown(_inv);
-                    if (!AlreadyHave(_inv, mempool)) RequestTx(State(pfrom->GetId()), _inv.hash, current_time);
-                }
-                AddOrphanTx(ptx, pfrom->GetId());
-
-                // DoS prevention: do not allow mapOrphanTransactions to grow unbounded (see CVE-2012-3789)
-                unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
-                if (nEvicted > 0) {
-                    LogPrint(BCLog::MEMPOOL, "mapOrphan overflow, removed %u tx\n", nEvicted);
-                }
-            } else {
-                LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
-                // We will continue to reject this tx since it has rejected
-                // parents so avoid re-requesting it from other peers.
-                recentRejects->insert(tx.GetHash());
-            }
-        } else {
-            if ((!tx.HasWitness() && state.GetResult() != TxValidationResult::TX_WITNESS_MUTATED) ||
-                    state.GetResult() == TxValidationResult::TX_INPUTS_NOT_STANDARD) {
-                // Do not use rejection cache for witness transactions or
-                // witness-stripped transactions, as they can have been malleated.
-                // See https://github.com/electric-cash/electric-cash/issues/8279 for details.
-                // However, if the transaction failed for TX_INPUTS_NOT_STANDARD,
-                // then we know that the witness was irrelevant to the policy
-                // failure, since this check depends only on the txid
-                // (the scriptPubKey being spent is covered by the txid).
-                assert(recentRejects);
-                recentRejects->insert(tx.GetHash());
-                if (RecursiveDynamicUsage(*ptx) < 100000) {
-                    AddToCompactExtraTransactions(ptx);
-                }
-            } else if (tx.HasWitness() && RecursiveDynamicUsage(*ptx) < 100000) {
-                AddToCompactExtraTransactions(ptx);
-            }
-
-            if (pfrom->HasPermission(PF_FORCERELAY)) {
-                // Always relay transactions received from whitelisted peers, even
-                // if they were already in the mempool,
-                // allowing the node to function as a gateway for
-                // nodes hidden behind it.
-                if (!mempool.exists(tx.GetHash())) {
-                    LogPrintf("Not relaying non-mempool transaction %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom->GetId());
-                } else {
-                    LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom->GetId());
-                    RelayTransaction(tx.GetHash(), *connman);
-                }
-            }
-        }
-
-        for (const CTransactionRef& removedTx : lRemovedTxn)
-            AddToCompactExtraTransactions(removedTx);
-
-        // If a tx has been detected by recentRejects, we will have reached
-        // this point and the tx will have been ignored. Because we haven't run
-        // the tx through AcceptToMemoryPool, we won't have computed a DoS
-        // score for it or determined exactly why we consider it invalid.
-        //
-        // This means we won't penalize any peer subsequently relaying a DoSy
-        // tx (even if we penalized the first peer who gave it to us) because
-        // we have to account for recentRejects showing false positives. In
-        // other words, we shouldn't penalize a peer if we aren't *sure* they
-        // submitted a DoSy tx.
-        //
-        // Note that recentRejects doesn't just record DoSy or invalid
-        // transactions, but any tx not accepted by the mempool, which may be
-        // due to node policy (vs. consensus). So we can't blanket penalize a
-        // peer simply for relaying a tx that our recentRejects has caught,
-        // regardless of false positives.
-
-        if (state.IsInvalid())
-        {
-            LogPrint(BCLog::MEMPOOLREJ, "%s from peer=%d was not accepted: %s\n", tx.GetHash().ToString(),
-                pfrom->GetId(),
-                state.ToString());
-            MaybePunishNodeForTx(pfrom->GetId(), state);
-        }
         return true;
     }
 
@@ -3379,7 +3419,11 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
     bool fRet = false;
     try
     {
-        fRet = ProcessMessage(pfrom, msg_type, vRecv, msg.m_time, chainparams, m_mempool, connman, m_banman, interruptMsgProc);
+        if(msg_type == NetMsgType::TX){
+            fRet = ProcessMessageTX(pfrom, vRecv, msg.m_time, chainparams, m_mempool, connman, m_banman, interruptMsgProc);
+        } else{
+            fRet = ProcessMessage(pfrom, msg_type, vRecv, msg.m_time, chainparams, m_mempool, connman, m_banman, interruptMsgProc);
+        }
         if (interruptMsgProc)
             return false;
         if (!pfrom->vRecvGetData.empty())
