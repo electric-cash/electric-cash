@@ -47,7 +47,7 @@ public:
     void setComplete(bool completeFlag);
     bool isComplete() const { return complete; }
     unsigned int getCompleteBlock() const { return completeBlock; }
-    unsigned int getDepositBlock(const CChainParams& params) const { return completeBlock - params.StakingPeriod()[periodIdx] + 1; };
+    unsigned int getDepositBlock(const CChainParams& params) const { return completeBlock - params.GetConsensus().stakingPeriod[periodIdx] + 1; };
     unsigned int getNumOutput() const { return numOutput; }
     uint256 getKey() const { return txid; }
     std::string getKeyHex() const { return txid.GetHex(); }

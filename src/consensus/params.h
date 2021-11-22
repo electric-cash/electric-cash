@@ -8,6 +8,8 @@
 
 #include <uint256.h>
 #include <limits>
+#include <array>
+#include <staking/stakingparams.h>
 
 namespace Consensus {
 
@@ -90,6 +92,10 @@ struct Params {
 
     /** Staking parameters */
     int nStakingStartHeight;
+    uint32_t freeTxMaxSizeInBlock;
+    double freeTxDifficultyCoefficient;
+    std::array<size_t, stakingParams::NUM_STAKING_PERIODS> stakingPeriod;
+    std::array<double, stakingParams::NUM_STAKING_PERIODS> stakingRewardPercentage;
 };
 } // namespace Consensus
 

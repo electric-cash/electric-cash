@@ -99,18 +99,21 @@ public:
 
         // Staking parameters
         consensus.nStakingStartHeight = 999999; // To be set later
-        stakingPeriod = {
+        consensus.stakingPeriod = {
                 4320,
                 12960,
                 25920,
                 51840
         };
-        stakingRewardPercentage = {
+        consensus.stakingRewardPercentage = {
                 5.0,
                 6.0,
                 7.25,
                 10.0
         };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 1e-5;
+
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -210,18 +213,20 @@ public:
 
         // Staking parameters
         consensus.nStakingStartHeight = 101; // To be set later
-        stakingPeriod = {
+        consensus.stakingPeriod = {
                 12,
                 36,
                 72,
                 144
         };
-        stakingRewardPercentage = {
+        consensus.stakingRewardPercentage = {
                 5000.0,
                 6000.0,
                 7250.0,
                 10000.0
         };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 1e-5;
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
@@ -314,18 +319,20 @@ public:
 
         // Staking parameters
         consensus.nStakingStartHeight = 101;
-        stakingPeriod = {
+        consensus.stakingPeriod = {
                 4320,
                 12960,
                 25920,
                 51840
         };
-        stakingRewardPercentage = {
+        consensus.stakingRewardPercentage = {
                 5.0,
                 6.0,
                 7.25,
                 10.0
         };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 1e-5;
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
