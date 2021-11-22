@@ -9,6 +9,10 @@ from test_framework.util import assert_raises_rpc_error
 class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
     def set_test_params(self):
         self.num_nodes = 2
+        self.extra_args = [
+            ["-txindex"],
+            ["-txindex"]
+        ]
 
     def run_test(self):
         self.free_tx_simple_test()
@@ -68,6 +72,11 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
         # check if a correct transaction will be accepted
         free_tx_id = self.send_free_tx(dummy_addresses[:2], free_tx_amount, 0, addr2)
         assert free_tx_id is not None
+
+        self.nodes[0].generate(1)
+        free_tx = self.nodes[0].getrawtransaction(free_tx_id, True)
+        print(free_tx)
+        assert free_tx["confirmations"] == 1
 
 if __name__ == '__main__':
     StakingBurnTest().main()
