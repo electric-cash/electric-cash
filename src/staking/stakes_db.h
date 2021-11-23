@@ -150,6 +150,7 @@ typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
 typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodArray;
 typedef std::map<std::string, CFreeTxInfo> FreeTxInfoMap;
+typedef std::map<uint256, uint32_t> BlockFreeTxSizeMap;
 
 class CStakesDB {
 private:
@@ -184,6 +185,7 @@ public:
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
     const FreeTxInfoMap& getFreeTxInfoMap() const { return m_free_tx_info; }
+    uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
     void initCache();
     void dropCache();
     void initHelpStates();
@@ -211,6 +213,7 @@ private:
     StakeIdsSet m_stakes_to_remove {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
     FreeTxInfoMap m_free_tx_info {};
+    BlockFreeTxSizeMap m_block_free_tx_size_map {};
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
@@ -233,6 +236,8 @@ public:
     const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
     CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
+    void addFreeTxSizeForBlock(const uint256& hash, const uint32_t free_tx_size);
+    uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
 
     // TODO(mtwaro): maybe move the following functions to some higher abstraction class
     bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight);

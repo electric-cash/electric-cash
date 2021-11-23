@@ -11,6 +11,7 @@ namespace DBHeaders {
     const std::string STAKING_POOL = "staking_pool";
     const std::string FLUSH_ONGOING = "flush_ongoing";
     const std::string FREE_TX_INFO = "free_tx_info";
+    const std::string BLK_FREE_TX_SIZE_PREFIX = "blk_free_tx_size_";
 }
 
 std::string scriptToStr(const CScript& script) {
@@ -137,7 +138,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     dumpHelpStates();
 
     StakesMap stakes_map = cache->m_stakes_map;
-    StakesMap::iterator it = stakes_map.begin();
+    auto it = stakes_map.begin();
     while(it != stakes_map.end()) {
         batch.Write(it->first, it->second);
         if(batch.SizeEstimate() > batch_size) {
@@ -154,6 +155,21 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     for (const auto& txid : cache->m_stakes_to_remove) {
         removeStakeEntry(txid);
     }
+
+    BlockFreeTxSizeMap block_free_tx_size_map = cache->m_block_free_tx_size_map;
+    auto it_b = block_free_tx_size_map.begin();
+    while(it_b != block_free_tx_size_map.end()) {
+        batch.Write(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + it->first.GetHex(), it->second);
+        if(batch.SizeEstimate() > batch_size) {
+            LogPrint(BCLog::STAKESDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+            m_db_wrapper.WriteBatch(batch);
+            batch.Clear();
+        }
+        stakes_map.erase(it++);
+    }
+    LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+    m_db_wrapper.WriteBatch(batch);
+    batch.Clear();
     m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
@@ -240,6 +256,14 @@ void CStakesDB::dumpHelpStates() {
 
     m_db_wrapper.Write(DBHeaders::STAKING_POOL, m_staking_pool);
     m_db_wrapper.Write(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
+}
+
+uint32_t CStakesDB::getFreeTxSizeForBlock(const uint256 &hash) const {
+    uint32_t output = 0;
+    if(m_db_wrapper.Read(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + hash.GetHex(), output)) {
+        LogPrintf("ERROR: Cannot get free tx size of block %s from database\n", hash.GetHex());
+    }
+    return output;
 }
 
 CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_size): m_viewonly(fViewOnly),
@@ -502,6 +526,9 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     if (nHeight > 0 && freeTxInfo.getCurrentWindowStartHeight() == 0) {
         freeTxInfo.setCurrentWindowStartHeight(nHeight);
     }
+    if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowStartHeight()) {
+        return false;
+    }
     std::set<uint256> activeStakeIdsChain = getActiveStakeIdsForScript(script);
     if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
         freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
@@ -519,5 +546,21 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     }
     m_free_tx_info[scriptString] = freeTxInfo;
     return true;
+}
+
+void CStakesDBCache::addFreeTxSizeForBlock(const uint256& hash, const uint32_t size) {
+    m_block_free_tx_size_map[hash] = size;
+}
+
+uint32_t CStakesDBCache::getFreeTxSizeForBlock(const uint256& hash) const {
+    if (m_viewonly) {
+        return m_base_db->getFreeTxSizeForBlock(hash);
+    }
+    uint32_t res = 0;
+    auto it = m_block_free_tx_size_map.find(hash);
+    if(it == m_block_free_tx_size_map.end()) {
+        return m_base_db->getFreeTxSizeForBlock(hash);
+    }
+    return it->second;
 }
 

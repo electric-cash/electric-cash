@@ -5,12 +5,12 @@
 
 #include <pow.h>
 
-#include <arith_uint256.h>
 #include <chain.h>
 #include <primitives/block.h>
 #include <uint256.h>
+#include <staking/stakes_db.h>
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params, CStakesDBCache& stakes, uint32_t freeTxSizeBytes)
 {
     assert(pindexLast != nullptr);
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
@@ -26,8 +26,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 
     if (params.fPowNoRetargeting)
         return pindexLast->nBits;
-        
-    return LwmaCalculateNextWorkRequired(pindexLast, params);
+    arith_uint256 target = LwmaCalculateNextBaseWorkRequired(pindexLast, params, stakes);
+    target *= (params.freeTxMaxSizeInBlock * params.freeTxDifficultyCoefficient + freeTxSizeBytes);
+    target /= (params.freeTxMaxSizeInBlock * params.freeTxDifficultyCoefficient);
+    return target.GetCompact();
 }
 
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
@@ -79,7 +81,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 // Algorithm by Zawy, a modification of WT-144 by Tom Harding
 // https://github.com/zawy12/difficulty-algorithms/issues/3#issuecomment-442129791
 
-unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
+arith_uint256 LwmaCalculateNextBaseWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params, CStakesDBCache& stakes)
 {
     const int64_t T = params.nPowTargetSpacing;
 
@@ -123,15 +125,18 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
 
         arith_uint256 target;
         target.SetCompact(block->nBits);
+        // find base difficulty having the final difficulty and free transactions size
+        target *= (params.freeTxMaxSizeInBlock * params.freeTxDifficultyCoefficient);
+        target /= (params.freeTxMaxSizeInBlock * params.freeTxDifficultyCoefficient + stakes.getFreeTxSizeForBlock(block->GetBlockHash()));
         avgTarget += target / N / k; // Dividing by k here prevents an overflow below.
     }
 
    // Desired equation in next line was nextTarget = avgTarget * sumWeightSolvetimes / k
    // but 1/k was moved to line above to prevent overflow in new coins
 
-    nextTarget = avgTarget * sumWeightedSolvetimes; 
+    nextTarget = avgTarget * sumWeightedSolvetimes;
 
     if (nextTarget > powLimit) { nextTarget = powLimit; }
 
-    return nextTarget.GetCompact();
+    return nextTarget;
 } 
