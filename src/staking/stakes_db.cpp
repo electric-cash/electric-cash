@@ -506,10 +506,8 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
         freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
     }
-    if (nHeight == 0) {
-        if (!freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
-            return false;
-        }
+    if (nHeight == 0 && !freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
+        return false;
     }
     if (nHeight > 0) {
         if (!freeTxInfo.increaseUsedConfirmedLimit(tx.GetTotalSize())) {
