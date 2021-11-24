@@ -122,7 +122,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         self.nodes[0].generatetoaddress(100, self.nodes[0].getnewaddress(address_type="bech32"))
 
         total_value = block.vtx[0].vout[0].nValue
-        out_value = total_value // 10
+        out_value = (total_value - 1000) // 10
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(block.vtx[0].sha256, 0), b''))
         for i in range(10):
