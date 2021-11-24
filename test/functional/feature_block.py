@@ -475,20 +475,20 @@ class FullBlockTest(BitcoinTestFramework):
         # Create a transaction that spends one satoshi to the p2sh_script, the rest to OP_TRUE
         # This must be signed because it is spending a coinbase
         spend = out[11]
-        tx = self.create_tx(spend, 0, 1, p2sh_script)
-        tx.vout.append(CTxOut(spend.vout[0].nValue - 1, CScript([OP_TRUE])))
+        tx = self.create_tx(spend, 0, 100, p2sh_script)
+        tx.vout.append(CTxOut(spend.vout[0].nValue - 101, CScript([OP_TRUE])))
         self.sign_tx(tx, spend)
         tx.rehash()
         b39 = self.update_block(39, [tx])
         b39_outputs += 1
 
-        # Until block is full, add tx's with 1 satoshi to p2sh_script, the rest to OP_TRUE
+        # Until block is full, add tx's with 100 satoshi to p2sh_script, the rest to OP_TRUE
         tx_new = None
         tx_last = tx
         total_size = len(b39.serialize())
-        while(total_size < MAX_BLOCK_BASE_SIZE):
-            tx_new = self.create_tx(tx_last, 1, 1, p2sh_script)
-            tx_new.vout.append(CTxOut(tx_last.vout[1].nValue - 1, CScript([OP_TRUE])))
+        while total_size < MAX_BLOCK_BASE_SIZE:
+            tx_new = self.create_tx(tx_last, 1, 100, p2sh_script)
+            tx_new.vout.append(CTxOut(tx_last.vout[1].nValue - 101, CScript([OP_TRUE])))
             tx_new.rehash()
             total_size += len(tx_new.serialize())
             if total_size >= MAX_BLOCK_BASE_SIZE:
@@ -527,7 +527,7 @@ class FullBlockTest(BitcoinTestFramework):
         new_txs = []
         for i in range(1, numTxes + 1):
             tx = CTransaction()
-            tx.vout.append(CTxOut(1, CScript([OP_TRUE])))
+            tx.vout.append(CTxOut(10, CScript([OP_TRUE])))
             tx.vin.append(CTxIn(lastOutpoint, b''))
             # second input is corresponding P2SH output from b39
             tx.vin.append(CTxIn(COutPoint(b39.vtx[i].sha256, 0), b''))
@@ -728,8 +728,8 @@ class FullBlockTest(BitcoinTestFramework):
         # b57 - a good block with 2 txs, don't submit until end
         self.move_tip(55)
         b57 = self.next_block(57)
-        tx = self.create_and_sign_transaction(out[16], 1)
-        tx1 = self.create_tx(tx, 0, 1)
+        tx = self.create_and_sign_transaction(out[16], 200)
+        tx1 = self.create_tx(tx, 0, 100)
         b57 = self.update_block(57, [tx, tx1])
 
         # b56 - copy b57, add a duplicate tx
@@ -745,11 +745,11 @@ class FullBlockTest(BitcoinTestFramework):
         # b57p2 - a good block with 6 tx'es, don't submit until end
         self.move_tip(55)
         b57p2 = self.next_block("57p2")
-        tx = self.create_and_sign_transaction(out[16], 1)
-        tx1 = self.create_tx(tx, 0, 1)
-        tx2 = self.create_tx(tx1, 0, 1)
-        tx3 = self.create_tx(tx2, 0, 1)
-        tx4 = self.create_tx(tx3, 0, 1)
+        tx = self.create_and_sign_transaction(out[16], 500)
+        tx1 = self.create_tx(tx, 0, 400)
+        tx2 = self.create_tx(tx1, 0, 300)
+        tx3 = self.create_tx(tx2, 0, 200)
+        tx4 = self.create_tx(tx3, 0, 100)
         b57p2 = self.update_block("57p2", [tx, tx1, tx2, tx3, tx4])
 
         # b56p2 - copy b57p2, duplicate two non-consecutive tx's
@@ -932,8 +932,8 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Accept a block with a transaction spending an output created in the same block")
         self.move_tip(64)
         b65 = self.next_block(65)
-        tx1 = self.create_and_sign_transaction(out[19], out[19].vout[0].nValue)
-        tx2 = self.create_and_sign_transaction(tx1, 0)
+        tx1 = self.create_and_sign_transaction(out[19], out[19].vout[0].nValue - 100)
+        tx2 = self.create_and_sign_transaction(tx1, 1)
         b65 = self.update_block(65, [tx1, tx2])
         self.send_blocks([b65], True)
         self.save_spendable_output()
@@ -945,7 +945,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block with a transaction spending an output created later in the same block")
         self.move_tip(65)
         b66 = self.next_block(66)
-        tx1 = self.create_and_sign_transaction(out[20], out[20].vout[0].nValue)
+        tx1 = self.create_and_sign_transaction(out[20], out[20].vout[0].nValue - 100)
         tx2 = self.create_and_sign_transaction(tx1, 1)
         b66 = self.update_block(66, [tx2, tx1])
         self.send_blocks([b66], success=False, reject_reason='bad-txns-inputs-missingorspent', reconnect=True)
@@ -959,7 +959,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block with a transaction double spending a transaction created in the same block")
         self.move_tip(65)
         b67 = self.next_block(67)
-        tx1 = self.create_and_sign_transaction(out[20], out[20].vout[0].nValue)
+        tx1 = self.create_and_sign_transaction(out[20], out[20].vout[0].nValue - 100)
         tx2 = self.create_and_sign_transaction(tx1, 1)
         tx3 = self.create_and_sign_transaction(tx1, 2)
         b67 = self.update_block(67, [tx1, tx2, tx3])
@@ -1185,9 +1185,9 @@ class FullBlockTest(BitcoinTestFramework):
         b83 = self.next_block(83)
         op_codes = [OP_IF, OP_INVALIDOPCODE, OP_ELSE, OP_TRUE, OP_ENDIF]
         script = CScript(op_codes)
-        tx1 = self.create_and_sign_transaction(out[28], out[28].vout[0].nValue, script)
+        tx1 = self.create_and_sign_transaction(out[28], out[28].vout[0].nValue - 100, script)
 
-        tx2 = self.create_and_sign_transaction(tx1, 0, CScript([OP_TRUE]))
+        tx2 = self.create_and_sign_transaction(tx1, 1, CScript([OP_TRUE]))
         tx2.vin[0].scriptSig = CScript([OP_FALSE])
         tx2.rehash()
 
@@ -1203,10 +1203,10 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Test re-orging blocks with OP_RETURN in them")
         b84 = self.next_block(84)
         tx1 = self.create_tx(out[29], 0, 0, CScript([OP_RETURN]))
-        tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(200, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(200, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(200, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(200, CScript([OP_TRUE])))
         tx1.calc_sha256()
         self.sign_tx(tx1, out[29])
         tx1.rehash()
