@@ -159,13 +159,13 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     BlockFreeTxSizeMap block_free_tx_size_map = cache->m_block_free_tx_size_map;
     auto it_b = block_free_tx_size_map.begin();
     while(it_b != block_free_tx_size_map.end()) {
-        batch.Write(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + it->first.GetHex(), it->second);
+        batch.Write(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + it_b->first.GetHex(), it_b->second);
         if(batch.SizeEstimate() > batch_size) {
             LogPrint(BCLog::STAKESDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db_wrapper.WriteBatch(batch);
             batch.Clear();
         }
-        stakes_map.erase(it++);
+        block_free_tx_size_map.erase(it_b++);
     }
     LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     m_db_wrapper.WriteBatch(batch);
@@ -556,7 +556,6 @@ uint32_t CStakesDBCache::getFreeTxSizeForBlock(const uint256& hash) const {
     if (m_viewonly) {
         return m_base_db->getFreeTxSizeForBlock(hash);
     }
-    uint32_t res = 0;
     auto it = m_block_free_tx_size_map.find(hash);
     if(it == m_block_free_tx_size_map.end()) {
         return m_base_db->getFreeTxSizeForBlock(hash);

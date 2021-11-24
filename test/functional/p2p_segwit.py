@@ -836,7 +836,7 @@ class SegWitTest(BitcoinTestFramework):
         block_4 = self.build_next_block()
         tx3 = CTransaction()
         tx3.vin.append(CTxIn(COutPoint(tx2.sha256, 0), b""))
-        tx3.vout.append(CTxOut(tx.vout[0].nValue - 1000, witness_program))
+        tx3.vout.append(CTxOut(tx.vout[0].nValue - 2000, witness_program))
         tx3.rehash()
         block_4.vtx.append(tx3)
         block_4.hashMerkleRoot = block_4.calc_merkle_root()
@@ -1441,7 +1441,7 @@ class SegWitTest(BitcoinTestFramework):
 
         spend_tx = CTransaction()
         spend_tx.vin = [CTxIn(COutPoint(block.vtx[0].sha256, 0), b"")]
-        spend_tx.vout = [CTxOut(block.vtx[0].vout[0].nValue, witness_program)]
+        spend_tx.vout = [CTxOut(block.vtx[0].vout[0].nValue - 1000, witness_program)]
         spend_tx.wit.vtxinwit.append(CTxInWitness())
         spend_tx.wit.vtxinwit[0].scriptWitness.stack = [witness_program]
         spend_tx.rehash()
@@ -1659,7 +1659,7 @@ class SegWitTest(BitcoinTestFramework):
                 tx.vin.append(CTxIn(COutPoint(temp_utxos[i].sha256, temp_utxos[i].n), b""))
                 tx.wit.vtxinwit.append(CTxInWitness())
                 total_value += temp_utxos[i].nValue
-            split_value = total_value // num_outputs
+            split_value = (total_value - 1000) // num_outputs
             for i in range(num_outputs):
                 tx.vout.append(CTxOut(split_value, script_pubkey))
             for i in range(num_inputs):
@@ -1696,12 +1696,12 @@ class SegWitTest(BitcoinTestFramework):
         script_pkh = CScript([OP_0, pubkeyhash])
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(temp_utxos[0].sha256, temp_utxos[0].n), b""))
-        tx.vout.append(CTxOut(temp_utxos[0].nValue, script_pkh))
+        tx.vout.append(CTxOut(temp_utxos[0].nValue - 1000, script_pkh))
         tx.wit.vtxinwit.append(CTxInWitness())
         sign_p2pk_witness_input(witness_program, tx, 0, SIGHASH_ALL, temp_utxos[0].nValue, key)
         tx2 = CTransaction()
         tx2.vin.append(CTxIn(COutPoint(tx.sha256, 0), b""))
-        tx2.vout.append(CTxOut(tx.vout[0].nValue, CScript([OP_TRUE])))
+        tx2.vout.append(CTxOut(tx.vout[0].nValue - 1000, CScript([OP_TRUE])))
 
         script = get_p2pkh_script(pubkeyhash)
         sig_hash = SegwitV0SignatureHash(script, tx2, 0, SIGHASH_ALL, tx.vout[0].nValue)
@@ -1732,7 +1732,7 @@ class SegWitTest(BitcoinTestFramework):
         tx = CTransaction()
         index = 0
         # Just spend to our usual anyone-can-spend output
-        tx.vout = [CTxOut(output_value, CScript([OP_TRUE]))] * 2
+        tx.vout = [CTxOut(output_value - 1000, CScript([OP_TRUE]))] * 2
         for i in temp_utxos:
             # Use SIGHASH_ALL|SIGHASH_ANYONECANPAY so we can build up
             # the signatures as we go.
@@ -1979,7 +1979,7 @@ class SegWitTest(BitcoinTestFramework):
             tx2.wit.vtxinwit[-1].scriptWitness.stack = [witness_program]
             total_value += tx.vout[i].nValue
         tx2.wit.vtxinwit[-1].scriptWitness.stack = [witness_program_toomany]
-        tx2.vout.append(CTxOut(total_value, CScript([OP_TRUE])))
+        tx2.vout.append(CTxOut(total_value - 1000, CScript([OP_TRUE])))
         tx2.rehash()
 
         block_2 = self.build_next_block()
