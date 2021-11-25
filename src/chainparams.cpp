@@ -112,7 +112,7 @@ public:
                 10.0
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
-        consensus.freeTxDifficultyCoefficient = 1e-5;
+        consensus.freeTxDifficultyCoefficient = 10;
 
 
         /**
@@ -226,8 +226,7 @@ public:
                 10000.0
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
-        consensus.freeTxDifficultyCoefficient = 1e-5;
-
+        consensus.freeTxDifficultyCoefficient = 10;
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;
@@ -332,7 +331,7 @@ public:
                 10.0
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
-        consensus.freeTxDifficultyCoefficient = 1e-5;
+        consensus.freeTxDifficultyCoefficient = 10;
 
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
