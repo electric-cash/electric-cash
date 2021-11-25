@@ -236,7 +236,7 @@ public:
 
     // TODO(mtwaro): maybe move the following functions to some higher abstraction class
     bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight);
-    bool registerFreeTransaction(const CScript &script, const uint32_t txSize, const uint32_t nHeight);
+    bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

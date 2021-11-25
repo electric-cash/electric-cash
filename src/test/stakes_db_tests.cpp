@@ -169,6 +169,23 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     size_t period1 = 0, period2 = 2;
     size_t completeBlock1 = 1, completeBlock2 = 70200;
     size_t numOutput1 = 54345, numOutput2 = 1;
+
+    CMutableTransaction mtx;
+    mtx.vin.resize(3);
+    mtx.vin[0].prevout.hash = InsecureRand256();
+    mtx.vin[0].prevout.n = 1;
+    mtx.vin[0].scriptSig << std::vector<unsigned char>(65, 0);
+    mtx.vin[1].prevout.hash = InsecureRand256();
+    mtx.vin[1].prevout.n = 0;
+    mtx.vin[1].scriptSig << std::vector<unsigned char>(65, 0) << std::vector<unsigned char>(33, 4);
+    mtx.vin[2].prevout.hash = InsecureRand256();
+    mtx.vin[2].prevout.n = 1;
+    mtx.vin[2].scriptSig << std::vector<unsigned char>(65, 0) << std::vector<unsigned char>(33, 4);
+    mtx.vout.resize(2);
+    mtx.vout[0].nValue = 90 * CENT;
+    mtx.vout[0].scriptPubKey << OP_1;
+    CTransaction free_tx_dummy(mtx);
+
     CStakesDbEntry entry1(txid1, amount1, reward1, period1, completeBlock1, numOutput1, script1, true);
     CStakesDbEntry entry2(txid2, amount2, reward2, period2, completeBlock2, numOutput2, script2, true);
     CAmount stakingPoolBalance = 1000 * COIN;
@@ -220,19 +237,19 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
     BOOST_CHECK(freeTxInfo1.isValid());
     BOOST_CHECK(!freeTxInfo2.isValid());
-    BOOST_CHECK(freeTxInfo1.getLimit() == 1000000); // TODO(mtwaro): change this after limit calculation is ready
-    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 0);
+    BOOST_CHECK(freeTxInfo1.getLimit() == 1000); // TODO(mtwaro): change this after limit calculation is ready
+    BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == 0);
     BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
 
-    BOOST_CHECK(cache.registerFreeTransaction(script1, 500000, 23456));
-    BOOST_CHECK(cache.registerFreeTransaction(script2, 500000, 23456));
-    BOOST_CHECK(!cache.registerFreeTransaction(script3, 500000, 23456));
+    BOOST_CHECK(cache.registerFreeTransaction(script1, free_tx_dummy, 23456));
+    BOOST_CHECK(cache.registerFreeTransaction(script2, free_tx_dummy, 23456));
+    BOOST_CHECK(!cache.registerFreeTransaction(script3, free_tx_dummy, 23456));
 
     freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
     freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
-    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 500000);
+    BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == free_tx_dummy.GetTotalSize());
     BOOST_CHECK(freeTxInfo2.isValid());
-    BOOST_CHECK(freeTxInfo1.getUsedLimit() == 500000);
+    BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == free_tx_dummy.GetTotalSize());
 
 
 }
