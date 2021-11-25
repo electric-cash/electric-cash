@@ -129,7 +129,7 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         tx_hex = self.nodes[0].signrawtransactionwithwallet(raw_tx)["hex"]
         tx_id = self.nodes[0].decoderawtransaction(tx_hex)["txid"]
 
-        # This will raise an exception due to min relay fee not being met
+        # This will raise an exception due to invalid free transaction error
         assert_raises_rpc_error(-26, "invalid-free-transaction", self.nodes[0].sendrawtransaction, tx_hex)
         assert tx_id not in self.nodes[0].getrawmempool()
 

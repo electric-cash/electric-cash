@@ -77,6 +77,5 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
         free_tx = self.nodes[0].getrawtransaction(free_tx_id, True)
         print(free_tx)
         assert free_tx["confirmations"] == 1
-
 if __name__ == '__main__':
     StakingBurnTest().main()

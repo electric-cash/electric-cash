@@ -529,14 +529,13 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowStartHeight()) {
         return false;
     }
+
     std::set<uint256> activeStakeIdsChain = getActiveStakeIdsForScript(script);
     if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
         freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
     }
-    if (nHeight == 0) {
-        if (!freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
-            return false;
-        }
+    if (nHeight == 0 && !freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
+        return false;
     }
     if (nHeight > 0) {
         if (!freeTxInfo.increaseUsedConfirmedLimit(tx.GetTotalSize())) {
