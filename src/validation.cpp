@@ -709,7 +709,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // blocks
     if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
         if (nFees == 0) {
-            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0)) {
+            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus())) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
             }
         } else {
@@ -1534,6 +1534,7 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
         }
     }
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
+    stakes.removeOldFreeTxInfos(nHeight);
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
@@ -1548,11 +1549,11 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, b
     UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
-bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight) {
+bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight, const Consensus::Params& params) {
     const COutPoint &prevout = tx.vin[0].prevout;
     const Coin& coin = inputs.AccessCoin(prevout);
     const CScript staker_script = coin.out.scriptPubKey;
-    return stakes.registerFreeTransaction(staker_script, tx, nHeight);
+    return stakes.registerFreeTransaction(staker_script, tx, nHeight, params);
 }
 
 bool CScriptCheck::operator()() {
@@ -2272,10 +2273,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             // TODO: double parsing of the transaction. Should be done more efficiently.
             if (fStakingActive) {
                 if (txfee == 0) {
-                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight)) {
+                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus())) {
                         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-transaction");
                     }
-                    freeTxSizeBytes += tx.GetTotalSize();
+                    freeTxSizeBytes += (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
                 }
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)

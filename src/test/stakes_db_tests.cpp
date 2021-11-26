@@ -162,13 +162,23 @@ BOOST_AUTO_TEST_CASE(generic_serialization) {
 
 BOOST_AUTO_TEST_CASE(dump_and_load) {
     std::set<uint256> list_of_ids;
-    uint256 txid1 = InsecureRand256(), txid2 = InsecureRand256(), bestBlockHash = InsecureRand256();
+    uint256 txid1 = InsecureRand256(), txid2 = InsecureRand256(), bestBlockHash = InsecureRand256(), randomBlockHash = InsecureRand256();
     CScript script1(0x1234), script2(0x4321), script3(0x1111);
-    CAmount amount1 = 10 * COIN, amount2 = 5 * COIN;
+    CAmount amount1 = 1000 * COIN, amount2 = 5 * COIN;
     CAmount reward1 = 1234567, reward2 = 0;
     size_t period1 = 0, period2 = 2;
     size_t completeBlock1 = 1, completeBlock2 = 70200;
     size_t numOutput1 = 54345, numOutput2 = 1;
+    size_t freeTxSize1 = 4321, freeTxSize2 = 123456;
+
+    Consensus::Params consensus;
+    consensus.freeTxLimitCoefficient = {
+            20,
+            25,
+            40,
+            50
+    };
+    consensus.freeTxBaseLimit = 500;
 
     CMutableTransaction mtx;
     mtx.vin.resize(3);
@@ -196,7 +206,9 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
         cache.setBestBlock(bestBlockHash);
         cache.addNewStakeEntry(entry1);
         cache.addNewStakeEntry(entry2);
-        cache.createFreeTxInfoForScript(script1, 23456);
+        cache.createFreeTxInfoForScript(script1, 23456, consensus);
+        cache.addFreeTxSizeForBlock(randomBlockHash, freeTxSize1);
+        cache.addFreeTxSizeForBlock(bestBlockHash, freeTxSize2);
         cache.flushDB();
     }
     // reload DB from disk
@@ -237,13 +249,15 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
     BOOST_CHECK(freeTxInfo1.isValid());
     BOOST_CHECK(!freeTxInfo2.isValid());
-    BOOST_CHECK(freeTxInfo1.getLimit() == 1000); // TODO(mtwaro): change this after limit calculation is ready
+    BOOST_CHECK(freeTxInfo1.getLimit() == 4480);
     BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == 0);
     BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
+    BOOST_CHECK(cache.registerFreeTransaction(script1, free_tx_dummy, 23456, consensus));
+    BOOST_CHECK(!cache.registerFreeTransaction(script1, free_tx_dummy, 24000, consensus));
 
-    BOOST_CHECK(cache.registerFreeTransaction(script1, free_tx_dummy, 23456));
-    BOOST_CHECK(cache.registerFreeTransaction(script2, free_tx_dummy, 23456));
-    BOOST_CHECK(!cache.registerFreeTransaction(script3, free_tx_dummy, 23456));
+    BOOST_CHECK(cache.registerFreeTransaction(script2, free_tx_dummy, 23456, consensus));
+    BOOST_CHECK(!cache.registerFreeTransaction(script2, free_tx_dummy, 23456, consensus));
+    BOOST_CHECK(!cache.registerFreeTransaction(script3, free_tx_dummy, 23456, consensus));
 
     freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
     freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
@@ -251,6 +265,10 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     BOOST_CHECK(freeTxInfo2.isValid());
     BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == free_tx_dummy.GetTotalSize());
 
+    uint32_t freeTxBlockSize1 = cache.getFreeTxSizeForBlock(randomBlockHash);
+    uint32_t freeTxBlockSize2 = cache.getFreeTxSizeForBlock(bestBlockHash);
+    BOOST_CHECK(freeTxBlockSize1 == freeTxSize1);
+    BOOST_CHECK(freeTxBlockSize2 == freeTxSize2);
 
 }
 
