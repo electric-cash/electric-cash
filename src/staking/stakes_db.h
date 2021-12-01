@@ -243,7 +243,7 @@ public:
     uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
     bool removeOldFreeTxInfos(uint32_t nHeight);
     // TODO(mtwaro): maybe move the following functions to some higher abstraction class
-    bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params);
+    CFreeTxInfo createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params);
     bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params);
 };
 

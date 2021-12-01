@@ -493,26 +493,23 @@ CFreeTxInfo CStakesDBCache::getFreeTxInfoForScript(const CScript &script) const 
     return it->second;
 }
 
-bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params) {
-    if (m_viewonly) {
-        LogPrintf("ERROR: Cannot modify a viewonly cache");
-        return false;
-    }
+CFreeTxInfo CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params) {
+    CFreeTxInfo result;
     std::string scriptString = scriptToStr(script);
     CFreeTxInfo freeTxInfoEx = getFreeTxInfoForScript(script);
     if (freeTxInfoEx.isValid()) {
         LogPrintf("ERROR: Free tx info for script %s already exists\n", scriptString);
-        return false;
+        return result;
     }
 
     StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
     if (activeStakes.empty()) {
-        return false;
+        return result;
     }
     uint32_t limit = calculateFreeTxLimit(activeStakes, params);
-    CFreeTxInfo freeTxInfo(limit, nHeight, activeStakes);
-    m_free_tx_info.insert(std::make_pair(scriptString, freeTxInfo));
-    return true;
+    result = CFreeTxInfo(limit, nHeight, activeStakes);
+
+    return result;
 }
 
 bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params) {
@@ -523,16 +520,16 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     std::string scriptString = scriptToStr(script);
     CFreeTxInfo freeTxInfo = getFreeTxInfoForScript(script);
     if (!freeTxInfo.isValid()) {
-        if (!createFreeTxInfoForScript(script, nHeight, params)) {
+        freeTxInfo = createFreeTxInfoForScript(script, nHeight, params);
+        if (!freeTxInfo.isValid()) {
             return false;
         }
-        freeTxInfo = getFreeTxInfoForScript(script);
+        m_free_tx_info.insert(std::make_pair(scriptString, freeTxInfo));
     }
-    assert(freeTxInfo.isValid());
     if (nHeight > 0 && freeTxInfo.getCurrentWindowStartHeight() == 0) {
         freeTxInfo.setCurrentWindowStartHeight(nHeight);
     }
-    if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowStartHeight() + stakingParams::BLOCKS_PER_DAY - 1) {
+    if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowEndHeight()) {
         return false;
     }
 
@@ -589,7 +586,7 @@ bool CStakesDBCache::removeOldFreeTxInfos(uint32_t nHeight) {
         return false;
     }
     for(auto it = m_free_tx_info.begin(); it != m_free_tx_info.end(); ) {
-        if (it->second.getCurrentWindowStartHeight() + stakingParams::BLOCKS_PER_DAY - 1 <= nHeight) {
+        if (it->second.getCurrentWindowEndHeight() <= nHeight) {
             it = m_free_tx_info.erase(it);
         } else {
             ++it;

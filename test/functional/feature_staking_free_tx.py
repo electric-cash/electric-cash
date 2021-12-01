@@ -18,6 +18,9 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
     def get_staking_pool_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
 
+    def get_free_tx_info(self, address: str, node_num: int):
+        return self.nodes[node_num].getfreetxinfo(address)
+
     def send_staking_deposit_tx(self, stake_address: str, deposit_value: float, node_num: int):
         txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
         return txid
@@ -68,28 +71,44 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
         assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, [self.nodes[1].getnewaddress()],
                                 free_tx_amount, 0, addr1)
 
+        # check if rpc error is raised when asked for freetxinfo of non-staking address
+        assert_raises_rpc_error(-5, "No free TX info for this address", self.get_free_tx_info, addr1, 0)
+
         # check if a correct transaction will be accepted
         free_tx_id = self.send_free_tx(dummy_addresses[:5], free_tx_amount, 0, addr2)
         assert free_tx_id is not None
 
+        # check if used free tx limits are correct
+        free_tx_info = self.get_free_tx_info(addr2, 0)
+        assert free_tx_info['used_mempool_limit'] > 0 \
+               and free_tx_info['used_blockchain_limit'] == 0 \
+               and free_tx_info['day_window_end_height'] == 0
+
         # check if a correct transaction over the size limit won't be accepted to mempool
-        assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, dummy_addresses[:5], free_tx_amount, 0, addr2)
+        assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, dummy_addresses[:5], free_tx_amount,
+                                0, addr2)
 
         # check if the free transaction was mined
         self.nodes[0].generate(1)
         free_tx = self.nodes[0].getrawtransaction(free_tx_id, True)
         assert free_tx["confirmations"] == 1
 
-        # check if mempool limit was lowered after the previous free transaction was mined, and the new tx will be accepted
-        free_tx_id = self.send_free_tx(dummy_addresses[:5], free_tx_amount, 0, addr2)
-        assert free_tx_id is not None
+        # check if used free tx limits are correct
+        free_tx_info = self.get_free_tx_info(addr2, 0)
+        assert free_tx_info['used_mempool_limit'] == 0 \
+               and free_tx_info['used_blockchain_limit'] > 0 \
+               and free_tx_info['day_window_end_height'] == starting_height + 10 + 1 + 1 + 143
+
+        self.nodes[0].generate(144)
+
+        # check if freetxinfo has been reset
+        free_tx_info = self.get_free_tx_info(addr2, 0)
+        assert free_tx_info['limit'] > 0 \
+               and free_tx_info['used_mempool_limit'] == 0 \
+               and free_tx_info['used_blockchain_limit'] == 0 \
+               and free_tx_info['day_window_end_height'] == 0
 
         # TODO(mtwaro) complete this test once the miner is ready
-
-
-
-
-
 
 
 if __name__ == '__main__':

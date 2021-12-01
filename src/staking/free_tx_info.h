@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/serialization/access.hpp>
 #include <uint256.h>
+#include <staking/stakingparams.h>
 
 class CFreeTxInfo {
     friend class boost::serialization::access;
@@ -37,10 +38,11 @@ public:
             m_valid(true) {
     }
     bool isValid() const { return m_valid; }
-    uint32_t getUsedUnconfirmedLimit() const { return m_used_limit_confirmed; }
+    uint32_t getUsedUnconfirmedLimit() const { return m_used_limit_unconfirmed; }
     uint32_t getUsedConfirmedLimit() const { return m_used_limit_confirmed; }
     uint32_t getLimit() const { return m_limit; }
     uint32_t getCurrentWindowStartHeight() const { return m_current_window_start_height; }
+    uint32_t getCurrentWindowEndHeight() const { return m_current_window_start_height + stakingParams::BLOCKS_PER_DAY - 1; }
     const std::set<uint256>& getActiveStakeIds() const { return m_active_stake_ids; }
 
     void setLimit(const uint32_t limit) { m_limit = limit; }
