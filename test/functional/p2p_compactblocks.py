@@ -120,9 +120,9 @@ class CompactBlocksTest(BitcoinTestFramework):
         self.segwit_node.send_and_ping(msg_no_witness_block(block))
         assert int(self.nodes[0].getbestblockhash(), 16) == block.sha256
         self.nodes[0].generatetoaddress(100, self.nodes[0].getnewaddress(address_type="bech32"))
-
         total_value = block.vtx[0].vout[0].nValue
-        out_value = total_value // 10
+        fee = 1000
+        out_value = (total_value - fee) // 10
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(block.vtx[0].sha256, 0), b''))
         for i in range(10):
@@ -422,11 +422,11 @@ class CompactBlocksTest(BitcoinTestFramework):
     # Create a chain of transactions from given utxo, and add to a new block.
     def build_block_with_transactions(self, node, utxo, num_transactions):
         block = self.build_block_on_tip(node)
-
+        fee = 1000
         for i in range(num_transactions):
             tx = CTransaction()
             tx.vin.append(CTxIn(COutPoint(utxo[0], utxo[1]), b''))
-            tx.vout.append(CTxOut(utxo[2] - 1000, CScript([OP_TRUE, OP_DROP] * 15 + [OP_TRUE])))
+            tx.vout.append(CTxOut(utxo[2] - fee, CScript([OP_TRUE, OP_DROP] * 15 + [OP_TRUE])))
             tx.rehash()
             utxo = [tx.sha256, 0, tx.vout[0].nValue]
             block.vtx.append(tx)

@@ -1529,7 +1529,7 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
             size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
             stakes.addNewStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
-                                                   nHeight + params.StakingPeriod()[nStakingPeriod] - 1,
+                                                   nHeight + params.GetConsensus().stakingPeriod[nStakingPeriod] - 1,
                                                    nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
@@ -2246,6 +2246,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     std::vector<int> prevheights;
     CAmount nFees = 0;
     CAmount stakingBurnsAndPenalties = 0;
+    uint32_t freeTxSizeBytes = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2270,6 +2271,12 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
             // TODO: double parsing of the transaction. Should be done more efficiently.
             if (fStakingActive) {
+                if (txfee == 0) {
+                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight)) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-transaction");
+                    }
+                    freeTxSizeBytes += tx.GetTotalSize();
+                }
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
                 {
@@ -2329,6 +2336,19 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             blockundo.vtxundo.push_back(CTxUndo());
         }
         UpdateCoinsAndStakes(chainparams, tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, stakes, stakingBurnsAndPenalties, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight, fJustCheck);
+    }
+
+    if (freeTxSizeBytes > chainparams.GetConsensus().freeTxMaxSizeInBlock) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "freetx-over-size-limit");
+    }
+
+    if (block.nBits != GetNextWorkRequired(pindex->GetAncestor(pindex->nHeight - 1), &block, chainparams.GetConsensus(), stakes, freeTxSizeBytes)) {
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
+    }
+    stakes.addFreeTxSizeForBlock(pindex->GetBlockHash(), freeTxSizeBytes);
+
+    if (fStakingActive && !fJustCheck && !CheckProofOfWork(block, chainparams.GetConsensus())) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "freetx-over-size-limit");
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -3630,10 +3650,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
     const Consensus::Params& consensusParams = params.GetConsensus();
-
-    // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
 
     // Check against checkpoints
     if (fCheckpointsEnabled) {

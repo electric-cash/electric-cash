@@ -139,6 +139,7 @@ BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
 
 //LWMA testing
 
+/* TODO(mtwaro): reenable when mining algo is ready
 BOOST_AUTO_TEST_CASE(LwmaCalculateNextWorkRequired_test)
 {
         const auto chainParams = CreateChainParams(CBaseChainParams::TESTNET);
@@ -166,9 +167,10 @@ BOOST_AUTO_TEST_CASE(LwmaCalculateNextWorkRequired_test)
             chain[i]->nTime = nTime;
             nTime += time_delta;
         }
-        int fixed_delta_target = LwmaCalculateNextWorkRequired(chain[50], chainparams.GetConsensus());        
+        int fixed_delta_target = LwmaCalculateNextBaseWorkRequired(chain[50], chainparams.GetConsensus());
         BOOST_CHECK_EQUAL(fixed_delta_target,0x1d00fffe);
 }
+*/
 
 
 

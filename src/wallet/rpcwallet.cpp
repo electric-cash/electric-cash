@@ -4351,7 +4351,7 @@ static UniValue depositstake(const JSONRPCRequest& request)
     if (nAmount <= stakingParams::MIN_STAKING_AMOUNT)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
-    uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().StakingPeriod());
+    uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().GetConsensus().stakingPeriod);
     CTxDestination dest;
     CCoinControl coin_control;
     if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {

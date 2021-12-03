@@ -42,7 +42,8 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coi
     assert(node.mempool);
     CBlock pblock = BlockAssembler{*node.mempool, Params()}.CreateNewBlock(coinbase_scriptPubKey)->block;
     pblock.nTime = ::ChainActive().Tip()->GetBlockTime() + Params().GetConsensus().nPowTargetSpacing;
-    int nBits = GetNextWorkRequired(::ChainActive().Tip(), &pblock, Params().GetConsensus());
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    int nBits = GetNextWorkRequired(::ChainActive().Tip(), &pblock, Params().GetConsensus(), stakes, 0);
     auto block = std::make_shared<CBlock>(pblock);
     LOCK(cs_main);
     block->nBits = nBits;

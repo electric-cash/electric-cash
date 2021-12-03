@@ -87,8 +87,6 @@ public:
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
-    std::array<size_t, stakingParams::NUM_STAKING_PERIODS> StakingPeriod() const { return stakingPeriod; }
-    std::array<double, stakingParams::NUM_STAKING_PERIODS> StakingRewardPercentage() const { return stakingRewardPercentage; }
 protected:
     CChainParams() {}
 
@@ -100,8 +98,6 @@ protected:
     uint64_t m_assumed_chain_state_size;
     std::vector<std::string> vSeeds;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
-    std::array<size_t, stakingParams::NUM_STAKING_PERIODS> stakingPeriod;
-    std::array<double, stakingParams::NUM_STAKING_PERIODS> stakingRewardPercentage;
     std::string bech32_hrp;
     std::string strNetworkID;
     CBlock genesis;
