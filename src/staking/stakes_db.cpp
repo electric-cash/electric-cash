@@ -566,6 +566,7 @@ uint32_t CStakesDBCache::getFreeTxSizeForBlock(const uint256& hash) const {
     return it->second;
 }
 
+
 uint32_t CStakesDBCache::calculateFreeTxLimitForScript(const CScript &script, const Consensus::Params& params) const {
     std::set<uint256> active_stake_ids = getActiveStakeIdsForScript(script);
     return calculateFreeTxLimit(active_stake_ids, params);
@@ -594,4 +595,3 @@ bool CStakesDBCache::removeOldFreeTxInfos(uint32_t nHeight) {
     }
     return true;
 }
-

@@ -110,6 +110,5 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
 
         # TODO(mtwaro) complete this test once the miner is ready
 
-
 if __name__ == '__main__':
     StakingBurnTest().main()
