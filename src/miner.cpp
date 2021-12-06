@@ -393,6 +393,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         }
         else{
             nPaidTxSize += packageSize;
+
         }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
