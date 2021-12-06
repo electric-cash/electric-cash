@@ -83,6 +83,18 @@ void BlockAssembler::resetBlock()
 Optional<int64_t> BlockAssembler::m_last_block_num_txs{nullopt};
 Optional<int64_t> BlockAssembler::m_last_block_weight{nullopt};
 
+// Create coinbase transaction as a reward for miner
+CMutableTransaction BlockAssembler::CreateCoinbaseTransaction(const CScript& scriptPubKeyIn){
+    CMutableTransaction coinbaseTx;
+    coinbaseTx.vin.resize(1);
+    coinbaseTx.vin[0].prevout.SetNull();
+    coinbaseTx.vout.resize(1);
+    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus().nStakingStartHeight);
+    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    return coinbaseTx;
+}
+
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
     int64_t nTimeStart = GetTimeMicros();
@@ -101,20 +113,23 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
     LOCK2(cs_main, m_mempool.cs);
+
+    // increment chain index
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
-    const int32_t nChainId = chainparams.GetConsensus().nAuxpowChainId;
 
+    // setting block version
+    const int32_t nChainId = chainparams.GetConsensus().nAuxpowChainId;
     pblock->SetBaseVersion(VERSIONBITS_BASE_BLOCK_VERSION, nChainId);
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
         pblock->SetBaseVersion(gArgs.GetArg("-blockversion", pblock->GetBaseVersion()), nChainId);
 
+    // setting cutoff time
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
-
     nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                        ? nMedianTimePast
                        : pblock->GetBlockTime();
@@ -140,13 +155,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_last_block_weight = nBlockWeight;
 
     // Create coinbase transaction.
-    CMutableTransaction coinbaseTx;
-    coinbaseTx.vin.resize(1);
-    coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus().nStakingStartHeight);
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    CMutableTransaction coinbaseTx = CreateCoinbaseTransaction(scriptPubKeyIn);
+
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
@@ -282,6 +293,36 @@ void BlockAssembler::SortForBlock(const CTxMemPool::setEntries& package, std::ve
     std::sort(sortedEntries.begin(), sortedEntries.end(), CompareTxIterByAncestorCount());
 }
 
+bool BlockAssembler::decideOnUsingMap(
+    CTxMemPool::txiter& iter,
+    CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator& mi,
+    indexed_modified_transaction_set& mapModifiedTx,
+    modtxscoreiter& modit
+    )
+{
+    if (mi == m_mempool.mapTx.get<ancestor_score>().end()) {
+        // We're out of entries in mapTx; use the entry from mapModifiedTx
+        iter = modit->iter;
+        return true;
+    } else {
+        // Try to compare the mapTx entry to the mapModifiedTx entry
+        iter = m_mempool.mapTx.project<0>(mi);
+        if (modit != mapModifiedTx.get<ancestor_score>().end() &&
+                CompareTxMemPoolEntryByAncestorFee()(*modit, CTxMemPoolModifiedEntry(iter))) {
+            // The best entry in mapModifiedTx has higher score
+            // than the one from mapTx.
+            // Switch which transaction (package) to consider
+            iter = modit->iter;
+            return true;
+        } else {
+            // Either no entry in mapModifiedTx, or it's worse than mapTx.
+            // Increment mi for the next loop iteration.
+            ++mi;
+        }
+    }
+    return false;
+}
+
 // This transaction selection algorithm orders the mempool based
 // on feerate of a transaction including all unconfirmed ancestors.
 // Since we don't remove transactions from the mempool as we select them
@@ -323,29 +364,8 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
 
         // Now that mi is not stale, determine which transaction to evaluate:
         // the next entry from mapTx, or the best from mapModifiedTx?
-        bool fUsingModified = false;
-
         modtxscoreiter modit = mapModifiedTx.get<ancestor_score>().begin();
-        if (mi == m_mempool.mapTx.get<ancestor_score>().end()) {
-            // We're out of entries in mapTx; use the entry from mapModifiedTx
-            iter = modit->iter;
-            fUsingModified = true;
-        } else {
-            // Try to compare the mapTx entry to the mapModifiedTx entry
-            iter = m_mempool.mapTx.project<0>(mi);
-            if (modit != mapModifiedTx.get<ancestor_score>().end() &&
-                    CompareTxMemPoolEntryByAncestorFee()(*modit, CTxMemPoolModifiedEntry(iter))) {
-                // The best entry in mapModifiedTx has higher score
-                // than the one from mapTx.
-                // Switch which transaction (package) to consider
-                iter = modit->iter;
-                fUsingModified = true;
-            } else {
-                // Either no entry in mapModifiedTx, or it's worse than mapTx.
-                // Increment mi for the next loop iteration.
-                ++mi;
-            }
-        }
+        bool fUsingModified = decideOnUsingMap(iter, mi, mapModifiedTx, modit);
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
@@ -359,11 +379,11 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             packageFees = modit->nModFeesWithAncestors;
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
         }
-        // TODO(mtwaro): commented for tests. put proper logic here
-        // if (packageFees < blockMinFeeRate.GetFee(packageSize)) {
-        //    // Everything else we might consider has a lower fee rate
-        //    return;
-        // }
+
+        if (packageFees < blockMinFeeRate.GetFee(packageSize)) { // TODO(jwys): ADD Option for free transaction
+            // Everything else we might consider has a lower fee rate
+            return;
+        }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
             if (fUsingModified) {
