@@ -206,7 +206,6 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
         cache.setBestBlock(bestBlockHash);
         cache.addNewStakeEntry(entry1);
         cache.addNewStakeEntry(entry2);
-        cache.createFreeTxInfoForScript(script1, 23456, consensus);
         cache.addFreeTxSizeForBlock(randomBlockHash, freeTxSize1);
         cache.addFreeTxSizeForBlock(bestBlockHash, freeTxSize2);
         cache.flushDB();
@@ -245,13 +244,7 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
 
     BOOST_CHECK(cache.getBestBlock() == bestBlockHash);
 
-    CFreeTxInfo freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
-    CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
-    BOOST_CHECK(freeTxInfo1.isValid());
-    BOOST_CHECK(!freeTxInfo2.isValid());
-    BOOST_CHECK(freeTxInfo1.getLimit() == 4480);
-    BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == 0);
-    BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
+
     BOOST_CHECK(cache.registerFreeTransaction(script1, free_tx_dummy, 23456, consensus));
     BOOST_CHECK(!cache.registerFreeTransaction(script1, free_tx_dummy, 24000, consensus));
 
@@ -259,10 +252,12 @@ BOOST_AUTO_TEST_CASE(dump_and_load) {
     BOOST_CHECK(!cache.registerFreeTransaction(script2, free_tx_dummy, 23456, consensus));
     BOOST_CHECK(!cache.registerFreeTransaction(script3, free_tx_dummy, 23456, consensus));
 
-    freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
-    freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
-    BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == free_tx_dummy.GetTotalSize());
+    CFreeTxInfo freeTxInfo1 = cache.getFreeTxInfoForScript(script1);
+    CFreeTxInfo freeTxInfo2 = cache.getFreeTxInfoForScript(script2);
+    BOOST_CHECK(freeTxInfo1.isValid());
     BOOST_CHECK(freeTxInfo2.isValid());
+    BOOST_CHECK(freeTxInfo1.getLimit() == 4480);
+    BOOST_CHECK(freeTxInfo1.getActiveStakeIds().size() == 1);
     BOOST_CHECK(freeTxInfo1.getUsedConfirmedLimit() == free_tx_dummy.GetTotalSize());
 
     uint32_t freeTxBlockSize1 = cache.getFreeTxSizeForBlock(randomBlockHash);
