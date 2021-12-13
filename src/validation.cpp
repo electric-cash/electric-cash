@@ -1534,7 +1534,7 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
         }
     }
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
-    stakes.removeOldFreeTxInfos(nHeight);
+    stakes.removeInvalidFreeTxInfos(nHeight);
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
@@ -1810,7 +1810,12 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
     std::set<uint256> prematureStakeIds = {};
     // undo transactions in reverse order
+    stakes.reactivateFreeTxInfos(pindex->nHeight, chainparams.GetConsensus());
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
+        // free tx identification variables
+        CAmount fee = 0;
+        CScript firstScript;
+
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
@@ -1831,7 +1836,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
                     fClean = false; // transaction output mismatch
                 }
+                fee -= coin.out.nValue;
             }
+
         }
         // restore inputs
         if (i > 0) { // not coinbases
@@ -1854,11 +1861,16 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                         stakingBurnsAndPenalties += CStakingRewardsCalculator::CalculatePenaltyForStake(stake);
                     }
                 }
+                fee += txundo.vprevout[j].out.nValue;
+                if (j == 0) firstScript = txundo.vprevout[j].out.scriptPubKey;
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
             }
             // At this point, all of txundo.vprevout should have been moved out.
+            if (fee == 0) {
+                stakes.undoFreeTransaction(firstScript, tx);
+            }
         }
     }
 
