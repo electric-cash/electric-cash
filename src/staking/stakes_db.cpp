@@ -1,6 +1,7 @@
 #include <staking/stakes_db.h>
 #include <staking/staking_rewards_calculator.h>
 #include <consensus/validation.h>
+#include <key_io.h>
 
 
 namespace DBHeaders {
@@ -13,6 +14,7 @@ namespace DBHeaders {
     const std::string FLUSH_ONGOING = "flush_ongoing";
     const std::string FREE_TX_INFO = "free_tx_info";
     const std::string BLK_FREE_TX_SIZE_PREFIX = "blk_free_tx_size_";
+    const std::string FREE_TX_WINDOW_END_HEIGHT_PREFIX = "ftx_window_end_";
 }
 
 std::string scriptToStr(const CScript& script) {
@@ -85,6 +87,13 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(const uint256& txid) const {
         output.setKey(txid);
     else
         LogPrintf("ERROR: Cannot get stake of id %s from database\n", txid.GetHex());
+    return output;
+}
+
+ClosedFreeTxWindowInfoVector CStakesDB::getFreeTxWindowsCompletedAtHeight(const uint32_t nHeight) {
+    ClosedFreeTxWindowInfoVector output;
+    CSerializer<ClosedFreeTxWindowInfoVector> serializer{output, m_db_wrapper, DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX};
+    serializer.load();
     return output;
 }
 
@@ -175,6 +184,26 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     m_db_wrapper.WriteBatch(batch);
     batch.Clear();
+    std::set<uint32_t> free_tx_window_end_heights_to_remove = cache->m_free_tx_window_end_heights_to_remove;
+    for (auto height : free_tx_window_end_heights_to_remove) {
+        m_db_wrapper.Erase(DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX + std::to_string(height));
+    }
+
+    FreeTxWindowEndHeightMap free_tx_window_end_height_map = cache->m_free_tx_info_end_height_map;
+    auto it_f = free_tx_window_end_height_map.begin();
+    while(it_f != free_tx_window_end_height_map.end()) {
+        batch.Write(DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX + std::to_string(it_f->first), it_f->second);
+        if(batch.SizeEstimate() > batch_size) {
+            LogPrint(BCLog::STAKESDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+            m_db_wrapper.WriteBatch(batch);
+            batch.Clear();
+        }
+        free_tx_window_end_height_map.erase(it_f++);
+    }
+    LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+    m_db_wrapper.WriteBatch(batch);
+    batch.Clear();
+
     m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
@@ -551,6 +580,18 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     return true;
 }
 
+bool CStakesDBCache::undoFreeTransaction(const CScript& script, const CTransaction& tx) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    CFreeTxInfo freeTxInfo = getFreeTxInfoForScript(script);
+    assert(freeTxInfo.isValid());
+    freeTxInfo.decreaseUsedConfirmedLimit(getTransactionVSize(tx));
+    m_free_tx_info[scriptToStr(script)] = freeTxInfo;
+    return true;
+}
+
 void CStakesDBCache::addFreeTxSizeForBlock(const uint256& hash, const uint32_t size) {
     m_block_free_tx_size_map[hash] = size;
 }
@@ -581,17 +622,48 @@ uint32_t CStakesDBCache::calculateFreeTxLimit(const std::set<uint256> &activeSta
     return CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(params, stakes);
 }
 
-bool CStakesDBCache::removeOldFreeTxInfos(uint32_t nHeight) {
+bool CStakesDBCache::removeInvalidFreeTxInfos(uint32_t nHeight) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
     }
     for(auto it = m_free_tx_info.begin(); it != m_free_tx_info.end(); ) {
         if (it->second.getCurrentWindowEndHeight() <= nHeight) {
+            m_free_tx_info_end_height_map[nHeight].push_back(std::pair<std::string, uint32_t>(it->first, it->second.getUsedConfirmedLimit()));
+            it = m_free_tx_info.erase(it);
+        } else if (it->second.getCurrentWindowStartHeight() > nHeight){
             it = m_free_tx_info.erase(it);
         } else {
-            ++it;
+                ++it;
+            }
         }
+    return true;
+}
+
+ClosedFreeTxWindowInfoVector CStakesDBCache::getFreeTxInfosCompletedAtHeight(uint32_t nHeight) {
+    if (m_viewonly) {
+        return m_base_db->getFreeTxWindowsCompletedAtHeight(nHeight);
     }
+
+    auto it = m_free_tx_info_end_height_map.find(nHeight);
+    if(it == m_free_tx_info_end_height_map.end()) {
+        return m_base_db->getFreeTxWindowsCompletedAtHeight(nHeight);
+    }
+    return it->second;
+}
+
+bool CStakesDBCache::reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Params& params) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    ClosedFreeTxWindowInfoVector closedFreeTxWinV = getFreeTxInfosCompletedAtHeight(nHeight);
+    for (auto& closedFreeTxWin : closedFreeTxWinV) {
+        CScript script = GetScriptForDestination(DecodeDestination(closedFreeTxWin.first));
+        CFreeTxInfo freeTxInfo = createFreeTxInfoForScript(script, nHeight - stakingParams::BLOCKS_PER_DAY, params);
+        freeTxInfo.setUsedConfirmedLimit(closedFreeTxWin.second);
+        m_free_tx_info.insert(std::make_pair(scriptToStr(script), freeTxInfo));
+    }
+    m_free_tx_window_end_heights_to_remove.insert(nHeight);
     return true;
 }
