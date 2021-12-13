@@ -97,6 +97,7 @@ CMutableTransaction BlockAssembler::CreateCoinbaseTransaction(const CScript& scr
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    nFreeTxSize = 0;
     int64_t nTimeStart = GetTimeMicros();
 
     resetBlock();
@@ -156,7 +157,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Create coinbase transaction.
     CMutableTransaction coinbaseTx = CreateCoinbaseTransaction(scriptPubKeyIn);
-
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
@@ -354,6 +354,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
 
+    uint64_t nPaidTxSize = 0;
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
         if (mi != m_mempool.mapTx.get<ancestor_score>().end() &&
@@ -380,9 +381,18 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
         }
 
-        if (packageFees < blockMinFeeRate.GetFee(packageSize)) { // TODO(jwys): ADD Option for free transaction
-            // Everything else we might consider has a lower fee rate
-            return;
+        uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize);
+        if (packageFees <  nMinFeeForPaidPackage && packageFees != 0) {
+                // Everything else we might consider has a lower fee rate
+                return; // TODO: return keyword suggest breaking of the whole loop. I think that it does not happen very often. Most of fee validation is done in validation.cpp
+        }
+
+        // Free or Paid
+        if(packageFees == 0){
+            nFreeTxSize += packageSize;
+        }
+        else{
+            nPaidTxSize += packageSize;
         }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
