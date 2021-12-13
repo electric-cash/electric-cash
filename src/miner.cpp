@@ -353,8 +353,9 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     // mempool has a lot of entries.
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
-
     uint64_t nPaidTxSize = 0;
+    auto freeTxMaxSizeInBlock = chainparams.GetConsensus().freeTxMaxSizeInBlock;
+
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
         if (mi != m_mempool.mapTx.get<ancestor_score>().end() &&
@@ -389,11 +390,15 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
 
         // Free or Paid
         if(packageFees == 0){
-            nFreeTxSize += packageSize;
+            if ( (nFreeTxSize + iter->GetTxSize()) < freeTxMaxSizeInBlock){
+                nFreeTxSize += iter->GetTxSize();
+            }
+            else{
+                continue; // cannot fit more free transactions
+            }
         }
         else{
-            nPaidTxSize += packageSize;
-
+            nPaidTxSize += iter->GetTxSize();
         }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
