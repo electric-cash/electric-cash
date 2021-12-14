@@ -1810,6 +1810,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
     std::set<uint256> prematureStakeIds = {};
     // undo transactions in reverse order
+    stakes.removeInvalidFreeTxInfos(pindex->nHeight, true);
     stakes.reactivateFreeTxInfos(pindex->nHeight, chainparams.GetConsensus());
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         // free tx identification variables

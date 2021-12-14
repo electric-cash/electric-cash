@@ -23,6 +23,13 @@ std::string scriptToStr(const CScript& script) {
     return ds.str();
 }
 
+CScript scriptFromStr(const std::string script_str) {
+    CDataStream ds(script_str.c_str(), script_str.c_str() + script_str.size(), SER_DISK, CLIENT_VERSION);
+    CScript res;
+    ds >> res;
+    return res;
+}
+
 uint32_t getTransactionVSize(const CTransaction& tx) {
     return (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
 }
@@ -92,7 +99,7 @@ CStakesDbEntry CStakesDB::getStakeDbEntry(const uint256& txid) const {
 
 ClosedFreeTxWindowInfoVector CStakesDB::getFreeTxWindowsCompletedAtHeight(const uint32_t nHeight) {
     ClosedFreeTxWindowInfoVector output;
-    CSerializer<ClosedFreeTxWindowInfoVector> serializer{output, m_db_wrapper, DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX};
+    CSerializer<ClosedFreeTxWindowInfoVector> serializer{output, m_db_wrapper, DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX + std::to_string(nHeight)};
     serializer.load();
     return output;
 }
@@ -192,18 +199,10 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     FreeTxWindowEndHeightMap free_tx_window_end_height_map = cache->m_free_tx_info_end_height_map;
     auto it_f = free_tx_window_end_height_map.begin();
     while(it_f != free_tx_window_end_height_map.end()) {
-        batch.Write(DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX + std::to_string(it_f->first), it_f->second);
-        if(batch.SizeEstimate() > batch_size) {
-            LogPrint(BCLog::STAKESDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
-            m_db_wrapper.WriteBatch(batch);
-            batch.Clear();
-        }
+        CSerializer<ClosedFreeTxWindowInfoVector> serializer{it_f->second, m_db_wrapper, DBHeaders::FREE_TX_WINDOW_END_HEIGHT_PREFIX + std::to_string(it_f->first)};
+        serializer.dump();
         free_tx_window_end_height_map.erase(it_f++);
     }
-    LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
-    m_db_wrapper.WriteBatch(batch);
-    batch.Clear();
-
     m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
@@ -622,16 +621,16 @@ uint32_t CStakesDBCache::calculateFreeTxLimit(const std::set<uint256> &activeSta
     return CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(params, stakes);
 }
 
-bool CStakesDBCache::removeInvalidFreeTxInfos(uint32_t nHeight) {
+bool CStakesDBCache::removeInvalidFreeTxInfos(uint32_t nHeight, bool fReorg) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
     }
     for(auto it = m_free_tx_info.begin(); it != m_free_tx_info.end(); ) {
-        if (it->second.getCurrentWindowEndHeight() <= nHeight) {
+        if (!fReorg && it->second.getCurrentWindowEndHeight() <= nHeight) {
             m_free_tx_info_end_height_map[nHeight].push_back(std::pair<std::string, uint32_t>(it->first, it->second.getUsedConfirmedLimit()));
             it = m_free_tx_info.erase(it);
-        } else if (it->second.getCurrentWindowStartHeight() > nHeight){
+        } else if (fReorg && it->second.getCurrentWindowStartHeight() > nHeight) {
             it = m_free_tx_info.erase(it);
         } else {
                 ++it;
@@ -659,7 +658,7 @@ bool CStakesDBCache::reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Pa
     }
     ClosedFreeTxWindowInfoVector closedFreeTxWinV = getFreeTxInfosCompletedAtHeight(nHeight);
     for (auto& closedFreeTxWin : closedFreeTxWinV) {
-        CScript script = GetScriptForDestination(DecodeDestination(closedFreeTxWin.first));
+        CScript script = scriptFromStr(closedFreeTxWin.first);
         CFreeTxInfo freeTxInfo = createFreeTxInfoForScript(script, nHeight - stakingParams::BLOCKS_PER_DAY, params);
         freeTxInfo.setUsedConfirmedLimit(closedFreeTxWin.second);
         m_free_tx_info.insert(std::make_pair(scriptToStr(script), freeTxInfo));
