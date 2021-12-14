@@ -247,7 +247,7 @@ public:
     uint32_t calculateFreeTxLimitForScript(const CScript& script, const Consensus::Params& params) const;
     void addFreeTxSizeForBlock(const uint256& hash, const uint32_t free_tx_size);
     uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
-    bool removeInvalidFreeTxInfos(uint32_t nHeight);
+    bool removeInvalidFreeTxInfos(uint32_t nHeight, bool fReorg = false);
     // TODO(mtwaro): maybe move the following functions to some higher abstraction class
     CFreeTxInfo createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params);
     bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params);
