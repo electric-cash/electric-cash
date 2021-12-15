@@ -184,9 +184,56 @@ class StakingReorgTest(BitcoinTestFramework, FreeTransactionMixin):
         node1_free_tx_info = self.get_free_tx_info(addr1, node_num=1)
         free_tx = self.nodes[1].getrawtransaction(ftx2_id, True)
         assert free_tx["confirmations"] > 0
+        assert node1_free_tx_info["used_blockchain_limit"] == 0,  f"Wrong used blockchain limit at node 0: {node0_free_tx_info}"
         for key in node0_free_tx_info:
             assert node0_free_tx_info[key] == node1_free_tx_info[
                 key], f'Difference in nodes free tx limits at {key} :({node0_free_tx_info, node1_free_tx_info})'
+
+        ### SCENARIO 4 - two branches with two free transactions of the same staker
+        # share stake private key so the second node can also send the free tx.
+        pk = self.nodes[0].dumpprivkey(addr1)
+        self.nodes[1].importprivkey(pk)
+        self.nodes[0].generate(15)
+
+        self.log.info('Disconnect nodes')
+        disconnect_nodes(self.nodes[0], 1)
+        disconnect_nodes(self.nodes[1], 2)
+        self.nodes[0].sendtoaddress(addr1, 10)
+        self.nodes[1].sendtoaddress(addr1, 10)
+        self.nodes[0].generate(5)
+        self.nodes[1].generate(10)
+        self.send_free_tx([addr2], 8 * COIN, 0, addr1)
+        self.send_free_tx([addr2], 8 * COIN, 1, addr1)
+        self.nodes[0].generate(5)
+        self.nodes[1].generate(5)
+
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        # height of nodes after nodes reconnecting
+        target_height = max(node0_height, node1_height)
+        assert node1_height - node0_height == 5, 'Wrong diff in nodes height'
+
+        # reconnecting nodes
+        self.log.info('Reconnect nodes')
+        connect_nodes(self.nodes[0], 1)
+        connect_nodes(self.nodes[1], 2)
+        self.sync_blocks()
+        node0_height = self.nodes[0].getblockcount()
+        node1_height = self.nodes[1].getblockcount()
+        assert node0_height == node1_height == target_height, f'Nodes heights different than {target_height}'
+
+        self.nodes[0].generate(1)
+        self.sync_blocks()
+
+        node0_free_tx_info = self.get_free_tx_info(addr1, node_num=0)
+        node1_free_tx_info = self.get_free_tx_info(addr1, node_num=1)
+        assert node0_free_tx_info["used_blockchain_limit"] > 0
+        for key in node0_free_tx_info:
+            assert node0_free_tx_info[key] == node1_free_tx_info[
+                key], f'Difference in nodes free tx limits at {key} :({node0_free_tx_info, node1_free_tx_info})'
+
+
+
 
 
 if __name__ == '__main__':
