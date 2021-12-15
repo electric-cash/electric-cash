@@ -96,8 +96,10 @@ struct Params {
     // freeTxDifficultyCoefficient set to N would mean that the difficulty of a block filled with free transactions
     // may be no lesser than (1 - 1 / N) * base_difficulty
     uint32_t freeTxDifficultyCoefficient;
+    uint32_t freeTxBaseLimit;
     std::array<size_t, stakingParams::NUM_STAKING_PERIODS> stakingPeriod;
     std::array<double, stakingParams::NUM_STAKING_PERIODS> stakingRewardPercentage;
+    std::array<uint32_t, stakingParams::NUM_STAKING_PERIODS> freeTxLimitCoefficient;
 };
 } // namespace Consensus
 

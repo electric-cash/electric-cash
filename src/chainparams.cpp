@@ -113,7 +113,13 @@ public:
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
         consensus.freeTxDifficultyCoefficient = 10;
-
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -227,6 +233,13 @@ public:
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
         consensus.freeTxDifficultyCoefficient = 10;
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;
@@ -332,7 +345,13 @@ public:
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
         consensus.freeTxDifficultyCoefficient = 10;
-
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;

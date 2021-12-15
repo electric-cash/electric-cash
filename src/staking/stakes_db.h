@@ -215,6 +215,8 @@ private:
     FreeTxInfoMap m_free_tx_info {};
     BlockFreeTxSizeMap m_block_free_tx_size_map {};
 
+    uint32_t calculateFreeTxLimit(const std::set<uint256>& activeStakeIds, const Consensus::Params& params) const;
+
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
     CStakesDBCache(const CStakesDBCache& other) = delete;
@@ -236,12 +238,13 @@ public:
     const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
     CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
+    uint32_t calculateFreeTxLimitForScript(const CScript& script, const Consensus::Params& params) const;
     void addFreeTxSizeForBlock(const uint256& hash, const uint32_t free_tx_size);
     uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
-
+    bool removeOldFreeTxInfos(uint32_t nHeight);
     // TODO(mtwaro): maybe move the following functions to some higher abstraction class
-    bool createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight);
-    bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight);
+    CFreeTxInfo createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params);
+    bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

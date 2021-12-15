@@ -709,8 +709,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // blocks
     if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
         if (nFees == 0) {
-            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0)) {
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
+            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus())) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-tx-mempool-validation");
             }
         } else {
             return false;
@@ -1496,9 +1496,8 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
     stakes.stakingPool().decreaseBalance(totalRewardForBlock);
 }
 
-void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
-{
-    // check if any stakes are being spent
+void SpendStakes(const CTransaction &tx, const CCoinsViewCache &inputs, CStakesDBCache &stakes, CAmount &stakingPenalties,
+                 bool fStakingActive) {
     if (fStakingActive) {
         for (const CTxIn &txin : tx.vin) {
             const COutPoint &prevout = txin.prevout;
@@ -1518,10 +1517,10 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             }
         }
     }
-    MarkInputsSpent(tx, inputs, txundo);
-    bool fStake = false;
-    size_t nStakeOutputNumber = 0;
-    // check if any new stakes are being deposited.
+}
+
+void AddNewStakes(const CChainParams &params, const CTransaction &tx, int nHeight, CStakesDBCache &stakes,
+                  bool fStakingActive, bool &fStake, size_t &nStakeOutputNumber) {
     if (fStakingActive) {
         CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
         if (stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT) {
@@ -1533,7 +1532,17 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
                                                    nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
+}
+
+void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
+{
+    SpendStakes(tx, inputs, stakes, stakingPenalties, fStakingActive);
+    MarkInputsSpent(tx, inputs, txundo);
+    bool fStake = false;
+    size_t nStakeOutputNumber = 0;
+    AddNewStakes(params, tx, nHeight, stakes, fStakingActive, fStake, nStakeOutputNumber);
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
+    stakes.removeOldFreeTxInfos(nHeight);
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
@@ -1548,11 +1557,11 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, b
     UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
-bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight) {
+bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight, const Consensus::Params& params) {
     const COutPoint &prevout = tx.vin[0].prevout;
     const Coin& coin = inputs.AccessCoin(prevout);
     const CScript staker_script = coin.out.scriptPubKey;
-    return stakes.registerFreeTransaction(staker_script, tx, nHeight);
+    return stakes.registerFreeTransaction(staker_script, tx, nHeight, params);
 }
 
 bool CScriptCheck::operator()() {
@@ -2272,10 +2281,10 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             // TODO: double parsing of the transaction. Should be done more efficiently.
             if (fStakingActive) {
                 if (txfee == 0) {
-                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight)) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-transaction");
+                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus())) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-tx-block-validation");
                     }
-                    freeTxSizeBytes += tx.GetTotalSize();
+                    freeTxSizeBytes += (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
                 }
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)

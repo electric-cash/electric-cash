@@ -224,6 +224,18 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     return result;
 }
 
+UniValue freeTxInfoToJSON(const CFreeTxInfo& freeTxInfo)
+{
+    AssertLockNotHeld(cs_main); // For performance reasons
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("limit", static_cast<int>(freeTxInfo.getLimit()));
+    result.pushKV("used_blockchain_limit", static_cast<int>(freeTxInfo.getUsedConfirmedLimit()));
+    result.pushKV("used_mempool_limit", static_cast<int>(freeTxInfo.getUsedUnconfirmedLimit()));
+    result.pushKV("day_window_end_height", freeTxInfo.getCurrentWindowStartHeight() > 0 ? static_cast<int>(freeTxInfo.getCurrentWindowEndHeight()) : 0);
+    return result;
+}
+
 static UniValue getblockcount(const JSONRPCRequest& request)
 {
             RPCHelpMan{"getblockcount",
@@ -2468,6 +2480,42 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
     return stakeToJSON(stake);
 }
 
+static UniValue getfreetxinfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getfreetxinfo",
+               "\nReturns information about free transaction limits for provided staking address, <txid>, if it exists.",
+               {{"address", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Staking address"}},
+               RPCResult{
+        RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::NUM, "limit", "Free transaction limit in vBytes."},
+            {RPCResult::Type::NUM, "used_blockchain_limit", "Used free transaction limit for confirmed transactions, in vBytes."},
+            {RPCResult::Type::NUM, "used_mempool_limit", "Used free transaction limit for unconfirmed transactions, in vBytes."},
+            {RPCResult::Type::NUM, "day_window_end_height", "Block height at which the current day window ends. 0 if it didn't start."},
+            }
+            },
+            RPCExamples{
+        HelpExampleCli("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+        + HelpExampleRpc("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+    }
+    }.Check(request);
+
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    CScript destScript = GetScriptForDestination(DecodeDestination(destination));
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(destScript);
+    if (!freeTxInfo.isValid()) {
+        freeTxInfo = stakes.createFreeTxInfoForScript(destScript, 0, Params().GetConsensus());
+    }
+    if (!freeTxInfo.isValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No free TX info for this address");
+    }
+    return freeTxInfoToJSON(freeTxInfo);
+}
+
 static UniValue getstakesforaddress(const JSONRPCRequest& request)
 {
     RPCHelpMan{"getstakesforaddress",
@@ -2530,6 +2578,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
     { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
     { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
+    { "blockchain",         "getfreetxinfo",    &getfreetxinfo,    {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

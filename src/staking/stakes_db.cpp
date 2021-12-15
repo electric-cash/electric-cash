@@ -1,5 +1,6 @@
 #include <staking/stakes_db.h>
 #include <staking/staking_rewards_calculator.h>
+#include <consensus/validation.h>
 
 
 namespace DBHeaders {
@@ -18,6 +19,10 @@ std::string scriptToStr(const CScript& script) {
     CDataStream ds(SER_DISK, CLIENT_VERSION);
     ds << script;
     return ds.str();
+}
+
+uint32_t getTransactionVSize(const CTransaction& tx) {
+    return (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
 }
 
 CStakesDbEntry::CStakesDbEntry(const uint256& txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
@@ -260,8 +265,8 @@ void CStakesDB::dumpHelpStates() {
 
 uint32_t CStakesDB::getFreeTxSizeForBlock(const uint256 &hash) const {
     uint32_t output = 0;
-    if(m_db_wrapper.Read(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + hash.GetHex(), output)) {
-        LogPrintf("ERROR: Cannot get free tx size of block %s from database\n", hash.GetHex());
+    if(!m_db_wrapper.Read(DBHeaders::BLK_FREE_TX_SIZE_PREFIX + hash.GetHex(), output)) {
+        LogPrintf("WARNING: Cannot get free tx size of block %s from database\n", hash.GetHex());
     }
     return output;
 }
@@ -488,28 +493,26 @@ CFreeTxInfo CStakesDBCache::getFreeTxInfoForScript(const CScript &script) const 
     return it->second;
 }
 
-bool CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight) {
-    if (m_viewonly) {
-        LogPrintf("ERROR: Cannot modify a viewonly cache");
-        return false;
-    }
+CFreeTxInfo CStakesDBCache::createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params) {
+    CFreeTxInfo result;
     std::string scriptString = scriptToStr(script);
     CFreeTxInfo freeTxInfoEx = getFreeTxInfoForScript(script);
     if (freeTxInfoEx.isValid()) {
         LogPrintf("ERROR: Free tx info for script %s already exists\n", scriptString);
-        return false;
+        return result;
     }
-    uint32_t limit = 1000; // TODO(mtwaro): calculation function
+
     StakeIdsSet activeStakes = getActiveStakeIdsForScript(script);
     if (activeStakes.empty()) {
-        return false;
+        return result;
     }
-    CFreeTxInfo freeTxInfo(limit, nHeight, activeStakes);
-    m_free_tx_info.insert(std::make_pair(scriptString, freeTxInfo));
-    return true;
+    uint32_t limit = calculateFreeTxLimit(activeStakes, params);
+    result = CFreeTxInfo(limit, nHeight, activeStakes);
+
+    return result;
 }
 
-bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTransaction& tx, const uint32_t nHeight) {
+bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
@@ -517,28 +520,29 @@ bool CStakesDBCache::registerFreeTransaction(const CScript& script, const CTrans
     std::string scriptString = scriptToStr(script);
     CFreeTxInfo freeTxInfo = getFreeTxInfoForScript(script);
     if (!freeTxInfo.isValid()) {
-        if (!createFreeTxInfoForScript(script, nHeight)) {
+        freeTxInfo = createFreeTxInfoForScript(script, nHeight, params);
+        if (!freeTxInfo.isValid()) {
             return false;
         }
-        freeTxInfo = getFreeTxInfoForScript(script);
+        m_free_tx_info.insert(std::make_pair(scriptString, freeTxInfo));
     }
-    assert(freeTxInfo.isValid());
     if (nHeight > 0 && freeTxInfo.getCurrentWindowStartHeight() == 0) {
         freeTxInfo.setCurrentWindowStartHeight(nHeight);
     }
-    if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowStartHeight()) {
+    if (nHeight != 0 && nHeight > freeTxInfo.getCurrentWindowEndHeight()) {
         return false;
     }
 
     std::set<uint256> activeStakeIdsChain = getActiveStakeIdsForScript(script);
     if (activeStakeIdsChain != freeTxInfo.getActiveStakeIds()) {
-        freeTxInfo.setActiveStakeIds(activeStakeIdsChain);  //TODO(mtwaro): recalculate limit
+        freeTxInfo.setActiveStakeIds(activeStakeIdsChain);
+        freeTxInfo.setLimit(calculateFreeTxLimit(activeStakeIdsChain, params));
     }
-    if (nHeight == 0 && !freeTxInfo.addUnconfirmedTxId(tx.GetHash(), tx.GetTotalSize())) {
+    if (nHeight == 0 && !freeTxInfo.addUnconfirmedTxId(tx.GetHash(), getTransactionVSize(tx))) {
         return false;
     }
     if (nHeight > 0) {
-        if (!freeTxInfo.increaseUsedConfirmedLimit(tx.GetTotalSize())) {
+        if (!freeTxInfo.increaseUsedConfirmedLimit(getTransactionVSize(tx))) {
             return false;
         }
         freeTxInfo.removeUnconfirmedTxId(tx.GetHash());
@@ -562,3 +566,32 @@ uint32_t CStakesDBCache::getFreeTxSizeForBlock(const uint256& hash) const {
     return it->second;
 }
 
+
+uint32_t CStakesDBCache::calculateFreeTxLimitForScript(const CScript &script, const Consensus::Params& params) const {
+    std::set<uint256> active_stake_ids = getActiveStakeIdsForScript(script);
+    return calculateFreeTxLimit(active_stake_ids, params);
+}
+
+uint32_t CStakesDBCache::calculateFreeTxLimit(const std::set<uint256> &activeStakeIds, const Consensus::Params& params) const {
+    std::vector<CStakesDbEntry> stakes = {};
+    stakes.reserve(activeStakeIds.size());
+    for (auto& stake_id : activeStakeIds) {
+        stakes.push_back(getStakeDbEntry(stake_id));
+    }
+    return CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(params, stakes);
+}
+
+bool CStakesDBCache::removeOldFreeTxInfos(uint32_t nHeight) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    for(auto it = m_free_tx_info.begin(); it != m_free_tx_info.end(); ) {
+        if (it->second.getCurrentWindowEndHeight() <= nHeight) {
+            it = m_free_tx_info.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    return true;
+}

@@ -130,7 +130,7 @@ class PrioritiseTransactionTest(BitcoinTestFramework):
         tx_id = self.nodes[0].decoderawtransaction(tx_hex)["txid"]
 
         # This will raise an exception due to invalid free transaction error
-        assert_raises_rpc_error(-26, "invalid-free-transaction", self.nodes[0].sendrawtransaction, tx_hex)
+        assert_raises_rpc_error(-26, "invalid-free-tx-mempool-validation", self.nodes[0].sendrawtransaction, tx_hex)
         assert tx_id not in self.nodes[0].getrawmempool()
 
         # This is a less than 1000-byte transaction, so just set the fee

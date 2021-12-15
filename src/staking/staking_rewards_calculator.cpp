@@ -35,3 +35,14 @@ double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(const CChainP
     max_potential_payout = std::floor(max_potential_payout);
     return std::min(1.0, max_possible_payout / max_potential_payout);
 }
+
+uint32_t CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(const Consensus::Params& params,
+                                                               const std::vector<CStakesDbEntry> &stakes) {
+    uint32_t limit = 0;
+    for (auto& stake : stakes) {
+        CAmount amount = stake.getAmount();
+        size_t idx = stake.getPeriodIdx();
+        limit += std::floor((static_cast<double>(amount) / stakingParams::MIN_STAKING_AMOUNT - 1.0) * params.freeTxLimitCoefficient[idx] + params.freeTxBaseLimit);
+    }
+    return limit;
+}
