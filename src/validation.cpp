@@ -710,7 +710,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
         if (nFees == 0) {
             if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus())) {
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-transaction");
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-tx-mempool-validation");
             }
         } else {
             return false;
@@ -2282,7 +2282,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             if (fStakingActive) {
                 if (txfee == 0) {
                     if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus())) {
-                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-transaction");
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-tx-block-validation");
                     }
                     freeTxSizeBytes += (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
                 }

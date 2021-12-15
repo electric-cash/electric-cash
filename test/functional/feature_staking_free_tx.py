@@ -64,11 +64,11 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
         self.nodes[0].generate(1)
         self.sync_all()
         # check if the transaction over the limit will be rejected
-        assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, dummy_addresses, free_tx_amount, 0,
+        assert_raises_rpc_error(-26, "invalid-free-tx-mempool-validation", self.send_free_tx, dummy_addresses, free_tx_amount, 0,
                                 addr2)
 
         # check if the transaction that has no underlying stake will be rejected
-        assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, [self.nodes[1].getnewaddress()],
+        assert_raises_rpc_error(-26, "invalid-free-tx-mempool-validation", self.send_free_tx, [self.nodes[1].getnewaddress()],
                                 free_tx_amount, 0, addr1)
 
         # check if rpc error is raised when asked for freetxinfo of non-staking address
@@ -85,7 +85,7 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
                and free_tx_info['day_window_end_height'] == 0
 
         # check if a correct transaction over the size limit won't be accepted to mempool
-        assert_raises_rpc_error(-26, "invalid-free-transaction", self.send_free_tx, dummy_addresses[:5], free_tx_amount,
+        assert_raises_rpc_error(-26, "invalid-free-tx-mempool-validation", self.send_free_tx, dummy_addresses[:5], free_tx_amount,
                                 0, addr2)
 
         # check if the free transaction was mined
