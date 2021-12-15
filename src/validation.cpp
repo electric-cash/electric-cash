@@ -1496,9 +1496,8 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
     stakes.stakingPool().decreaseBalance(totalRewardForBlock);
 }
 
-void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
-{
-    // check if any stakes are being spent
+void SpendStakes(const CTransaction &tx, const CCoinsViewCache &inputs, CStakesDBCache &stakes, CAmount &stakingPenalties,
+                 bool fStakingActive) {
     if (fStakingActive) {
         for (const CTxIn &txin : tx.vin) {
             const COutPoint &prevout = txin.prevout;
@@ -1518,10 +1517,10 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             }
         }
     }
-    MarkInputsSpent(tx, inputs, txundo);
-    bool fStake = false;
-    size_t nStakeOutputNumber = 0;
-    // check if any new stakes are being deposited.
+}
+
+void AddNewStakes(const CChainParams &params, const CTransaction &tx, int nHeight, CStakesDBCache &stakes,
+                  bool fStakingActive, bool &fStake, size_t &nStakeOutputNumber) {
     if (fStakingActive) {
         CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
         if (stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT) {
@@ -1533,6 +1532,15 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
                                                    nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
+}
+
+void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
+{
+    SpendStakes(tx, inputs, stakes, stakingPenalties, fStakingActive);
+    MarkInputsSpent(tx, inputs, txundo);
+    bool fStake = false;
+    size_t nStakeOutputNumber = 0;
+    AddNewStakes(params, tx, nHeight, stakes, fStakingActive, fStake, nStakeOutputNumber);
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
     stakes.removeOldFreeTxInfos(nHeight);
 }
