@@ -95,7 +95,7 @@ arith_uint256 LwmaCalculateNextBaseWorkRequired(const CBlockIndex* pindexLast, c
     const arith_uint256 powLimit = UintToArith256(params.powLimit);
 
    // New coins should just give away first N blocks before using this algorithm.
-    if (height < N) { return powLimit.GetCompact(); }
+    if (height < N) { return powLimit; }
 
     arith_uint256 avgTarget, nextTarget;
     int64_t thisTimestamp, previousTimestamp;
