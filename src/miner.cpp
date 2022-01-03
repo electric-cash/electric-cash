@@ -356,6 +356,11 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     uint64_t nPaidTxSize = 0;
     auto freeTxMaxSizeInBlock = chainparams.GetConsensus().freeTxMaxSizeInBlock;
 
+    if (freeTxMaxSizeInBlock > (nBlockMaxWeight * .25) ) {
+        // Max size for free tx in block should be lower than 25%
+        freeTxMaxSizeInBlock = (nBlockMaxWeight * .25) -1;
+    }
+
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
         if (mi != m_mempool.mapTx.get<ancestor_score>().end() &&
@@ -386,19 +391,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         if (packageFees <  nMinFeeForPaidPackage && packageFees != 0) {
                 // Everything else we might consider has a lower fee rate
                 return; // TODO: return keyword suggest breaking of the whole loop. I think that it does not happen very often. Most of fee validation is done in validation.cpp
-        }
-
-        // Free or Paid
-        if(packageFees == 0){
-            if ( (nFreeTxSize + iter->GetTxSize()) < freeTxMaxSizeInBlock){
-                nFreeTxSize += iter->GetTxSize();
-            }
-            else{
-                continue; // cannot fit more free transactions
-            }
-        }
-        else{
-            nPaidTxSize += iter->GetTxSize();
         }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
@@ -435,6 +427,23 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
                 failedTx.insert(iter);
             }
             continue;
+        }
+
+        // Free or Paid
+        if(packageFees == 0){
+            if ( (nFreeTxSize + iter->GetTxSize()) < freeTxMaxSizeInBlock){
+                nFreeTxSize += iter->GetTxSize();
+            }
+            else{
+                if (fUsingModified) {
+                    mapModifiedTx.get<ancestor_score>().erase(modit);
+                    failedTx.insert(iter);
+                }
+                continue; // cannot fit more free transactions
+            }
+        }
+        else{
+            nPaidTxSize += iter->GetTxSize();
         }
 
         // This transaction will make it in; reset the failed counter.
