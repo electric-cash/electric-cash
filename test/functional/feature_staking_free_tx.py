@@ -12,19 +12,18 @@ class FreeTxTest(BitcoinTestFramework, FreeTransactionMixin):
             ["-txindex"]
         ]
 
-    def run_test(self):
-        # self.free_tx_simple_test() # TODO uncomment
-        self.free_tx_trasaction_preference()
-
     def get_staking_pool_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
-
-    def get_free_tx_info(self, address: str, node_num: int):
-        return self.nodes[node_num].getfreetxinfo(address)
 
     def send_staking_deposit_tx(self, stake_address: str, deposit_value: float, node_num: int):
         txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
         return txid
+
+    def get_free_tx_info(self, address: str, node_num: int):
+        return self.nodes[node_num].getfreetxinfo(address)
+
+    def run_test(self):
+        self.free_tx_simple_test()
 
     def free_tx_simple_test(self):
         starting_height = 200
@@ -110,98 +109,6 @@ class FreeTxTest(BitcoinTestFramework, FreeTransactionMixin):
                and free_tx_info['day_window_end_height'] == 0
 
         # TODO(mtwaro) complete this test once the miner is ready
-
-    def free_tx_trasaction_preference(self):
-        starting_height = 200
-        deposit_value = 6
-        free_tx_base_value = 10
-        free_tx_value = 9
-        free_tx_amount = free_tx_value * COIN
-        amount_if_tested_free_tx = 100
-        node0_height = self.nodes[0].getblockcount()
-        node1_height = self.nodes[1].getblockcount()
-        assert node0_height == node1_height == starting_height, f'Starting nodes height different than ' \
-                                                                f'{starting_height, node0_height, node1_height}'
-
-        # generate blocks on node 0, then sync nodes and check height and staking balance
-        addr1 = self.nodes[0].getnewaddress()
-        addr2 = self.nodes[0].getnewaddress()
-        dummy_addresses = [self.nodes[1].getnewaddress() for _ in range(60)]
-
-        self.nodes[0].generatetoaddress(200, addr2)
-        self.sync_all()
-
-        # assure that staking balance is the same on both nodes
-        node0_staking_balance = self.get_staking_pool_balance(node_num=0)
-        node1_staking_balance = self.get_staking_pool_balance(node_num=1)
-        assert node0_staking_balance == node1_staking_balance
-
-        node0_height = self.nodes[0].getblockcount()
-        node1_height = self.nodes[1].getblockcount()
-        assert node0_height == node1_height, 'Difference in nodes height'
-
-        for i in range(amount_if_tested_free_tx):
-            self.send_staking_deposit_tx(addr2, deposit_value, 0)
-            tx_id = self.nodes[0].sendtoaddress(addr2, free_tx_base_value)
-            tx_id = self.nodes[0].sendtoaddress(addr2, free_tx_base_value)
-            tx_id = self.nodes[0].sendtoaddress(addr2, free_tx_base_value)
-            tx_id = self.nodes[0].sendtoaddress(addr2, free_tx_base_value)
-            tx_id = self.nodes[0].sendtoaddress(addr2, free_tx_base_value)
-
-        self.nodes[0].generate(1)
-        self.sync_all()
-
-        # TODO: this is for debug
-        # unspents = self.nodes[0].listunspent()
-        # counter = 0
-        # for u in unspents:
-        #     if u["amount"] * COIN >= free_tx_amount and \
-        #         u["address"] == addr2:
-        #         counter = counter + 1
-        #         print(u)
-        # print (counter)
-
-        free_tx_list = []
-
-        for _ in range(amount_if_tested_free_tx):
-            free_tx_id = self.send_free_tx(dummy_addresses[:5], free_tx_amount, 0, addr2)
-            assert free_tx_id is not None
-            free_tx_list.append(free_tx_id)
-
-        self.nodes[0].generate(1)
-
-        last_block = self.nodes[0].getblock(self.nodes[0].getbestblockhash())
-
-        free_tx_count = 0
-        free_tx_size = 0
-
-        nonfree_tx_count = 0
-        nonfree_tx_size = 0
-        for tx in last_block["tx"]:
-            tx_size = len(self.nodes[0].gettransaction(tx)['hex'])
-
-            if tx in free_tx_list:
-                free_tx_count = free_tx_count + 1
-                free_tx_size = free_tx_size + tx_size
-            else:
-                nonfree_tx_count = nonfree_tx_count + 1
-                nonfree_tx_size = nonfree_tx_size + tx_size
-
-        print(f"----------- Amount nonfree {nonfree_tx_count} and free {free_tx_count} -----------")
-
-        print(f"----------- Size   nonfree {nonfree_tx_size} and free {free_tx_size} -----------")
-
-        #TODO: final assert
-
-
-
-        # check if freetxinfo has been reset
-        free_tx_info = self.get_free_tx_info(addr2, 0)
-        print (free_tx_info)
-        # assert free_tx_info['limit'] > 0 \
-        #        and free_tx_info['used_mempool_limit'] == 0 \
-        #        and free_tx_info['used_blockchain_limit'] == 0 \
-        #        and free_tx_info['day_window_end_height'] == 0
 
 if __name__ == '__main__':
     FreeTxTest().main()
