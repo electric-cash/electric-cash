@@ -667,7 +667,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
     CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes)) {
+    bool fStakingWithdrawal;
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes, fStakingWithdrawal)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
@@ -709,7 +710,10 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // blocks
     if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
         if (nFees == 0) {
-            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus())) {
+            CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus(),
+                        fStakingWithdrawal || stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
+                        stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-tx-mempool-validation");
             }
         } else {
@@ -1559,7 +1563,11 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, b
     UpdateCoins(tx, inputs, txundo, nHeight);
 }
 
-bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight, const Consensus::Params& params) {
+bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight, const Consensus::Params& params, const bool fStakingTx) {
+    if (fStakingTx) {
+        return true;
+    }
+
     const COutPoint &prevout = tx.vin[0].prevout;
     const Coin& coin = inputs.AccessCoin(prevout);
     const CScript staker_script = coin.out.scriptPubKey;
@@ -2286,7 +2294,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, stakes)) {
+            bool fStakingWithdrawal;
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, stakes, fStakingWithdrawal)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
@@ -2295,13 +2304,15 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
 
             // TODO: double parsing of the transaction. Should be done more efficiently.
             if (fStakingActive) {
+                CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (txfee == 0) {
-                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus())) {
+                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus(),
+                            fStakingWithdrawal || stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
+                            stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT)) {
                         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-tx-block-validation");
                     }
                     freeTxSizeBytes += (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
                 }
-                CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
                 {
                     stakingBurnsAndPenalties += stakingTxParser.GetStakingBurnTxMetadata().nAmount;

@@ -1,5 +1,6 @@
 import decimal
 
+from math import floor
 from test_framework.messages import COIN
 from test_framework.util import assert_raises_rpc_error
 
@@ -17,10 +18,10 @@ class SpendStakeMixin:
                    u["txid"] == stake_txid and u["address"] == stake_address]
         assert len(unspent) == 1
         utxo = unspent[0]
-        staking_penalty = int(
-            utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0
+        staking_penalty = floor(
+            float(utxo["amount"] * COIN) * STAKING_PENALTY_PERCENTAGE / 100.0) if early_withdrawal else 0
         reward = expected_reward if not early_withdrawal else 0
-        fee = COIN // 1000
+        fee = 0
         tx_input = {
             "txid": utxo["txid"],
             "vout": utxo["vout"]
@@ -41,7 +42,7 @@ class DepositStakingTransactionsMixin(SpendStakeMixin):
     @staticmethod
     def create_tx_inputs_and_outputs(stake_address: str, change_address: str, deposit_amount: decimal.Decimal,
                                      utxo: dict):
-        fee = COIN // 1000
+        fee = 0
         tx_input = {
             "txid": utxo["txid"],
             "vout": utxo["vout"]
@@ -86,7 +87,7 @@ class DepositStakingTransactionsMixin(SpendStakeMixin):
 class BurnStakingTransactionsMixin(SpendStakeMixin):
     @staticmethod
     def create_staking_burn_tx_input(change_address: str, amount_to_burn: decimal.Decimal, utxo: dict):
-        fee = COIN // 1000
+        fee = 0
         tx_input = {
             "txid": utxo["txid"],
             "vout": utxo["vout"]
