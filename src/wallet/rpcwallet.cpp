@@ -4389,6 +4389,8 @@ static UniValue depositstake(const JSONRPCRequest& request)
     int nChangePosRet = 2;
     std::string strFailReason;
     CTransactionRef tx;
+    coin_control.m_feerate = CFeeRate(0);
+    coin_control.fOverrideFeeRate = true;
     bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strFailReason, coin_control);
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
