@@ -201,6 +201,7 @@ ELCASH_CORE_H = \
   staking/staking_pool.h \
   staking/transaction.h \
   staking/staking_rewards_calculator.h \
+  staking/util.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -320,6 +321,7 @@ libelcash_server_a_SOURCES = \
   staking/stakes_db.cpp \
   staking/staking_pool.cpp \
   staking/staking_rewards_calculator.cpp \
+  staking/util.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
