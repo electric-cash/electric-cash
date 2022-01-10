@@ -1,7 +1,6 @@
 #include <staking/stakes_db.h>
 #include <staking/staking_rewards_calculator.h>
-#include <consensus/validation.h>
-#include <key_io.h>
+#include <staking/util.h>
 
 
 namespace DBHeaders {
@@ -15,23 +14,6 @@ namespace DBHeaders {
     const std::string FREE_TX_INFO = "free_tx_info";
     const std::string BLK_FREE_TX_SIZE_PREFIX = "blk_free_tx_size_";
     const std::string FREE_TX_WINDOW_END_HEIGHT_PREFIX = "ftx_window_end_";
-}
-
-std::string scriptToStr(const CScript& script) {
-    CDataStream ds(SER_DISK, CLIENT_VERSION);
-    ds << script;
-    return ds.str();
-}
-
-CScript scriptFromStr(const std::string script_str) {
-    CDataStream ds(script_str.c_str(), script_str.c_str() + script_str.size(), SER_DISK, CLIENT_VERSION);
-    CScript res;
-    ds >> res;
-    return res;
-}
-
-uint32_t getTransactionVSize(const CTransaction& tx) {
-    return (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
 }
 
 CStakesDbEntry::CStakesDbEntry(const uint256& txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
