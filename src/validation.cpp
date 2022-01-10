@@ -4512,7 +4512,10 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
             if (pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight) {
-                assert(stakes.getBestBlock() == pindex->GetBlockHash());
+                if (stakes.getBestBlock() != pindex->GetBlockHash()) {
+                    return error("Found inconsistency in stakes DB. Restart with --reindex-chainstate flag to rebuild it.");
+                }
+
             }
             DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins, chainparams, stakes);
             if (res == DISCONNECT_FAILED) {
