@@ -4,7 +4,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
 
 
-class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
+class FreeTxTest(BitcoinTestFramework, FreeTransactionMixin):
     def set_test_params(self):
         self.num_nodes = 2
         self.extra_args = [
@@ -111,4 +111,4 @@ class StakingBurnTest(BitcoinTestFramework, FreeTransactionMixin):
         # TODO(mtwaro) complete this test once the miner is ready
 
 if __name__ == '__main__':
-    StakingBurnTest().main()
+    FreeTxTest().main()
