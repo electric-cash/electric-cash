@@ -97,7 +97,6 @@ CMutableTransaction BlockAssembler::CreateCoinbaseTransaction(const CScript& scr
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
-    nFreeTxSize = 0;
     int64_t nTimeStart = GetTimeMicros();
 
     resetBlock();
@@ -353,13 +352,9 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     // mempool has a lot of entries.
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
-    uint64_t nPaidTxSize = 0;
+    uint64_t nPaidTxWeight = 0;
+    uint64_t nFreeTxWeight = 0;
     auto freeTxMaxSizeInBlock = chainparams.GetConsensus().freeTxMaxSizeInBlock;
-
-    if (freeTxMaxSizeInBlock > (nBlockMaxWeight * .25) ) {
-        // Max size for free tx in block should be lower than 25%
-        freeTxMaxSizeInBlock = (nBlockMaxWeight * .25) -1;
-    }
 
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
@@ -429,10 +424,21 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             continue;
         }
 
+        auto txWieght = iter->GetTxWeight();
+        if (fUsingModified) {
+            txWieght = modit->nTxWeight;
+        }
+
         // Free or Paid
         if(packageFees == 0){
-            if ( (nFreeTxSize + iter->GetTxSize()) < freeTxMaxSizeInBlock){
-                nFreeTxSize += iter->GetTxSize();
+            if (
+                (nFreeTxWeight + txWieght) < freeTxMaxSizeInBlock
+                &&
+                ((nFreeTxWeight + txWieght) < ((nBlockMaxWeight*.25)-4000))
+            )
+            {
+                nFreeTxWeight += txWieght;
+                nFreeTxSize += packageSize;
             }
             else{
                 if (fUsingModified) {
@@ -443,7 +449,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             }
         }
         else{
-            nPaidTxSize += iter->GetTxSize();
+            nPaidTxWeight += txWieght;
         }
 
         // This transaction will make it in; reset the failed counter.
