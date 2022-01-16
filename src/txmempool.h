@@ -199,11 +199,11 @@ struct mempoolentry_txid
     }
 };
 
-/** \class CompareTxMemPoolEntryByDescendantScore
+/** \class CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
  *
  *  Sort an entry by max(score/size of entry's tx, score/size with all descendants).
  */
-class CompareTxMemPoolEntryByDescendantScore
+class CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
 {
 public:
     bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
@@ -216,6 +216,9 @@ public:
         // Avoid division by rewriting (a/b > c/d) as (a*d > c*b).
         double f1 = a_mod_fee * b_size;
         double f2 = a_size * b_mod_fee;
+
+        if (a_mod_fee == 0) return false;
+        if (b_mod_fee == 0) return true;
 
         if (f1 == f2) {
             return a.GetTime() >= b.GetTime();
@@ -275,7 +278,7 @@ public:
  *
  *  Sort an entry by min(score/size of entry's tx, score/size with all ancestors).
  */
-class CompareTxMemPoolEntryByAncestorFee
+class CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx
 {
 public:
     template<typename T>
@@ -289,6 +292,9 @@ public:
         // Avoid division by rewriting (a/b > c/d) as (a*d > c*b).
         double f1 = a_mod_fee * b_size;
         double f2 = a_size * b_mod_fee;
+
+        if (a_mod_fee == 0) return false;
+        if (b_mod_fee == 0) return true;
 
         if (f1 == f2) {
             return a.GetTx().GetHash() < b.GetTx().GetHash();
@@ -470,11 +476,11 @@ public:
         boost::multi_index::indexed_by<
             // sorted by txid
             boost::multi_index::hashed_unique<mempoolentry_txid, SaltedTxidHasher>,
-            // sorted by fee rate
+            // sorted by fee rate with pass for free txs
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<descendant_score>,
                 boost::multi_index::identity<CTxMemPoolEntry>,
-                CompareTxMemPoolEntryByDescendantScore
+                CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
             >,
             // sorted by entry time
             boost::multi_index::ordered_non_unique<
@@ -482,11 +488,11 @@ public:
                 boost::multi_index::identity<CTxMemPoolEntry>,
                 CompareTxMemPoolEntryByEntryTime
             >,
-            // sorted by fee rate with ancestors
+            // sorted by fee rate with ancestors with pass for free txs
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<ancestor_score>,
                 boost::multi_index::identity<CTxMemPoolEntry>,
-                CompareTxMemPoolEntryByAncestorFee
+                CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx
             >
         >
     > indexed_transaction_set;

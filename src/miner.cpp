@@ -307,7 +307,7 @@ bool BlockAssembler::decideOnUsingMap(
         // Try to compare the mapTx entry to the mapModifiedTx entry
         iter = m_mempool.mapTx.project<0>(mi);
         if (modit != mapModifiedTx.get<ancestor_score>().end() &&
-                CompareTxMemPoolEntryByAncestorFee()(*modit, CTxMemPoolModifiedEntry(iter))) {
+                CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx()(*modit, CTxMemPoolModifiedEntry(iter))) {
             // The best entry in mapModifiedTx has higher score
             // than the one from mapTx.
             // Switch which transaction (package) to consider
