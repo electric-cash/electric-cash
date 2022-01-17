@@ -6,6 +6,7 @@ from time import sleep
 
 class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
     def set_test_params(self):
+        self.free_tx_testing_proportion = 150 / 640000 # so we can change blockmaxweight how we want
         self.blockmaxweight = 640000
         self.num_nodes = 2
         self.extra_args = [
@@ -80,7 +81,7 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
         self.free_tx_base_value = 10
         free_tx_value = 9
         free_tx_amount = free_tx_value * COIN
-        amount_of_tested_free_tx = 200
+        amount_of_tested_free_tx = int(self.free_tx_testing_proportion * self.blockmaxweight)
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         assert node0_height == node1_height == starting_height, f'Starting nodes height different than ' \
@@ -105,12 +106,14 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
 
         self.generate_inputs_for_free_txs(amount_of_tested_free_tx, addr2)
 
+        self.assert_mempool_leftovers(0)
         # load free txs into mempool
         free_tx_list = []
         for _ in range(amount_of_tested_free_tx):
             free_tx_id = self.send_free_tx(dummy_addresses[:5], free_tx_amount, 0, addr2)
             assert free_tx_id is not None
             free_tx_list.append(free_tx_id)
+
         print("Free tx send", len(free_tx_list))
 
         self.nodes[0].generate(1)
@@ -121,19 +124,31 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
         tx_in_block_without_coinbase_tx = tx_in_block -1
         self.assert_mempool_leftovers(amount_of_tested_free_tx - tx_in_block_without_coinbase_tx)
 
+        ##############################################
+        #                                            #
+        #            Test free and paid              #
+        ##############################################
         self.generate_inputs_for_free_txs(amount_of_tested_free_tx, addr2)
+
+        self.assert_mempool_leftovers(0)
         # load free txs into mempool
         free_tx_list = []
         for _ in range(amount_of_tested_free_tx):
             free_tx_id = self.send_free_tx(dummy_addresses[:5], free_tx_amount, 0, addr2)
             assert free_tx_id is not None
             free_tx_list.append(free_tx_id)
+
+
         print("Free tx send", len(free_tx_list))
 
-        for i in range(amount_of_tested_free_tx*6):
-            tx_id = self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+        for i in range(amount_of_tested_free_tx):
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
 
         self.nodes[0].generate(1)
+        self.sync_all()
         # Assert test case with free and paid transactions
         tx_in_block = self.assert_block_tx_preference_only_free(free_tx_list, min_free_tx_percentage=0.01)
         print(amount_of_tested_free_tx, tx_in_block)
