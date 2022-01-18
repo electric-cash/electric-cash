@@ -14,6 +14,8 @@ namespace DBHeaders {
     const std::string FREE_TX_INFO = "free_tx_info";
     const std::string BLK_FREE_TX_SIZE_PREFIX = "blk_free_tx_size_";
     const std::string FREE_TX_WINDOW_END_HEIGHT_PREFIX = "ftx_window_end_";
+    const std::string NUM_COMPLETE_STAKES = "num_complete_stakes";
+    const std::string NUM_EARLY_WITHDRAWN_STAKES = "num_early_withdrawn_stakes";
 }
 
 CStakesDbEntry::CStakesDbEntry(const uint256& txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
@@ -138,6 +140,8 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_free_tx_info = cache->m_free_tx_info;
     m_amounts_by_periods = cache->m_amounts_by_periods;
     m_best_block_hash = cache->m_best_block_hash;
+    m_num_complete_stakes = cache->m_num_complete_stakes;
+    m_num_early_withdrawn_stakes = cache->m_num_early_withdrawn_stakes;
     dumpHelpStates();
 
     StakesMap stakes_map = cache->m_stakes_map;
@@ -244,6 +248,8 @@ void CStakesDB::initHelpStates() {
 
     m_db_wrapper.Read(DBHeaders::STAKING_POOL, m_staking_pool);
     m_db_wrapper.Read(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
+    m_db_wrapper.Read(DBHeaders::NUM_COMPLETE_STAKES, m_num_complete_stakes);
+    m_db_wrapper.Read(DBHeaders::NUM_EARLY_WITHDRAWN_STAKES, m_num_early_withdrawn_stakes);
 }
 
 void CStakesDB::dumpHelpStates() {
@@ -271,6 +277,8 @@ void CStakesDB::dumpHelpStates() {
 
     m_db_wrapper.Write(DBHeaders::STAKING_POOL, m_staking_pool);
     m_db_wrapper.Write(DBHeaders::BEST_BLOCK_HASH, m_best_block_hash);
+    m_db_wrapper.Write(DBHeaders::NUM_COMPLETE_STAKES, m_num_complete_stakes);
+    m_db_wrapper.Write(DBHeaders::NUM_EARLY_WITHDRAWN_STAKES, m_num_early_withdrawn_stakes);
 }
 
 uint32_t CStakesDB::getFreeTxSizeForBlock(const uint256 &hash) const {
@@ -282,7 +290,9 @@ uint32_t CStakesDB::getFreeTxSizeForBlock(const uint256 &hash) const {
 }
 
 CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_size): m_viewonly(fViewOnly),
-        m_base_db{db}, m_max_cache_size{max_cache_size}, m_staking_pool(m_base_db->stakingPool()) {
+m_base_db{db}, m_max_cache_size{max_cache_size}, m_staking_pool(m_base_db->stakingPool()),
+m_num_complete_stakes(m_base_db->getNumCompleteStakes()),
+m_num_early_withdrawn_stakes(m_base_db->getNumEarlyWithdrawnStakes()) {
     if (!m_viewonly) {
         m_base_db->initCache();
         m_active_stakes.insert(m_base_db->getActiveStakesSet().begin(),  m_base_db->getActiveStakesSet().end());
@@ -296,6 +306,14 @@ CStakesDBCache::CStakesDBCache(CStakesDB* db, bool fViewOnly, size_t max_cache_s
 
 CStakingPool& CStakesDBCache::stakingPool() {
     return m_staking_pool;
+}
+
+size_t CStakesDBCache::getNumCompleteStakes() const {
+    return m_num_complete_stakes;
+}
+
+size_t CStakesDBCache::getNumEarlyWithdrawnStakes() const {
+    return m_num_early_withdrawn_stakes;
 }
 
 bool CStakesDBCache::addNewStakeEntry(const CStakesDbEntry& entry) {
@@ -335,7 +353,7 @@ bool CStakesDBCache::removeStakeEntry(const uint256& txid) {
 
     const uint256 stakeId = stake.getKey();
     m_active_stakes.erase(stakeId);
-    m_script_to_active_stakes[scriptToStr(stake.getScript())].erase(stakeId);
+    eraseStakeFromScriptMap(stake);
     auto it = m_stakes_map.find(stakeId);
     if (it != m_stakes_map.end()) {
         m_stakes_map.erase(it);
@@ -383,15 +401,27 @@ bool CStakesDBCache::deactivateStake(const uint256& txid, const bool fSetComplet
         stake.setInactive();
         stake.setComplete(fSetComplete);
         m_active_stakes.erase(txid);
-        m_script_to_active_stakes[scriptToStr(stake.getScript())].erase(txid);
+        eraseStakeFromScriptMap(stake);
         CAmount amount = stake.getAmount();
         size_t periodIdx = stake.getPeriodIdx();
         m_amounts_by_periods[periodIdx] -= amount;
         m_stakes_map[txid] = stake;
+        if (fSetComplete) {
+            ++m_num_complete_stakes;
+        } else {
+            ++m_num_early_withdrawn_stakes;
+        }
     } else {
         return false;
     }
     return true;
+}
+
+void CStakesDBCache::eraseStakeFromScriptMap(const CStakesDbEntry &stake) {
+    m_script_to_active_stakes[scriptToStr(stake.getScript())].erase(stake.getKey());
+    if (m_script_to_active_stakes[scriptToStr(stake.getScript())].empty()) {
+        m_script_to_active_stakes.erase(scriptToStr(stake.getScript()));
+    }
 }
 
 bool CStakesDBCache::flushDB() {
@@ -446,6 +476,11 @@ bool CStakesDBCache::reactivateStake(const uint256& txid, const uint32_t height)
         size_t periodIdx = stake.getPeriodIdx();
         m_amounts_by_periods[periodIdx] += amount;
         m_stakes_map[txid] = stake;
+        if (height == stake.getCompleteBlock()) {
+            --m_num_complete_stakes;
+        } else {
+            --m_num_early_withdrawn_stakes;
+        }
     } else {
         return false;
     }
