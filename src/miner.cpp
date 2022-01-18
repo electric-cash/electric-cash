@@ -354,7 +354,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     int64_t nConsecutiveFailed = 0;
     uint64_t nPaidTxWeight = 0;
     uint64_t nFreeTxWeight = 0;
-    auto freeTxMaxSizeInBlock = chainparams.GetConsensus().freeTxMaxSizeInBlock;
 
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
@@ -424,20 +423,20 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             continue;
         }
 
-        auto txWieght = iter->GetTxWeight();
+        auto txWeight = iter->GetTxWeight();
         if (fUsingModified) {
-            txWieght = modit->nTxWeight;
+            txWeight = modit->nTxWeight;
         }
 
         // Free or Paid
         if(packageFees == 0){
             if (
-                (nFreeTxWeight + txWieght) < freeTxMaxSizeInBlock
+                (nFreeTxWeight + txWeight) < chainparams.GetConsensus().freeTxMaxSizeInBlock
                 &&
-                ((nFreeTxWeight + txWieght) < ((nBlockMaxWeight*.25)-4000))
+                ((nFreeTxWeight + txWeight) < ((nBlockMaxWeight*.25)-4000))
             )
             {
-                nFreeTxWeight += txWieght;
+                nFreeTxWeight += txWeight;
                 nFreeTxSize += packageSize;
             }
             else{
@@ -449,7 +448,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             }
         }
         else{
-            nPaidTxWeight += txWieght;
+            nPaidTxWeight += txWeight;
         }
 
         // This transaction will make it in; reset the failed counter.
