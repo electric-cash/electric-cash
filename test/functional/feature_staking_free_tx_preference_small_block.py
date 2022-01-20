@@ -25,7 +25,7 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
     def run_test(self):
         self.free_tx_trasaction_preference()
 
-    def assert_block_tx_preference_only_free(self, free_tx_list):
+    def assert_block_tx_preference_only_free(self, free_tx_list, tested_range = 1000):
         last_block = self.nodes[0].getblock(self.nodes[0].getbestblockhash())
 
         free_tx_size = 0
@@ -59,8 +59,8 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
         print(len(last_block["tx"]))
         print (f"---------> Free tx weight {free_tx_size*size_weight_proportion}, non-free tx weight {nonfree_tx_size*size_weight_proportion} Block weight {block_weight}")
         print(free_tx_weight < self.maxFreeTxWeight)
-        print(free_tx_weight > (self.maxFreeTxWeight - 1000))
-        assert free_tx_weight < self.maxFreeTxWeight and free_tx_weight > (self.maxFreeTxWeight - 1000)
+        print(free_tx_weight > (self.maxFreeTxWeight - tested_range))
+        assert free_tx_weight < self.maxFreeTxWeight and free_tx_weight > (self.maxFreeTxWeight - tested_range)
         return len(last_block["tx"])
 
     def assert_mempool_leftovers(self, excpected_txs_number):
@@ -189,7 +189,7 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
 
         self.nodes[0].generate(1)
         # Assert test case with free and paid transactions
-        tx_in_block = self.assert_block_tx_preference_only_free(free_tx_list)
+        tx_in_block = self.assert_block_tx_preference_only_free(free_tx_list, 4000)
 
         tx_in_block_without_coinbase_tx = tx_in_block -1
         self.assert_mempool_leftovers(amount_of_tested_free_tx*4 + amount_of_tested_free_tx - tx_in_block_without_coinbase_tx)
