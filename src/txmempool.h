@@ -647,8 +647,20 @@ public:
      *  fSearchForParents = whether to search a tx's vin for in-mempool parents, or
      *    look up parents from mapLinks. Must be true for entries not in the mempool
      */
-    bool CalculateMemPoolAncestors(const CTxMemPoolEntry& entry, setEntries& setAncestors, uint64_t limitAncestorCount, uint64_t limitAncestorSize, uint64_t limitDescendantCount, uint64_t limitDescendantSize, std::string& errString, bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-
+    bool CalculateMemPoolAncestors(
+    const CTxMemPoolEntry &entry,
+    setEntries &setAncestors,
+    uint64_t limitAncestorCount,
+    uint64_t limitAncestorSize,
+    uint64_t limitDescendantCount,
+    uint64_t limitDescendantSize,
+    std::string &errString,
+    bool fSearchForParents /* = true */,
+    const uint64_t freeTxlimit_1,
+    const uint64_t freeTxlimit_2,
+    uint64_t &freeTxSize,
+    uint64_t &freeTxWeight
+    ) const EXCLUSIVE_LOCKS_REQUIRED(cs);
     /** Populate setDescendants with all in-mempool descendants of hash.
      *  Assumes that setDescendants includes all in-mempool descendants of anything
      *  already in it.  */

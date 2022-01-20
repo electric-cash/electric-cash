@@ -149,10 +149,25 @@ void CTxMemPool::UpdateTransactionsFromBlock(const std::vector<uint256> &vHashes
     }
 }
 
-bool CTxMemPool::CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntries &setAncestors, uint64_t limitAncestorCount, uint64_t limitAncestorSize, uint64_t limitDescendantCount, uint64_t limitDescendantSize, std::string &errString, bool fSearchForParents /* = true */) const
+bool CTxMemPool::CalculateMemPoolAncestors(
+    const CTxMemPoolEntry &entry,
+    setEntries &setAncestors,
+    uint64_t limitAncestorCount,
+    uint64_t limitAncestorSize,
+    uint64_t limitDescendantCount,
+    uint64_t limitDescendantSize,
+    std::string &errString,
+    bool fSearchForParents /* = true */,
+    const uint64_t freeTxlimit_1,
+    const uint64_t freeTxlimit_2,
+    uint64_t &freeTxSize,
+    uint64_t &freeTxWeight
+    ) const
 {
     setEntries parentHashes;
     const CTransaction &tx = entry.GetTx();
+    uint64_t temporaryFreeTxSize = freeTxSize;
+    uint64_t temporaryFreeTxWeight = freeTxWeight;
 
     if (fSearchForParents) {
         // Get parents of this transaction that are in the mempool
@@ -184,6 +199,20 @@ bool CTxMemPool::CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntr
         parentHashes.erase(stageit);
         totalSizeWithAncestors += stageit->GetTxSize();
 
+        if(stageit->GetFee() == 0){
+            temporaryFreeTxSize += stageit->GetTxSize();
+            temporaryFreeTxWeight += stageit->GetTxWeight();
+
+            if (temporaryFreeTxWeight > freeTxlimit_1){
+                errString = strprintf("too many free transactions [limit #1: %u]", freeTxlimit_1);
+                return false;
+            }
+            if(temporaryFreeTxWeight > freeTxlimit_2){
+                errString = strprintf("too many free transactions [limit #2: %u]", freeTxlimit_2);
+                return false;
+            }
+        }
+
         if (stageit->GetSizeWithDescendants() + entry.GetTxSize() > limitDescendantSize) {
             errString = strprintf("exceeds descendant size limit for tx %s [limit: %u]", stageit->GetTx().GetHash().ToString(), limitDescendantSize);
             return false;
@@ -208,6 +237,8 @@ bool CTxMemPool::CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntr
         }
     }
 
+    freeTxSize = temporaryFreeTxSize;
+    freeTxWeight = temporaryFreeTxWeight;
     return true;
 }
 
@@ -276,6 +307,8 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
         setEntries setAncestors;
         const CTxMemPoolEntry &entry = *removeIt;
         std::string dummy;
+        uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
+        uint64_t zero = 0;
         // Since this is a tx that is already in the mempool, we can call CMPA
         // with fSearchForParents = false.  If the mempool is in a consistent
         // state, then using true or false should both be correct, though false
@@ -293,7 +326,7 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
         // differ from the set of mempool parents we'd calculate by searching,
         // and it's important that we use the mapLinks[] notion of ancestor
         // transactions as the set of things to update for removal.
-        CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+        CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false, nNoLimit, nNoLimit, zero, zero);
         // Note that UpdateAncestorsOf severs the child links that point to
         // removeIt in the entries for the parents of removeIt.
         UpdateAncestorsOf(false, removeIt, setAncestors);
@@ -660,7 +693,8 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins, CStakesDBCache& stakes) co
         setEntries setAncestors;
         uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
         std::string dummy;
-        CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy);
+        uint64_t zero = 0;
+        CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, true, nNoLimit, nNoLimit, zero, zero);
         uint64_t nCountCheck = setAncestors.size() + 1;
         uint64_t nSizeCheck = it->GetTxSize();
         CAmount nFeesCheck = it->GetModifiedFee();
@@ -831,7 +865,8 @@ void CTxMemPool::PrioritiseTransaction(const uint256& hash, const CAmount& nFeeD
             setEntries setAncestors;
             uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
             std::string dummy;
-            CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+            uint64_t zero = 0;
+            CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false, nNoLimit, nNoLimit, zero, zero);
             for (txiter ancestorIt : setAncestors) {
                 mapTx.modify(ancestorIt, update_descendant_state(0, nFeeDelta, 0));
             }
@@ -948,8 +983,9 @@ void CTxMemPool::addUnchecked(const CTxMemPoolEntry &entry, bool validFeeEstimat
 {
     setEntries setAncestors;
     uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
+    uint64_t zero = 0;
     std::string dummy;
-    CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy);
+    CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, true, nNoLimit, nNoLimit, zero, zero);
     return addUnchecked(entry, setAncestors, validFeeEstimate);
 }
 

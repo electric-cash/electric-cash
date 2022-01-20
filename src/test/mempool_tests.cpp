@@ -197,7 +197,9 @@ BOOST_AUTO_TEST_CASE(MempoolIndexingTest)
 
     CTxMemPool::setEntries setAncestorsCalculated;
     std::string dummy;
-    BOOST_CHECK_EQUAL(pool.CalculateMemPoolAncestors(entry.Fee(2000000LL).FromTx(tx7), setAncestorsCalculated, 100, 1000000, 1000, 1000000, dummy), true);
+    uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
+    uint64_t zero = 0;
+    BOOST_CHECK_EQUAL(pool.CalculateMemPoolAncestors(entry.Fee(2000000LL).FromTx(tx7), setAncestorsCalculated, 100, 1000000, 1000, 1000000, dummy, false, nNoLimit, nNoLimit, zero, zero), true);
     BOOST_CHECK(setAncestorsCalculated == setAncestors);
 
     pool.addUnchecked(entry.FromTx(tx7), setAncestors);
@@ -255,7 +257,7 @@ BOOST_AUTO_TEST_CASE(MempoolIndexingTest)
     tx10.vout[0].nValue = 10 * COIN;
 
     setAncestorsCalculated.clear();
-    BOOST_CHECK_EQUAL(pool.CalculateMemPoolAncestors(entry.Fee(200000LL).Time(4).FromTx(tx10), setAncestorsCalculated, 100, 1000000, 1000, 1000000, dummy), true);
+    BOOST_CHECK_EQUAL(pool.CalculateMemPoolAncestors(entry.Fee(200000LL).Time(4).FromTx(tx10), setAncestorsCalculated, 100, 1000000, 1000, 1000000, dummy, false, nNoLimit, nNoLimit, zero, zero), true);
     BOOST_CHECK(setAncestorsCalculated == setAncestors);
 
     pool.addUnchecked(entry.FromTx(tx10), setAncestors);

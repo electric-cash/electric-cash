@@ -147,6 +147,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
+    nFreeTxSize = 0;
+    nFreeTxWeight = 0;
     addPackageTxs(nPackagesSelected, nDescendantsUpdated);
 
     int64_t nTime1 = GetTimeMicros();
@@ -353,7 +355,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
     uint64_t nPaidTxWeight = 0;
-    uint64_t nFreeTxWeight = 0;
 
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
@@ -374,10 +375,12 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
 
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
+        CAmount txFee = iter->GetFee();
         int64_t packageSigOpsCost = iter->GetSigOpCostWithAncestors();
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
             packageFees = modit->nModFeesWithAncestors;
+            txFee = modit->nFee;
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
         }
 
@@ -409,7 +412,22 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         CTxMemPool::setEntries ancestors;
         uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
         std::string dummy;
-        m_mempool.CalculateMemPoolAncestors(*iter, ancestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+        uint64_t freeTxSize = nFreeTxSize; // Compilier treats nFreeTxSize as rvalue, even tho it should not
+        m_mempool.CalculateMemPoolAncestors(
+            *iter,
+            ancestors,
+            nNoLimit,
+            nNoLimit,
+            nNoLimit,
+            nNoLimit,
+            dummy,
+            false,
+            chainparams.GetConsensus().freeTxMaxSizeInBlock,
+            nBlockMaxWeight*.25,
+            freeTxSize,
+            nFreeTxWeight
+        );
+        nFreeTxSize = freeTxSize;
 
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
@@ -423,17 +441,17 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             continue;
         }
 
-        auto txWeight = iter->GetTxWeight();
+        int64_t txWeight = iter->GetTxWeight();
         if (fUsingModified) {
             txWeight = modit->nTxWeight;
         }
 
         // Free or Paid
-        if(packageFees == 0){
+        if(txFee == 0){
             if (
-                (nFreeTxWeight + txWeight) < chainparams.GetConsensus().freeTxMaxSizeInBlock
+                ((nFreeTxWeight + txWeight) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
                 &&
-                ((nFreeTxWeight + txWeight) < ((nBlockMaxWeight*.25)-4000))
+                ((nFreeTxWeight + txWeight) < ((nBlockMaxWeight*.25)))
             )
             {
                 nFreeTxWeight += txWeight;

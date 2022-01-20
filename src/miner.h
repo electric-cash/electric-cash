@@ -43,6 +43,7 @@ struct CTxMemPoolModifiedEntry {
         nModFeesWithAncestors = entry->GetModFeesWithAncestors();
         nSigOpCostWithAncestors = entry->GetSigOpCostWithAncestors();
         nTxWeight = entry->GetTxWeight();
+        nFee = entry->GetFee();
     }
 
     int64_t GetModifiedFee() const { return iter->GetModifiedFee(); }
@@ -54,6 +55,7 @@ struct CTxMemPoolModifiedEntry {
     CTxMemPool::txiter iter;
     uint64_t nSizeWithAncestors;
     CAmount nModFeesWithAncestors;
+    CAmount nFee;
     int64_t nSigOpCostWithAncestors;
     int64_t nTxWeight;
 };
@@ -146,6 +148,7 @@ private:
     CTxMemPool::setEntries inBlock;
     //TODO(mtwaro): use proper value instead of 0 when implementing mining algo.
     uint32_t nFreeTxSize = 0;
+    uint64_t nFreeTxWeight = 0;
 
     // Chain context for the block
     int nHeight;
