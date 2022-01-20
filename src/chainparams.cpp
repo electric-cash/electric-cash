@@ -111,7 +111,7 @@ public:
                 7.25,
                 10.0
         };
-        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxMaxSizeInBlock = 20000;
         consensus.freeTxDifficultyCoefficient = 10;
         consensus.freeTxBaseLimit = 500;
         consensus.freeTxLimitCoefficient = {
@@ -231,7 +231,7 @@ public:
                 7250.0,
                 10000.0
         };
-        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxMaxSizeInBlock = 20000;
         consensus.freeTxDifficultyCoefficient = 10;
         consensus.freeTxBaseLimit = 500;
         consensus.freeTxLimitCoefficient = {
@@ -343,7 +343,7 @@ public:
                 7.25,
                 10.0
         };
-        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxMaxSizeInBlock = 20000;
         consensus.freeTxDifficultyCoefficient = 10;
         consensus.freeTxBaseLimit = 500;
         consensus.freeTxLimitCoefficient = {

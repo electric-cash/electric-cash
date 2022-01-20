@@ -10,11 +10,11 @@
 #include <stdint.h>
 
 /** The maximum allowed size for a serialized block, in bytes (only for buffer size limits) */
-static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 32000000;
+static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 640000;
 /** The maximum allowed weight for a block, see BIP 141 (network rule) */
-static const unsigned int MAX_BLOCK_WEIGHT = 32000000;
+static const unsigned int MAX_BLOCK_WEIGHT = 640000;
 /** The maximum allowed number of signature check operations in a block (network rule) */
-static const int64_t MAX_BLOCK_SIGOPS_COST = 640000;
+static const int64_t MAX_BLOCK_SIGOPS_COST = 12800;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
 
