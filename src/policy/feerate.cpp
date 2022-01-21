@@ -20,10 +20,17 @@ CFeeRate::CFeeRate(const CAmount& nFeePaid, size_t nBytes_)
         nSatoshisPerK = 0;
 }
 
-CAmount CFeeRate::GetFee(size_t nBytes_) const
+CAmount CFeeRate::GetFee(size_t nBytes_, int64_t freeSize) const
 {
     assert(nBytes_ <= uint64_t(std::numeric_limits<int64_t>::max()));
     int64_t nSize = int64_t(nBytes_);
+
+    if (nSize > freeSize){
+        nSize -= freeSize;
+    }
+    else {
+        nSize = 1; // for minimal fee
+    }
 
     CAmount nFee = nSatoshisPerK * nSize / 1000;
 

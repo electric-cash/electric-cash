@@ -42,6 +42,7 @@ struct CTxMemPoolModifiedEntry {
         nSizeWithAncestors = entry->GetSizeWithAncestors();
         nModFeesWithAncestors = entry->GetModFeesWithAncestors();
         nSigOpCostWithAncestors = entry->GetSigOpCostWithAncestors();
+        nFreeTxSizeWithAncestors = entry->GetFreeTxSizeWithAncestors();
         nTxWeight = entry->GetTxWeight();
         nFee = entry->GetFee();
     }
@@ -57,6 +58,7 @@ struct CTxMemPoolModifiedEntry {
     CAmount nModFeesWithAncestors;
     CAmount nFee;
     int64_t nSigOpCostWithAncestors;
+    int64_t nFreeTxSizeWithAncestors;
     int64_t nTxWeight;
 };
 

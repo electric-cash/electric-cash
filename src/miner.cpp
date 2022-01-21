@@ -259,6 +259,7 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
                 modEntry.nSizeWithAncestors -= it->GetTxSize();
                 modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
                 modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
+                modEntry.nFreeTxSizeWithAncestors -= it->GetFreeTxSizeWithAncestors();
                 mapModifiedTx.insert(modEntry);
             } else {
                 mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
@@ -373,18 +374,23 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         // contain anything that is inBlock.
         assert(!inBlock.count(iter));
 
+        // TODO this part is so stupid it needs to be simplified
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
         CAmount txFee = iter->GetFee();
         int64_t packageSigOpsCost = iter->GetSigOpCostWithAncestors();
+        int64_t freeTxSizeWithAncestors = iter->GetFreeTxSizeWithAncestors();
+
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
             packageFees = modit->nModFeesWithAncestors;
             txFee = modit->nFee;
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
+            freeTxSizeWithAncestors = modit->nFreeTxSizeWithAncestors;
+
         }
 
-        uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize);
+        uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize, freeTxSizeWithAncestors);
         if (packageFees <  nMinFeeForPaidPackage && packageFees != 0) {
                 // Everything else we might consider has a lower fee rate
                 return; // TODO: return keyword suggest breaking of the whole loop. I think that it does not happen very often. Most of fee validation is done in validation.cpp
