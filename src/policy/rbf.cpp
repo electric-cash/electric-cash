@@ -25,10 +25,9 @@ RBFTransactionState IsRBFOptIn(const CTransaction& tx, const CTxMemPool& pool)
     // If all the inputs have nSequence >= maxint-1, it still might be
     // signaled for RBF if any unconfirmed parents have signaled.
     uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
-    uint64_t zero = 0;
     std::string dummy;
     CTxMemPoolEntry entry = *pool.mapTx.find(tx.GetHash());
-    pool.CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false, nNoLimit, nNoLimit, zero, zero);
+    pool.CalculateMemPoolAncestors(entry, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
 
     for (CTxMemPool::txiter it : setAncestors) {
         if (SignalsOptInRBF(it->GetTx())) {

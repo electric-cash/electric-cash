@@ -260,6 +260,7 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
                 modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
                 modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
                 modEntry.nFreeTxSizeWithAncestors -= it->GetFreeTxSizeWithAncestors();
+                modEntry.nFreeTxWeightWithAncestors -= it->GetFreeTxWeightWithAncestors();
                 mapModifiedTx.insert(modEntry);
             } else {
                 mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
@@ -355,8 +356,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     // mempool has a lot of entries.
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
-    uint64_t nPaidTxWeight = 0;
-
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
         if (mi != m_mempool.mapTx.get<ancestor_score>().end() &&
@@ -377,16 +376,16 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         // TODO this part is so stupid it needs to be simplified
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
-        CAmount txFee = iter->GetFee();
         int64_t packageSigOpsCost = iter->GetSigOpCostWithAncestors();
         int64_t freeTxSizeWithAncestors = iter->GetFreeTxSizeWithAncestors();
+        int64_t freeTxWeightWithAncestors = iter->GetFreeTxWeightWithAncestors();
 
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
             packageFees = modit->nModFeesWithAncestors;
-            txFee = modit->nFee;
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
             freeTxSizeWithAncestors = modit->nFreeTxSizeWithAncestors;
+            freeTxWeightWithAncestors = modit->nFreeTxWeightWithAncestors;
 
         }
 
@@ -418,22 +417,8 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         CTxMemPool::setEntries ancestors;
         uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
         std::string dummy;
-        uint64_t freeTxSize = nFreeTxSize; // Compilier treats nFreeTxSize as rvalue, even tho it should not
-        m_mempool.CalculateMemPoolAncestors(
-            *iter,
-            ancestors,
-            nNoLimit,
-            nNoLimit,
-            nNoLimit,
-            nNoLimit,
-            dummy,
-            false,
-            chainparams.GetConsensus().freeTxMaxSizeInBlock,
-            nBlockMaxWeight*.25,
-            freeTxSize,
-            nFreeTxWeight
-        );
-        nFreeTxSize = freeTxSize;
+        m_mempool.CalculateMemPoolAncestors(*iter, ancestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+        // nFreeTxSize = freeTxSize;
 
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
@@ -447,32 +432,17 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             continue;
         }
 
-        int64_t txWeight = iter->GetTxWeight();
-        if (fUsingModified) {
-            txWeight = modit->nTxWeight;
-        }
-
-        // Free or Paid
-        if(txFee == 0){
-            if (
-                ((nFreeTxWeight + txWeight) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
-                &&
-                ((nFreeTxWeight + txWeight) < ((nBlockMaxWeight*.25)))
-            )
-            {
-                nFreeTxWeight += txWeight;
-                nFreeTxSize += packageSize;
-            }
-            else{
-                if (fUsingModified) {
-                    mapModifiedTx.get<ancestor_score>().erase(modit);
-                    failedTx.insert(iter);
-                }
-                continue; // cannot fit more free transactions
-            }
+        if ((nFreeTxWeight + freeTxWeightWithAncestors) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
+        {
+            nFreeTxWeight += freeTxWeightWithAncestors;
+            nFreeTxSize += freeTxSizeWithAncestors;
         }
         else{
-            nPaidTxWeight += txWeight;
+            if (fUsingModified) {
+                mapModifiedTx.get<ancestor_score>().erase(modit);
+                failedTx.insert(iter);
+            }
+            continue; // cannot fit more free transactions
         }
 
         // This transaction will make it in; reset the failed counter.

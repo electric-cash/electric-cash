@@ -760,8 +760,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     std::string errString;
     uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
-    uint64_t zero = 0;
-    if (!m_pool.CalculateMemPoolAncestors(*entry, setAncestors, m_limit_ancestors, m_limit_ancestor_size, m_limit_descendants, m_limit_descendant_size, errString, true, nNoLimit, nNoLimit, zero, zero)) {
+    if (!m_pool.CalculateMemPoolAncestors(*entry, setAncestors, m_limit_ancestors, m_limit_ancestor_size, m_limit_descendants, m_limit_descendant_size, errString)) {
         setAncestors.clear();
         // If CalculateMemPoolAncestors fails second time, we want the original error string.
         std::string dummy_err_string;
@@ -778,7 +777,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         // this, see https://lists.linuxfoundation.org/pipermail/elcash-dev/2018-November/016518.html
 
         if (nSize >  EXTRA_DESCENDANT_TX_SIZE_LIMIT ||
-                !m_pool.CalculateMemPoolAncestors(*entry, setAncestors, 2, m_limit_ancestor_size, m_limit_descendants + 1, m_limit_descendant_size + EXTRA_DESCENDANT_TX_SIZE_LIMIT, dummy_err_string, false, nNoLimit, nNoLimit, zero, zero)) {
+                !m_pool.CalculateMemPoolAncestors(*entry, setAncestors, 2, m_limit_ancestor_size, m_limit_descendants + 1, m_limit_descendant_size + EXTRA_DESCENDANT_TX_SIZE_LIMIT, dummy_err_string)) {
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", errString);
         }
     }
