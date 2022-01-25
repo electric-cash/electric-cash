@@ -182,6 +182,37 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
         for i in range(amount_of_tested_free_tx):
             print("Paid ", i)
             self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            sleep(1)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            sleep(1)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            sleep(1)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
+            self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
             self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value) ## TODO ancestors issue
             self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value) ## TODO fix on main branch the eeror with resetix free tx size
             self.nodes[0].sendtoaddress(addr2, self.free_tx_base_value)
@@ -189,10 +220,10 @@ class FreeTxPreferenceTest(BitcoinTestFramework, FreeTransactionMixin):
 
         self.nodes[0].generate(1)
         # Assert test case with free and paid transactions
-        tx_in_block = self.assert_block_tx_preference_only_free(free_tx_list, 4000)
+        tx_in_block = self.assert_block_tx_preference_only_free(free_tx_list, 20000)
 
         tx_in_block_without_coinbase_tx = tx_in_block -1
-        self.assert_mempool_leftovers(amount_of_tested_free_tx*4 + amount_of_tested_free_tx - tx_in_block_without_coinbase_tx)
+        self.assert_mempool_leftovers(amount_of_tested_free_tx*32 + amount_of_tested_free_tx - tx_in_block_without_coinbase_tx)
 
 
 if __name__ == '__main__':
