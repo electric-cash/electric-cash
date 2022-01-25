@@ -219,6 +219,16 @@ class CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
 public:
     bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
     {
+        if (a.GetFee() == b.GetFee() && a.GetFee() == 0){
+            return a.GetTx().GetHash() < b.GetTx().GetHash();
+        }
+        else if (a.GetFee() == 0){
+            return true;
+        }
+        else if (b.GetFee() == 0){
+            return false;
+        }
+
         double a_mod_fee, a_size, b_mod_fee, b_size;
 
         GetModFeeAndSize(a, a_mod_fee, a_size);
@@ -308,6 +318,16 @@ public:
     template<typename T>
     bool operator()(const T& a, const T& b) const
     {
+        if (a.GetFee() == b.GetFee() && a.GetFee() == 0){
+            return a.GetTx().GetHash() < b.GetTx().GetHash();
+        }
+        else if (a.GetFee() == 0){
+            return true;
+        }
+        else if (b.GetFee() == 0){
+            return false;
+        }
+
         double a_mod_fee, a_size, b_mod_fee, b_size;
 
         GetModFeeAndSize(a, a_mod_fee, a_size);

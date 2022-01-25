@@ -379,6 +379,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         int64_t packageSigOpsCost = iter->GetSigOpCostWithAncestors();
         int64_t freeTxSizeWithAncestors = iter->GetFreeTxSizeWithAncestors();
         int64_t freeTxWeightWithAncestors = iter->GetFreeTxWeightWithAncestors();
+        CAmount txFee = iter->GetFee();
 
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
@@ -386,11 +387,11 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
             freeTxSizeWithAncestors = modit->nFreeTxSizeWithAncestors;
             freeTxWeightWithAncestors = modit->nFreeTxWeightWithAncestors;
-
+            txFee = modit->nFee;
         }
 
         uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize, freeTxSizeWithAncestors);
-        if (packageFees <  nMinFeeForPaidPackage && packageFees != 0) {
+        if (packageFees <  nMinFeeForPaidPackage && txFee != 0) {
                 // Everything else we might consider has a lower fee rate
                 return; // TODO: return keyword suggest breaking of the whole loop. I think that it does not happen very often. Most of fee validation is done in validation.cpp
         }
