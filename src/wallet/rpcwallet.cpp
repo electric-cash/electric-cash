@@ -4433,7 +4433,7 @@ static UniValue burnforstaking(const JSONRPCRequest& request)
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
-
+    // TODO: Check why it is unused?
     bool fSubtractFeeFromAmount = false;
     if (!request.params[1].isEmpty()) {
         fSubtractFeeFromAmount = request.params[1].get_bool();

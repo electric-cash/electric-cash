@@ -12,18 +12,18 @@ class FreeTxTest(BitcoinTestFramework, FreeTransactionMixin):
             ["-txindex"]
         ]
 
-    def run_test(self):
-        self.free_tx_simple_test()
-
     def get_staking_pool_balance(self, node_num: int) -> int:
         return self.nodes[node_num].getstakinginfo()['staking_pool']
-
-    def get_free_tx_info(self, address: str, node_num: int):
-        return self.nodes[node_num].getfreetxinfo(address)
 
     def send_staking_deposit_tx(self, stake_address: str, deposit_value: float, node_num: int):
         txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
         return txid
+
+    def get_free_tx_info(self, address: str, node_num: int):
+        return self.nodes[node_num].getfreetxinfo(address)
+
+    def run_test(self):
+        self.free_tx_simple_test()
 
     def free_tx_simple_test(self):
         starting_height = 200

@@ -83,6 +83,18 @@ void BlockAssembler::resetBlock()
 Optional<int64_t> BlockAssembler::m_last_block_num_txs{nullopt};
 Optional<int64_t> BlockAssembler::m_last_block_weight{nullopt};
 
+// Create coinbase transaction as a reward for miner
+CMutableTransaction BlockAssembler::CreateCoinbaseTransaction(const CScript& scriptPubKeyIn){
+    CMutableTransaction coinbaseTx;
+    coinbaseTx.vin.resize(1);
+    coinbaseTx.vin[0].prevout.SetNull();
+    coinbaseTx.vout.resize(1);
+    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus().nStakingStartHeight);
+    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    return coinbaseTx;
+}
+
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
     int64_t nTimeStart = GetTimeMicros();
@@ -101,20 +113,23 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
 
     LOCK2(cs_main, m_mempool.cs);
+
+    // increment chain index
     CBlockIndex* pindexPrev = ::ChainActive().Tip();
     assert(pindexPrev != nullptr);
     nHeight = pindexPrev->nHeight + 1;
-    const int32_t nChainId = chainparams.GetConsensus().nAuxpowChainId;
 
+    // setting block version
+    const int32_t nChainId = chainparams.GetConsensus().nAuxpowChainId;
     pblock->SetBaseVersion(VERSIONBITS_BASE_BLOCK_VERSION, nChainId);
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
         pblock->SetBaseVersion(gArgs.GetArg("-blockversion", pblock->GetBaseVersion()), nChainId);
 
+    // setting cutoff time
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
-
     nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
                        ? nMedianTimePast
                        : pblock->GetBlockTime();
@@ -132,6 +147,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     int nPackagesSelected = 0;
     int nDescendantsUpdated = 0;
+    nFreeTxSize = 0;
+    nFreeTxWeight = 0;
     addPackageTxs(nPackagesSelected, nDescendantsUpdated);
 
     int64_t nTime1 = GetTimeMicros();
@@ -140,13 +157,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     m_last_block_weight = nBlockWeight;
 
     // Create coinbase transaction.
-    CMutableTransaction coinbaseTx;
-    coinbaseTx.vin.resize(1);
-    coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus().nStakingStartHeight);
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+    CMutableTransaction coinbaseTx = CreateCoinbaseTransaction(scriptPubKeyIn);
+
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
@@ -247,6 +259,8 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
                 modEntry.nSizeWithAncestors -= it->GetTxSize();
                 modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
                 modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
+                modEntry.nFreeTxSizeWithAncestors -= it->GetFreeTxSizeWithAncestors();
+                modEntry.nFreeTxWeightWithAncestors -= it->GetFreeTxWeightWithAncestors();
                 mapModifiedTx.insert(modEntry);
             } else {
                 mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
@@ -282,6 +296,36 @@ void BlockAssembler::SortForBlock(const CTxMemPool::setEntries& package, std::ve
     std::sort(sortedEntries.begin(), sortedEntries.end(), CompareTxIterByAncestorCount());
 }
 
+bool BlockAssembler::decideOnUsingMap(
+    CTxMemPool::txiter& iter,
+    CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator& mi,
+    indexed_modified_transaction_set& mapModifiedTx,
+    modtxscoreiter& modit
+    )
+{
+    if (mi == m_mempool.mapTx.get<ancestor_score>().end()) {
+        // We're out of entries in mapTx; use the entry from mapModifiedTx
+        iter = modit->iter;
+        return true;
+    } else {
+        // Try to compare the mapTx entry to the mapModifiedTx entry
+        iter = m_mempool.mapTx.project<0>(mi);
+        if (modit != mapModifiedTx.get<ancestor_score>().end() &&
+                CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx()(*modit, CTxMemPoolModifiedEntry(iter))) {
+            // The best entry in mapModifiedTx has higher score
+            // than the one from mapTx.
+            // Switch which transaction (package) to consider
+            iter = modit->iter;
+            return true;
+        } else {
+            // Either no entry in mapModifiedTx, or it's worse than mapTx.
+            // Increment mi for the next loop iteration.
+            ++mi;
+        }
+    }
+    return false;
+}
+
 // This transaction selection algorithm orders the mempool based
 // on feerate of a transaction including all unconfirmed ancestors.
 // Since we don't remove transactions from the mempool as we select them
@@ -312,7 +356,6 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     // mempool has a lot of entries.
     const int64_t MAX_CONSECUTIVE_FAILURES = 1000;
     int64_t nConsecutiveFailed = 0;
-
     while (mi != m_mempool.mapTx.get<ancestor_score>().end() || !mapModifiedTx.empty()) {
         // First try to find a new transaction in mapTx to evaluate.
         if (mi != m_mempool.mapTx.get<ancestor_score>().end() &&
@@ -323,47 +366,35 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
 
         // Now that mi is not stale, determine which transaction to evaluate:
         // the next entry from mapTx, or the best from mapModifiedTx?
-        bool fUsingModified = false;
-
         modtxscoreiter modit = mapModifiedTx.get<ancestor_score>().begin();
-        if (mi == m_mempool.mapTx.get<ancestor_score>().end()) {
-            // We're out of entries in mapTx; use the entry from mapModifiedTx
-            iter = modit->iter;
-            fUsingModified = true;
-        } else {
-            // Try to compare the mapTx entry to the mapModifiedTx entry
-            iter = m_mempool.mapTx.project<0>(mi);
-            if (modit != mapModifiedTx.get<ancestor_score>().end() &&
-                    CompareTxMemPoolEntryByAncestorFee()(*modit, CTxMemPoolModifiedEntry(iter))) {
-                // The best entry in mapModifiedTx has higher score
-                // than the one from mapTx.
-                // Switch which transaction (package) to consider
-                iter = modit->iter;
-                fUsingModified = true;
-            } else {
-                // Either no entry in mapModifiedTx, or it's worse than mapTx.
-                // Increment mi for the next loop iteration.
-                ++mi;
-            }
-        }
+        bool fUsingModified = decideOnUsingMap(iter, mi, mapModifiedTx, modit);
 
         // We skip mapTx entries that are inBlock, and mapModifiedTx shouldn't
         // contain anything that is inBlock.
         assert(!inBlock.count(iter));
 
+        // TODO this part is so stupid it needs to be simplified
         uint64_t packageSize = iter->GetSizeWithAncestors();
         CAmount packageFees = iter->GetModFeesWithAncestors();
         int64_t packageSigOpsCost = iter->GetSigOpCostWithAncestors();
+        int64_t freeTxSizeWithAncestors = iter->GetFreeTxSizeWithAncestors();
+        int64_t freeTxWeightWithAncestors = iter->GetFreeTxWeightWithAncestors();
+        CAmount txFee = iter->GetFee();
+
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
             packageFees = modit->nModFeesWithAncestors;
             packageSigOpsCost = modit->nSigOpCostWithAncestors;
+            freeTxSizeWithAncestors = modit->nFreeTxSizeWithAncestors;
+            freeTxWeightWithAncestors = modit->nFreeTxWeightWithAncestors;
+            txFee = modit->nFee;
         }
-        // TODO(mtwaro): commented for tests. put proper logic here
-        // if (packageFees < blockMinFeeRate.GetFee(packageSize)) {
-        //    // Everything else we might consider has a lower fee rate
-        //    return;
-        // }
+
+        uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize, freeTxSizeWithAncestors);
+        if (packageFees <  nMinFeeForPaidPackage && txFee != 0) {
+                // Everything else we might consider has a lower fee rate
+                return; // TODO: return keyword suggest breaking of the whole loop. I think that it does not happen very often. Most of fee validation is done in validation.cpp
+        }
 
         if (!TestPackage(packageSize, packageSigOpsCost)) {
             if (fUsingModified) {
@@ -388,6 +419,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
         std::string dummy;
         m_mempool.CalculateMemPoolAncestors(*iter, ancestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+        // nFreeTxSize = freeTxSize;
 
         onlyUnconfirmed(ancestors);
         ancestors.insert(iter);
@@ -399,6 +431,19 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
                 failedTx.insert(iter);
             }
             continue;
+        }
+
+        if ((nFreeTxWeight + freeTxWeightWithAncestors) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
+        {
+            nFreeTxWeight += freeTxWeightWithAncestors;
+            nFreeTxSize += freeTxSizeWithAncestors;
+        }
+        else{
+            if (fUsingModified) {
+                mapModifiedTx.get<ancestor_score>().erase(modit);
+                failedTx.insert(iter);
+            }
+            continue; // cannot fit more free transactions
         }
 
         // This transaction will make it in; reset the failed counter.
