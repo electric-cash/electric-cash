@@ -602,9 +602,10 @@ bool CStakesDBCache::undoFreeTransaction(const CScript& script, const CTransacti
         return false;
     }
     CFreeTxInfo freeTxInfo = getFreeTxInfoForScript(script);
-    assert(freeTxInfo.isValid());
-    freeTxInfo.decreaseUsedConfirmedLimit(getTransactionVSize(tx));
-    m_free_tx_info[scriptToStr(script)] = freeTxInfo;
+    if (freeTxInfo.isValid()) {
+        freeTxInfo.decreaseUsedConfirmedLimit(getTransactionVSize(tx));
+        m_free_tx_info[scriptToStr(script)] = freeTxInfo;
+    }
     return true;
 }
 
