@@ -2307,7 +2307,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
                 if (txfee == 0) {
                     if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus(),
-                            fStakingWithdrawal || stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
+                            fStakingWithdrawal ||
+                            stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
                             stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT)) {
                         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-tx-block-validation");
                     }
