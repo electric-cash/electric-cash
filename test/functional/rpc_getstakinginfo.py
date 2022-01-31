@@ -22,7 +22,7 @@ class GetStakingInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         addr1 = self.nodes[1].getnewaddress()
         self.nodes[0].generatetoaddress(10, addr0)
         self.nodes[1].generatetoaddress(20, addr1)
-        self.sync_all()
+        self.sync_blocks()
 
         # assure that staking balance is the same on both nodes
         node0_staking_balance = self.get_staking_pool_balance(node_num=0)
@@ -33,25 +33,35 @@ class GetStakingInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         node1_height = self.nodes[1].getblockcount()
         assert node0_height == node1_height, 'Difference in nodes height'
 
-        self.send_staking_deposit_tx(addr0, deposit_amount=300 * COIN, node_num=0)
-        self.send_staking_deposit_tx(addr1, deposit_amount=200 * COIN, node_num=1)
-        self.nodes[0].generate(int(0.4 * month_stake_length_blocks))
-        self.nodes[1].generate(int(0.6 * month_stake_length_blocks))
-        self.sync_all()
+        stakeid0 = self.send_staking_deposit_tx(addr0, deposit_amount=300 * COIN, node_num=0)
+        stakeid1 = self.send_staking_deposit_tx(addr1, deposit_amount=200 * COIN, node_num=0)
+
+        num_div = 54
+        for i in range(40):
+            self.nodes[0].generate(month_stake_length_blocks // num_div)
+        self.sync_blocks()
         staking_info_0 = self.nodes[0].getstakinginfo()
         staking_info_1 = self.nodes[1].getstakinginfo()
 
         assert staking_info_0['staking_pool'] == staking_info_1['staking_pool']
-        assert staking_info_0['num_stakes'] == staking_info_1['num_stakes'] == 2
+        assert staking_info_0['num_active_stakes'] == staking_info_1['num_active_stakes'] == 2
+        assert staking_info_0['num_early_withdrawn_stakes'] == staking_info_1['num_early_withdrawn_stakes'] == 0
+        assert staking_info_0['num_complete_stakes'] == staking_info_1['num_complete_stakes'] == 0
+        assert staking_info_0['num_staking_addresses'] == staking_info_1['num_staking_addresses'] == 2
         assert staking_info_0['total_staked'] == staking_info_1['total_staked'] == 500 * COIN
 
-        self.nodes[1].generate(int(0.5 * month_stake_length_blocks))
-        self.sync_all()
+        self.spend_stake(0, stakeid0, addr0, True)
+        for i in range(20):
+            self.nodes[0].generate(month_stake_length_blocks // num_div)
+        self.sync_blocks()
         staking_info_0 = self.nodes[0].getstakinginfo()
         staking_info_1 = self.nodes[1].getstakinginfo()
 
         assert staking_info_0['staking_pool'] == staking_info_1['staking_pool']
-        assert staking_info_0['num_stakes'] == staking_info_1['num_stakes'] == 0
+        assert staking_info_0['num_active_stakes'] == staking_info_1['num_active_stakes'] == 0
+        assert staking_info_0['num_complete_stakes'] == staking_info_1['num_complete_stakes'] == 1
+        assert staking_info_0['num_early_withdrawn_stakes'] == staking_info_1['num_early_withdrawn_stakes'] == 1
+        assert staking_info_0['num_staking_addresses'] == staking_info_1['num_staking_addresses'] == 0
         assert staking_info_0['total_staked'] == staking_info_1['total_staked'] == 0
 
 

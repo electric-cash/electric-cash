@@ -165,6 +165,8 @@ private:
     FreeTxInfoMap m_free_tx_info {};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
+    size_t m_num_complete_stakes = 0;
+    size_t m_num_early_withdrawn_stakes = 0;
 
     // mutex to assure that no more than one editable cache is open.
     std::mutex m_cache_mutex;
@@ -183,6 +185,8 @@ public:
     CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
     CStakingPool& stakingPool();
     uint256 getBestBlock();
+    size_t getNumCompleteStakes() const { return m_num_complete_stakes; };
+    size_t getNumEarlyWithdrawnStakes() const { return m_num_early_withdrawn_stakes; };
     const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
     const ScriptToStakesMap& getScriptMap() const { return m_script_to_active_stakes;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
@@ -220,8 +224,11 @@ private:
     BlockFreeTxSizeMap m_block_free_tx_size_map {};
     FreeTxWindowEndHeightMap m_free_tx_info_end_height_map {};
     std::set<uint32_t> m_free_tx_window_end_heights_to_remove {};
+    size_t m_num_complete_stakes = 0;
+    size_t m_num_early_withdrawn_stakes = 0;
 
     uint32_t calculateFreeTxLimit(const std::set<uint256>& activeStakeIds, const Consensus::Params& params) const;
+    void eraseStakeFromScriptMap(const CStakesDbEntry &stake);
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
@@ -234,6 +241,8 @@ public:
     bool reactivateStake(const uint256& txid, const uint32_t height);
     bool updateStakeEntry(const CStakesDbEntry& entry);
     CStakingPool& stakingPool();
+    size_t getNumCompleteStakes() const;
+    size_t getNumEarlyWithdrawnStakes() const;
     bool flushDB();
     ~CStakesDBCache() { drop(); }
     std::set<uint256> getActiveStakeIdsForScript(const CScript& script) const;

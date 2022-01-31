@@ -2429,7 +2429,10 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
                     RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::NUM, "staking_pool", "current staking pool balance"},
-                            {RPCResult::Type::NUM, "num_stakes", "current number of stakes"},
+                            {RPCResult::Type::NUM, "num_active_stakes", "current number of active stakes"},
+                            {RPCResult::Type::NUM, "num_complete_stakes", "total number of completed stakes"},
+                            {RPCResult::Type::NUM, "num_early_withdrawn_stakes", "total number of stakes ended prematurely"},
+                            {RPCResult::Type::NUM, "num_staking_addresses", "current number of addresses posessing at least one active stake"},
                             {RPCResult::Type::NUM, "total_staked", "total staked amount (network-wide)"},
                         }
                },
@@ -2442,7 +2445,10 @@ static UniValue getstakinginfo(const JSONRPCRequest& request)
     LOCK(cs_main);
     UniValue results(UniValue::VOBJ);
     results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
-    results.pushKV("num_stakes", ::ChainstateActive().GetStakesDB().getAllActiveStakes().size());
+    results.pushKV("num_active_stakes", ::ChainstateActive().GetStakesDB().getAllActiveStakes().size());
+    results.pushKV("num_complete_stakes", ::ChainstateActive().GetStakesDB().getNumCompleteStakes());
+    results.pushKV("num_early_withdrawn_stakes", ::ChainstateActive().GetStakesDB().getNumEarlyWithdrawnStakes());
+    results.pushKV("num_staking_addresses", ::ChainstateActive().GetStakesDB().getScriptMap().size());
     CAmount totalStaked{0};
     for(const auto& value : ::ChainstateActive().GetStakesDB().getAmountsByPeriods())
         totalStaked += value;
