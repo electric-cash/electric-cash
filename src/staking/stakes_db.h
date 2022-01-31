@@ -3,6 +3,7 @@
 #include <amount.h>
 #include <uint256.h>
 #include <script/script.h>
+#include <staking/free_tx_info.h>
 #include <staking/staking_pool.h>
 #include <staking/stakingparams.h>
 #include <map>
@@ -46,7 +47,7 @@ public:
     void setComplete(bool completeFlag);
     bool isComplete() const { return complete; }
     unsigned int getCompleteBlock() const { return completeBlock; }
-    unsigned int getDepositBlock(const CChainParams& params) const { return completeBlock - params.StakingPeriod()[periodIdx] + 1; };
+    unsigned int getDepositBlock(const CChainParams& params) const { return completeBlock - params.GetConsensus().stakingPeriod[periodIdx] + 1; };
     unsigned int getNumOutput() const { return numOutput; }
     uint256 getKey() const { return txid; }
     std::string getKeyHex() const { return txid.GetHex(); }
@@ -148,6 +149,11 @@ typedef std::set<uint256> StakeIdsSet;
 typedef std::map<uint32_t, StakeIdsSet> StakesCompletedAtBlockHeightMap;
 typedef std::vector<CStakesDbEntry> StakesVector;
 typedef std::array<CAmount, stakingParams::NUM_STAKING_PERIODS> AmountByPeriodArray;
+typedef std::map<std::string, CFreeTxInfo> FreeTxInfoMap;
+typedef std::map<uint256, uint32_t> BlockFreeTxSizeMap;
+typedef std::pair<std::string, uint32_t> ClosedFreeTxWindowInfo;
+typedef std::vector<ClosedFreeTxWindowInfo> ClosedFreeTxWindowInfoVector;
+typedef std::map<uint32_t, ClosedFreeTxWindowInfoVector> FreeTxWindowEndHeightMap;
 
 class CStakesDB {
 private:
@@ -156,8 +162,11 @@ private:
     StakeIdsSet m_active_stakes {};
     StakesCompletedAtBlockHeightMap m_stakes_completed_at_block_height {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+    FreeTxInfoMap m_free_tx_info {};
     CStakingPool m_staking_pool;
     uint256 m_best_block_hash;
+    size_t m_num_complete_stakes = 0;
+    size_t m_num_early_withdrawn_stakes = 0;
 
     // mutex to assure that no more than one editable cache is open.
     std::mutex m_cache_mutex;
@@ -173,12 +182,17 @@ public:
     std::set<uint256> getActiveStakeIdsForScript(const CScript& script);
     StakesVector getAllActiveStakes() const;
     StakesVector getStakesCompletedAtHeight(const uint32_t height);
+    CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
     CStakingPool& stakingPool();
     uint256 getBestBlock();
+    size_t getNumCompleteStakes() const { return m_num_complete_stakes; };
+    size_t getNumEarlyWithdrawnStakes() const { return m_num_early_withdrawn_stakes; };
     const AmountByPeriodArray& getAmountsByPeriods() const { return m_amounts_by_periods; }
     const ScriptToStakesMap& getScriptMap() const { return m_script_to_active_stakes;}
     const StakeIdsSet& getActiveStakesSet() const { return m_active_stakes; }
     const StakesCompletedAtBlockHeightMap& getStakesCompletedAtBlockHeightMap() const { return m_stakes_completed_at_block_height; }
+    const FreeTxInfoMap& getFreeTxInfoMap() const { return m_free_tx_info; }
+    uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
     void initCache();
     void dropCache();
     void initHelpStates();
@@ -186,6 +200,7 @@ public:
     void verify();
     void verifyFlushState();
     void verifyTotalAmounts() const;
+    ClosedFreeTxWindowInfoVector getFreeTxWindowsCompletedAtHeight(const uint32_t nHeight);
 };
 
 
@@ -205,6 +220,15 @@ private:
     ScriptToStakesMap m_script_to_active_stakes {};
     StakeIdsSet m_stakes_to_remove {};
     AmountByPeriodArray m_amounts_by_periods {0, 0, 0, 0};
+    FreeTxInfoMap m_free_tx_info {};
+    BlockFreeTxSizeMap m_block_free_tx_size_map {};
+    FreeTxWindowEndHeightMap m_free_tx_info_end_height_map {};
+    std::set<uint32_t> m_free_tx_window_end_heights_to_remove {};
+    size_t m_num_complete_stakes = 0;
+    size_t m_num_early_withdrawn_stakes = 0;
+
+    uint32_t calculateFreeTxLimit(const std::set<uint256>& activeStakeIds, const Consensus::Params& params) const;
+    void eraseStakeFromScriptMap(const CStakesDbEntry &stake);
 
 public:
     CStakesDBCache(CStakesDB* db, bool fViewOnly = false, size_t max_cache_size=MAX_CACHE_SIZE);
@@ -217,6 +241,8 @@ public:
     bool reactivateStake(const uint256& txid, const uint32_t height);
     bool updateStakeEntry(const CStakesDbEntry& entry);
     CStakingPool& stakingPool();
+    size_t getNumCompleteStakes() const;
+    size_t getNumEarlyWithdrawnStakes() const;
     bool flushDB();
     ~CStakesDBCache() { drop(); }
     std::set<uint256> getActiveStakeIdsForScript(const CScript& script) const;
@@ -226,6 +252,19 @@ public:
     uint256 getBestBlock() const;
     const AmountByPeriodArray& getAmountsByPeriods() const;
     bool drop();
+    CFreeTxInfo getFreeTxInfoForScript(const CScript& script) const;
+    uint32_t calculateFreeTxLimitForScript(const CScript& script, const Consensus::Params& params) const;
+    void addFreeTxSizeForBlock(const uint256& hash, const uint32_t free_tx_size);
+    uint32_t getFreeTxSizeForBlock(const uint256& hash) const;
+    bool removeInvalidFreeTxInfos(uint32_t nHeight, bool fReorg = false);
+    // TODO(mtwaro): maybe move the following functions to some higher abstraction class
+    CFreeTxInfo createFreeTxInfoForScript(const CScript& script, const uint32_t nHeight, const Consensus::Params& params);
+    bool registerFreeTransaction(const CScript &script, const CTransaction& tx, const uint32_t nHeight, const Consensus::Params& params);
+    ClosedFreeTxWindowInfoVector getFreeTxInfosCompletedAtHeight(uint32_t nHeight);
+
+    bool reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Params &params);
+
+    bool undoFreeTransaction(const CScript &script, const CTransaction &tx);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H

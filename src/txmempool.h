@@ -57,7 +57,7 @@ struct LockPoints
  * ("descendant" transactions).
  *
  * When a new entry is added to the mempool, we update the descendant state
- * (nCountWithDescendants, nSizeWithDescendants, and nModFeesWithDescendants) for
+ * (nCountWithDescendants, nSizeWithDescendants, nFreeSizeWithDescendants, and nModFeesWithDescendants) for
  * all ancestors of the newly added transaction.
  *
  */
@@ -75,19 +75,23 @@ private:
     const int64_t sigOpCost;        //!< Total sigop cost
     int64_t feeDelta;          //!< Used for determining the priority of the transaction for mining in a block
     LockPoints lockPoints;     //!< Track the height and time at which tx was final
+    int64_t nTxFreeSize;
 
     // Information about descendants of this transaction that are in the
     // mempool; if we remove this transaction we must remove all of these
     // descendants as well.
-    uint64_t nCountWithDescendants;  //!< number of descendant transactions
-    uint64_t nSizeWithDescendants;   //!< ... and size
-    CAmount nModFeesWithDescendants; //!< ... and total fees (all including us)
+    uint64_t nCountWithDescendants;      //!< number of descendant transactions
+    uint64_t nSizeWithDescendants;       //!< ... and size
+    uint64_t nFreeSizeWithDescendants;   //!< ... and free size
+    CAmount nModFeesWithDescendants;     //!< ... and total fees (all including us)
 
     // Analogous statistics for ancestor transactions
     uint64_t nCountWithAncestors;
     uint64_t nSizeWithAncestors;
     CAmount nModFeesWithAncestors;
     int64_t nSigOpCostWithAncestors;
+    int64_t nFreeTxSizeWithAncestors;
+    int64_t nFreeTxWeightWithAncestors;
 
 public:
     CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
@@ -99,6 +103,7 @@ public:
     CTransactionRef GetSharedTx() const { return this->tx; }
     const CAmount& GetFee() const { return nFee; }
     size_t GetTxSize() const;
+    size_t GetTxFreeSize() const {return nTxFreeSize; }
     size_t GetTxWeight() const { return nTxWeight; }
     std::chrono::seconds GetTime() const { return std::chrono::seconds{nTime}; }
     unsigned int GetHeight() const { return entryHeight; }
@@ -108,9 +113,9 @@ public:
     const LockPoints& GetLockPoints() const { return lockPoints; }
 
     // Adjusts the descendant state.
-    void UpdateDescendantState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount);
+    void UpdateDescendantState(int64_t modifySize, int64_t modifyFreeSize, CAmount modifyFee, int64_t modifyCount);
     // Adjusts the ancestor state
-    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps);
+    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps, int64_t modifyAncestorFreeTxSize, int64_t modifyAncestorFreeTxWeight);
     // Updates the fee delta used for mining priority score, and the
     // modified fees with descendants.
     void UpdateFeeDelta(int64_t feeDelta);
@@ -119,6 +124,7 @@ public:
 
     uint64_t GetCountWithDescendants() const { return nCountWithDescendants; }
     uint64_t GetSizeWithDescendants() const { return nSizeWithDescendants; }
+    uint64_t GetFreeSizeWithDescendants() const { return nFreeSizeWithDescendants; }
     CAmount GetModFeesWithDescendants() const { return nModFeesWithDescendants; }
 
     bool GetSpendsCoinbase() const { return spendsCoinbase; }
@@ -127,6 +133,8 @@ public:
     uint64_t GetSizeWithAncestors() const { return nSizeWithAncestors; }
     CAmount GetModFeesWithAncestors() const { return nModFeesWithAncestors; }
     int64_t GetSigOpCostWithAncestors() const { return nSigOpCostWithAncestors; }
+    int64_t GetFreeTxSizeWithAncestors() const { return nFreeTxSizeWithAncestors; }
+    int64_t GetFreeTxWeightWithAncestors() const {return nFreeTxWeightWithAncestors; }
 
     mutable size_t vTxHashesIdx; //!< Index in mempool's vTxHashes
     mutable uint64_t m_epoch; //!< epoch when last touched, useful for graph algorithms
@@ -135,33 +143,36 @@ public:
 // Helpers for modifying CTxMemPool::mapTx, which is a boost multi_index.
 struct update_descendant_state
 {
-    update_descendant_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount) :
-        modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount)
+    update_descendant_state(int64_t _modifySize, int64_t _modifyFreeSize,  CAmount _modifyFee, int64_t _modifyCount) :
+        modifySize(_modifySize), modifyFreeSize(_modifyFreeSize), modifyFee(_modifyFee), modifyCount(_modifyCount)
     {}
 
     void operator() (CTxMemPoolEntry &e)
-        { e.UpdateDescendantState(modifySize, modifyFee, modifyCount); }
+        { e.UpdateDescendantState(modifySize, modifyFreeSize, modifyFee, modifyCount); }
 
     private:
         int64_t modifySize;
+        int64_t modifyFreeSize;
         CAmount modifyFee;
         int64_t modifyCount;
 };
 
 struct update_ancestor_state
 {
-    update_ancestor_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount, int64_t _modifySigOpsCost) :
-        modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount), modifySigOpsCost(_modifySigOpsCost)
+    update_ancestor_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount, int64_t _modifySigOpsCost, int64_t _modifyAncestorFreeTxSize, int64_t _modifyAncestorFreeTxWeight) :
+        modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount), modifySigOpsCost(_modifySigOpsCost), modifyAncestorFreeTxSize(_modifyAncestorFreeTxSize), modifyAncestorFreeTxWeight(_modifyAncestorFreeTxWeight)
     {}
 
     void operator() (CTxMemPoolEntry &e)
-        { e.UpdateAncestorState(modifySize, modifyFee, modifyCount, modifySigOpsCost); }
+        { e.UpdateAncestorState(modifySize, modifyFee, modifyCount, modifySigOpsCost, modifyAncestorFreeTxSize, modifyAncestorFreeTxWeight); }
 
     private:
         int64_t modifySize;
         CAmount modifyFee;
         int64_t modifyCount;
         int64_t modifySigOpsCost;
+        int64_t modifyAncestorFreeTxSize;
+        int64_t modifyAncestorFreeTxWeight;
 };
 
 struct update_fee_delta
@@ -199,15 +210,25 @@ struct mempoolentry_txid
     }
 };
 
-/** \class CompareTxMemPoolEntryByDescendantScore
+/** \class CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
  *
  *  Sort an entry by max(score/size of entry's tx, score/size with all descendants).
  */
-class CompareTxMemPoolEntryByDescendantScore
+class CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
 {
 public:
     bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
     {
+        if (a.GetFee() == b.GetFee() && a.GetFee() == 0){
+            return a.GetTx().GetHash() < b.GetTx().GetHash();
+        }
+        else if (a.GetFee() == 0){
+            return true;
+        }
+        else if (b.GetFee() == 0){
+            return false;
+        }
+
         double a_mod_fee, a_size, b_mod_fee, b_size;
 
         GetModFeeAndSize(a, a_mod_fee, a_size);
@@ -220,6 +241,7 @@ public:
         if (f1 == f2) {
             return a.GetTime() >= b.GetTime();
         }
+
         return f1 < f2;
     }
 
@@ -228,15 +250,30 @@ public:
     {
         // Compare feerate with descendants to feerate of the transaction, and
         // return the fee/size for the max.
-        double f1 = (double)a.GetModifiedFee() * a.GetSizeWithDescendants();
-        double f2 = (double)a.GetModFeesWithDescendants() * a.GetTxSize();
+
+        int64_t virtualSizeWithDescendants, virtualSize;
+
+        if (a.GetTxSize() > a.GetTxFreeSize()){
+            virtualSize = a.GetTxSize() - a.GetTxFreeSize();
+        }else{
+            virtualSize = 1;
+        }
+
+        if (a.GetSizeWithDescendants() > a.GetFreeSizeWithDescendants()){
+            virtualSizeWithDescendants = a.GetSizeWithDescendants() - a.GetFreeSizeWithDescendants();
+        }else{
+            virtualSizeWithDescendants = 1;
+        }
+
+        double f1 = (double)a.GetModifiedFee() * virtualSizeWithDescendants;
+        double f2 = (double)a.GetModFeesWithDescendants() * virtualSize;
 
         if (f2 > f1) {
             mod_fee = a.GetModFeesWithDescendants();
-            size = a.GetSizeWithDescendants();
+            size = virtualSizeWithDescendants;
         } else {
             mod_fee = a.GetModifiedFee();
-            size = a.GetTxSize();
+            size = virtualSize;
         }
     }
 };
@@ -275,12 +312,22 @@ public:
  *
  *  Sort an entry by min(score/size of entry's tx, score/size with all ancestors).
  */
-class CompareTxMemPoolEntryByAncestorFee
+class CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx
 {
 public:
     template<typename T>
     bool operator()(const T& a, const T& b) const
     {
+        if (a.GetFee() == b.GetFee() && a.GetFee() == 0){
+            return a.GetTx().GetHash() < b.GetTx().GetHash();
+        }
+        else if (a.GetFee() == 0){
+            return true;
+        }
+        else if (b.GetFee() == 0){
+            return false;
+        }
+
         double a_mod_fee, a_size, b_mod_fee, b_size;
 
         GetModFeeAndSize(a, a_mod_fee, a_size);
@@ -293,6 +340,7 @@ public:
         if (f1 == f2) {
             return a.GetTx().GetHash() < b.GetTx().GetHash();
         }
+
         return f1 > f2;
     }
 
@@ -302,15 +350,30 @@ public:
     {
         // Compare feerate with ancestors to feerate of the transaction, and
         // return the fee/size for the min.
-        double f1 = (double)a.GetModifiedFee() * a.GetSizeWithAncestors();
-        double f2 = (double)a.GetModFeesWithAncestors() * a.GetTxSize();
+
+        int64_t virtualSizeWithAncestors, virtualSize;
+
+        if (a.GetTxSize() > a.GetTxFreeSize()){
+            virtualSize = a.GetTxSize() - a.GetTxFreeSize();
+        }else{
+            virtualSize = 1;
+        }
+
+        if (a.GetSizeWithAncestors() > a.GetFreeTxSizeWithAncestors()){
+            virtualSizeWithAncestors = a.GetSizeWithAncestors() - a.GetFreeTxSizeWithAncestors();
+        }else{
+            virtualSizeWithAncestors = 1;
+        }
+
+        double f1 = (double)a.GetModifiedFee() * virtualSizeWithAncestors;
+        double f2 = (double)a.GetModFeesWithAncestors() * virtualSize;
 
         if (f1 > f2) {
             mod_fee = a.GetModFeesWithAncestors();
-            size = a.GetSizeWithAncestors();
+            size = virtualSizeWithAncestors;
         } else {
             mod_fee = a.GetModifiedFee();
-            size = a.GetTxSize();
+            size = virtualSize;
         }
     }
 };
@@ -470,11 +533,11 @@ public:
         boost::multi_index::indexed_by<
             // sorted by txid
             boost::multi_index::hashed_unique<mempoolentry_txid, SaltedTxidHasher>,
-            // sorted by fee rate
+            // sorted by fee rate with pass for free txs
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<descendant_score>,
                 boost::multi_index::identity<CTxMemPoolEntry>,
-                CompareTxMemPoolEntryByDescendantScore
+                CompareTxMemPoolEntryByDescendantScoreWithPassForFreeTx
             >,
             // sorted by entry time
             boost::multi_index::ordered_non_unique<
@@ -482,11 +545,11 @@ public:
                 boost::multi_index::identity<CTxMemPoolEntry>,
                 CompareTxMemPoolEntryByEntryTime
             >,
-            // sorted by fee rate with ancestors
+            // sorted by fee rate with ancestors with pass for free txs
             boost::multi_index::ordered_non_unique<
                 boost::multi_index::tag<ancestor_score>,
                 boost::multi_index::identity<CTxMemPoolEntry>,
-                CompareTxMemPoolEntryByAncestorFee
+                CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx
             >
         >
     > indexed_transaction_set;
@@ -640,7 +703,6 @@ public:
      *    look up parents from mapLinks. Must be true for entries not in the mempool
      */
     bool CalculateMemPoolAncestors(const CTxMemPoolEntry& entry, setEntries& setAncestors, uint64_t limitAncestorCount, uint64_t limitAncestorSize, uint64_t limitDescendantCount, uint64_t limitDescendantSize, std::string& errString, bool fSearchForParents = true) const EXCLUSIVE_LOCKS_REQUIRED(cs);
-
     /** Populate setDescendants with all in-mempool descendants of hash.
      *  Assumes that setDescendants includes all in-mempool descendants of anything
      *  already in it.  */

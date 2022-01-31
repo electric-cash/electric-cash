@@ -436,7 +436,7 @@ namespace {
 class MemPoolAccept
 {
 public:
-    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool), m_stakes(::ChainstateActive().GetStakesDB()),
+    MemPoolAccept(CTxMemPool& mempool) : m_pool(mempool), m_view(&m_dummy), m_viewmempool(&::ChainstateActive().CoinsTip(), m_pool), m_stakes(&::ChainstateActive().GetStakesDB()),
         m_limit_ancestors(gArgs.GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT)),
         m_limit_ancestor_size(gArgs.GetArg("-limitancestorsize", DEFAULT_ANCESTOR_SIZE_LIMIT)*1000),
         m_limit_descendants(gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT)),
@@ -524,7 +524,7 @@ private:
     CCoinsViewCache m_view;
     CCoinsViewMemPool m_viewmempool;
     CCoinsView m_dummy;
-    CStakesDB& m_stakes;
+    CStakesDBCache m_stakes;
 
     // The package limits in effect at the time of invocation.
     const size_t m_limit_ancestors;
@@ -666,9 +666,9 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     // CoinsViewCache instead of create its own
     if (!CheckSequenceLocks(m_pool, tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp))
         return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "non-BIP68-final");
-    CStakesDBCache stakes(&m_stakes, true);
     CAmount nFees = 0;
-    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, stakes)) {
+    bool fStakingWithdrawal;
+    if (!Consensus::CheckTxInputs(tx, state, m_view, GetSpendHeight(m_view), nFees, m_stakes, fStakingWithdrawal)) {
         return error("%s: Consensus::CheckTxInputs: %s, %s", __func__, tx.GetHash().ToString(), state.ToString());
     }
 
@@ -708,7 +708,18 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
 
     // No transactions are allowed below minRelayTxFee except from disconnected
     // blocks
-    if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) return false;
+    if (!bypass_limits && !CheckFeeRate(nSize, nModifiedFees, state)) {
+        if (nFees == 0) {
+            CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+            if (!CheckIfEligibleFreeTx(tx, m_view, m_stakes, 0, args.m_chainparams.GetConsensus(),
+                        fStakingWithdrawal || stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
+                        stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT)) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "invalid-free-tx-mempool-validation");
+            }
+        } else {
+            return false;
+        }
+    }
 
     if (nAbsurdFee && nFees > nAbsurdFee)
         return state.Invalid(TxValidationResult::TX_NOT_STANDARD,
@@ -752,6 +763,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     }
 
     std::string errString;
+    uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
     if (!m_pool.CalculateMemPoolAncestors(*entry, setAncestors, m_limit_ancestors, m_limit_ancestor_size, m_limit_descendants, m_limit_descendant_size, errString)) {
         setAncestors.clear();
         // If CalculateMemPoolAncestors fails second time, we want the original error string.
@@ -767,6 +779,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         // to be secure by simply only having two immediately-spendable
         // outputs - one for each counterparty. For more info on the uses for
         // this, see https://lists.linuxfoundation.org/pipermail/elcash-dev/2018-November/016518.html
+
         if (nSize >  EXTRA_DESCENDANT_TX_SIZE_LIMIT ||
                 !m_pool.CalculateMemPoolAncestors(*entry, setAncestors, 2, m_limit_ancestor_size, m_limit_descendants + 1, m_limit_descendant_size + EXTRA_DESCENDANT_TX_SIZE_LIMIT, dummy_err_string)) {
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "too-long-mempool-chain", errString);
@@ -1009,6 +1022,7 @@ bool MemPoolAccept::Finalize(ATMPArgs& args, Workspace& ws)
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
+    m_stakes.flushDB();
     return true;
 }
 
@@ -1488,9 +1502,8 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
     stakes.stakingPool().decreaseBalance(totalRewardForBlock);
 }
 
-void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
-{
-    // check if any stakes are being spent
+void SpendStakes(const CTransaction &tx, const CCoinsViewCache &inputs, CStakesDBCache &stakes, CAmount &stakingPenalties,
+                 bool fStakingActive) {
     if (fStakingActive) {
         for (const CTxIn &txin : tx.vin) {
             const COutPoint &prevout = txin.prevout;
@@ -1510,10 +1523,10 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             }
         }
     }
-    MarkInputsSpent(tx, inputs, txundo);
-    bool fStake = false;
-    size_t nStakeOutputNumber = 0;
-    // check if any new stakes are being deposited.
+}
+
+void AddNewStakes(const CChainParams &params, const CTransaction &tx, int nHeight, CStakesDBCache &stakes,
+                  bool fStakingActive, bool &fStake, size_t &nStakeOutputNumber) {
     if (fStakingActive) {
         CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
         if (stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT) {
@@ -1521,11 +1534,21 @@ void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CC
             nStakeOutputNumber = stakingTxParser.GetStakingDepositTxMetadata().nOutputIndex;
             size_t nStakingPeriod = stakingTxParser.GetStakingDepositTxMetadata().nPeriod;
             stakes.addNewStakeEntry(CStakesDbEntry(tx.GetHash(), tx.vout[nStakeOutputNumber].nValue, 0, nStakingPeriod,
-                                                   nHeight + params.StakingPeriod()[nStakingPeriod] - 1,
+                                                   nHeight + params.GetConsensus().stakingPeriod[nStakingPeriod] - 1,
                                                    nStakeOutputNumber, tx.vout[nStakeOutputNumber].scriptPubKey, true));
         }
     }
+}
+
+void UpdateCoinsAndStakes(const CChainParams& params, const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight, CStakesDBCache& stakes, CAmount& stakingPenalties, bool fStakingActive = false, bool fJustCheck = false)
+{
+    SpendStakes(tx, inputs, stakes, stakingPenalties, fStakingActive);
+    MarkInputsSpent(tx, inputs, txundo);
+    bool fStake = false;
+    size_t nStakeOutputNumber = 0;
+    AddNewStakes(params, tx, nHeight, stakes, fStakingActive, fStake, nStakeOutputNumber);
     AddCoins(inputs, tx, nHeight, false, fStake, nStakeOutputNumber);
+    stakes.removeInvalidFreeTxInfos(nHeight);
 }
 
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight)
@@ -1538,6 +1561,17 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight, b
 {
     CTxUndo txundo;
     UpdateCoins(tx, inputs, txundo, nHeight);
+}
+
+bool CheckIfEligibleFreeTx(const CTransaction& tx, CCoinsViewCache& inputs, CStakesDBCache& stakes, uint32_t nHeight, const Consensus::Params& params, const bool fStakingTx) {
+    if (fStakingTx) {
+        return true;
+    }
+
+    const COutPoint &prevout = tx.vin[0].prevout;
+    const Coin& coin = inputs.AccessCoin(prevout);
+    const CScript staker_script = coin.out.scriptPubKey;
+    return stakes.registerFreeTransaction(staker_script, tx, nHeight, params);
 }
 
 bool CScriptCheck::operator()() {
@@ -1794,7 +1828,13 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     bool fStakingActive = pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight;
     std::set<uint256> prematureStakeIds = {};
     // undo transactions in reverse order
+    stakes.removeInvalidFreeTxInfos(pindex->nHeight, true);
+    stakes.reactivateFreeTxInfos(pindex->nHeight, chainparams.GetConsensus());
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
+        // free tx identification variables
+        CAmount fee = 0;
+        CScript firstScript;
+
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
@@ -1815,7 +1855,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
                     fClean = false; // transaction output mismatch
                 }
+                fee -= coin.out.nValue;
             }
+
         }
         // restore inputs
         if (i > 0) { // not coinbases
@@ -1838,11 +1880,16 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                         stakingBurnsAndPenalties += CStakingRewardsCalculator::CalculatePenaltyForStake(stake);
                     }
                 }
+                fee += txundo.vprevout[j].out.nValue;
+                if (j == 0) firstScript = txundo.vprevout[j].out.scriptPubKey;
                 int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
                 if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
                 fClean = fClean && res != DISCONNECT_UNCLEAN;
             }
             // At this point, all of txundo.vprevout should have been moved out.
+            if (fee == 0) {
+                stakes.undoFreeTransaction(firstScript, tx);
+            }
         }
     }
 
@@ -2231,6 +2278,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     std::vector<int> prevheights;
     CAmount nFees = 0;
     CAmount stakingBurnsAndPenalties = 0;
+    uint32_t freeTxSizeBytes = 0;
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
@@ -2246,7 +2294,8 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
         {
             CAmount txfee = 0;
             TxValidationState tx_state;
-            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, stakes)) {
+            bool fStakingWithdrawal;
+            if (!Consensus::CheckTxInputs(tx, tx_state, view, pindex->nHeight, txfee, stakes, fStakingWithdrawal)) {
                 // Any transaction validation failure in ConnectBlock is a block consensus failure
                 state.Invalid(BlockValidationResult::BLOCK_CONSENSUS,
                             tx_state.GetRejectReason(), tx_state.GetDebugMessage());
@@ -2256,6 +2305,15 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             // TODO: double parsing of the transaction. Should be done more efficiently.
             if (fStakingActive) {
                 CStakingTransactionParser stakingTxParser(MakeTransactionRef(tx));
+                if (txfee == 0) {
+                    if (!CheckIfEligibleFreeTx(tx, view, stakes, pindex->nHeight, chainparams.GetConsensus(),
+                            fStakingWithdrawal ||
+                            stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN ||
+                            stakingTxParser.GetStakingTxType() == StakingTransactionType::DEPOSIT)) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "invalid-free-tx-block-validation");
+                    }
+                    freeTxSizeBytes += (GetTransactionWeight(tx) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
+                }
                 if (stakingTxParser.GetStakingTxType() == StakingTransactionType::BURN)
                 {
                     stakingBurnsAndPenalties += stakingTxParser.GetStakingBurnTxMetadata().nAmount;
@@ -2314,6 +2372,19 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
             blockundo.vtxundo.push_back(CTxUndo());
         }
         UpdateCoinsAndStakes(chainparams, tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight, stakes, stakingBurnsAndPenalties, pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight, fJustCheck);
+    }
+
+    if (freeTxSizeBytes > chainparams.GetConsensus().freeTxMaxSizeInBlock) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "freetx-over-size-limit");
+    }
+
+    if (block.nBits != GetNextWorkRequired(pindex->GetAncestor(pindex->nHeight - 1), &block, chainparams.GetConsensus(), stakes, freeTxSizeBytes)) {
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
+    }
+    stakes.addFreeTxSizeForBlock(pindex->GetBlockHash(), freeTxSizeBytes);
+
+    if (fStakingActive && !fJustCheck && !CheckProofOfWork(block, chainparams.GetConsensus())) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "freetx-over-size-limit");
     }
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
@@ -3616,10 +3687,6 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     const int nHeight = pindexPrev->nHeight + 1;
     const Consensus::Params& consensusParams = params.GetConsensus();
 
-    // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
-
     // Check against checkpoints
     if (fCheckpointsEnabled) {
         // Don't accept any forks from the main chain prior to last checkpoint.
@@ -4446,7 +4513,10 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
             if (pindex->nHeight >= chainparams.GetConsensus().nStakingStartHeight) {
-                assert(stakes.getBestBlock() == pindex->GetBlockHash());
+                if (stakes.getBestBlock() != pindex->GetBlockHash()) {
+                    return error("Found inconsistency in stakes DB. Restart with --reindex-chainstate flag to rebuild it.");
+                }
+
             }
             DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins, chainparams, stakes);
             if (res == DISCONNECT_FAILED) {

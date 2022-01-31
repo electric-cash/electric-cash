@@ -7,7 +7,7 @@ from test_framework.util import (
 
 
 def check_amount_equals_excluding_fee(amount, amount_with_fee):
-    return amount_with_fee - 0.1 < amount < amount_with_fee
+    return amount_with_fee - 0.1 < amount <= amount_with_fee
 
 
 class StakingTest(BitcoinTestFramework):

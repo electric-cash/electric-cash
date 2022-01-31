@@ -4,7 +4,7 @@
 CAmount CStakingRewardsCalculator::CalculateBlockRewardForStake(const CChainParams& params, double globalRewardCoefficient, const CStakesDbEntry &stake) {
     CAmount amount = stake.getAmount();
     size_t periodIdx = stake.getPeriodIdx();
-    double percentage = params.StakingRewardPercentage()[periodIdx];
+    double percentage = params.GetConsensus().stakingRewardPercentage[periodIdx];
     auto rewardForBlock = static_cast<CAmount>(floor(globalRewardCoefficient * percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
     return rewardForBlock;
 }
@@ -30,8 +30,19 @@ double CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(const CChainP
     const AmountByPeriodArray totalStakedByPeriod = stakes.getAmountsByPeriods();
     double max_potential_payout = 0;
     for (int i = 0; i < stakingParams::NUM_STAKING_PERIODS; ++i) {
-        max_potential_payout += params.StakingRewardPercentage()[i] / 100.0 * static_cast<double>(totalStakedByPeriod[i]) / stakingParams::BLOCKS_PER_YEAR;
+        max_potential_payout += params.GetConsensus().stakingRewardPercentage[i] / 100.0 * static_cast<double>(totalStakedByPeriod[i]) / stakingParams::BLOCKS_PER_YEAR;
     }
     max_potential_payout = std::floor(max_potential_payout);
     return std::min(1.0, max_possible_payout / max_potential_payout);
+}
+
+uint32_t CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(const Consensus::Params& params,
+                                                               const std::vector<CStakesDbEntry> &stakes) {
+    uint32_t limit = 0;
+    for (auto& stake : stakes) {
+        CAmount amount = stake.getAmount();
+        size_t idx = stake.getPeriodIdx();
+        limit += std::floor((static_cast<double>(amount) / stakingParams::MIN_STAKING_AMOUNT - 1.0) * params.freeTxLimitCoefficient[idx] + params.freeTxBaseLimit);
+    }
+    return limit;
 }

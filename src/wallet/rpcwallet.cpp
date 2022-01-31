@@ -4351,7 +4351,7 @@ static UniValue depositstake(const JSONRPCRequest& request)
     if (nAmount <= stakingParams::MIN_STAKING_AMOUNT)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
-    uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().StakingPeriod());
+    uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().GetConsensus().stakingPeriod);
     CTxDestination dest;
     CCoinControl coin_control;
     if (!request.params[2].isNull() && !request.params[2].get_str().empty()) {
@@ -4389,6 +4389,8 @@ static UniValue depositstake(const JSONRPCRequest& request)
     int nChangePosRet = 2;
     std::string strFailReason;
     CTransactionRef tx;
+    coin_control.m_feerate = CFeeRate(0);
+    coin_control.fOverrideFeeRate = true;
     bool fCreated = pwallet->CreateTransaction(*locked_chain, vecSend, tx, nFeeRequired, nChangePosRet, strFailReason, coin_control);
     if (!fCreated)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
@@ -4433,7 +4435,7 @@ static UniValue burnforstaking(const JSONRPCRequest& request)
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
-
+    // TODO: Check why it is unused?
     bool fSubtractFeeFromAmount = false;
     if (!request.params[1].isEmpty()) {
         fSubtractFeeFromAmount = request.params[1].get_bool();
