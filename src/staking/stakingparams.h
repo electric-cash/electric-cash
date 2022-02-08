@@ -11,6 +11,7 @@ namespace stakingParams {
     constexpr size_t STAKING_POOL_EXPIRY_BLOCKS = 180 * BLOCKS_PER_DAY;
     constexpr CAmount MIN_STAKING_AMOUNT = 5 * COIN;
     constexpr double STAKING_EARLY_WITHDRAWAL_PENALTY_PERCENTAGE = 3.0;
+    constexpr CAmount GP_TO_STAKING_COEFFICIENT = 48;
 }
 
 

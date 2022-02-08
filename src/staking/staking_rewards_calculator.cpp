@@ -46,3 +46,11 @@ uint32_t CFreeTxLimitCalculator::CalculateFreeTxLimitForStakes(const Consensus::
     }
     return limit;
 }
+
+CAmount CGpCalculator::CalculateGpRewardForStake(const CChainParams& params, const CStakesDbEntry &stake) {
+    CAmount amount = stake.getAmount();
+    size_t periodIdx = stake.getPeriodIdx();
+    double percentage = params.GetConsensus().stakingRewardPercentage[periodIdx];
+    CAmount rewardForBlock = stakingParams::GP_TO_STAKING_COEFFICIENT * static_cast<CAmount>(floor(percentage / 100.0 * static_cast<double>(amount)) / static_cast<double>(stakingParams::BLOCKS_PER_YEAR));
+    return rewardForBlock;
+}
