@@ -1495,6 +1495,9 @@ void UpdateActiveStakes(const CChainParams& params, CStakesDBCache& stakes, cons
         stake.setReward(stake.getReward() + rewardForBlock);
         totalRewardForBlock += rewardForBlock;
         stakes.updateStakeEntry(stake);
+
+        CAmount gp = CGpCalculator::CalculateGpRewardForStake(params, stake);
+        stakes.setGpForScript(stake.getScript(), stakes.getGpForScript(stake.getScript()) + gp);
         if (height >= stake.getCompleteBlock()) {
             stakes.deactivateStake(stake.getKey(), true);
         }
@@ -1918,6 +1921,9 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                                                                                              stake);
             stake.setReward(stake.getReward() - rewardForBlock);
             stakingRewardsForBlock += rewardForBlock;
+
+            CAmount gp = CGpCalculator::CalculateGpRewardForStake(chainparams, stake);
+            stakes.setGpForScript(stake.getScript(), stakes.getGpForScript(stake.getScript()) - gp);
             if (stake.getDepositBlock(chainparams) >= pindex->nHeight) {
                 stakes.removeStakeEntry(stake.getKey());
             }

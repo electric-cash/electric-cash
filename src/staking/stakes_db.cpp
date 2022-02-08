@@ -16,6 +16,7 @@ namespace DBHeaders {
     const std::string FREE_TX_WINDOW_END_HEIGHT_PREFIX = "ftx_window_end_";
     const std::string NUM_COMPLETE_STAKES = "num_complete_stakes";
     const std::string NUM_EARLY_WITHDRAWN_STAKES = "num_early_withdrawn_stakes";
+    const std::string GOVERNANCE_POWER_PREFIX = "gp_";
 }
 
 CStakesDbEntry::CStakesDbEntry(const uint256& txidIn, const CAmount amountIn, const CAmount rewardIn, const unsigned int periodIn, const unsigned int completeBlockIn, const unsigned int numOutputIn, const CScript scriptIn, const bool activeIn) {
@@ -125,6 +126,13 @@ CFreeTxInfo CStakesDB::getFreeTxInfoForScript(const CScript &script) const {
     return it->second;
 }
 
+CAmount CStakesDB::getGpForScript(const CScript &script) const {
+    CAmount output = 0;
+    if(!m_db_wrapper.Read(DBHeaders::GOVERNANCE_POWER_PREFIX + scriptToStr(script), output))
+        LogPrintf("ERROR: Cannot get GP for script %s from database\n", scriptToStr(script));
+    return output;
+}
+
 bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LOCK(cs_main);
     verifyFlushState();
@@ -192,6 +200,22 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
     dropCache();
     return true;
+
+    std::map<std::string, CAmount> gp_map = cache->m_gp_map;
+    auto it_gp = gp_map.begin();
+    while(it_gp != gp_map.end()) {
+        batch.Write(DBHeaders::GOVERNANCE_POWER_PREFIX + it_gp->first, it_gp->second);
+        if(batch.SizeEstimate() > batch_size) {
+            LogPrint(BCLog::STAKESDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+            m_db_wrapper.WriteBatch(batch);
+            batch.Clear();
+        }
+        gp_map.erase(it_gp++);
+    }
+
+    LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
+    m_db_wrapper.WriteBatch(batch);
+    batch.Clear();
 }
 
 StakesVector CStakesDB::getStakesCompletedAtHeight(const uint32_t height) {
@@ -682,5 +706,25 @@ bool CStakesDBCache::reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Pa
         m_free_tx_info.insert(std::make_pair(scriptToStr(script), freeTxInfo));
     }
     m_free_tx_window_end_heights_to_remove.insert(nHeight);
+    return true;
+}
+
+CAmount CStakesDBCache::getGpForScript(const CScript& script) const {
+    if (m_viewonly) {
+        return m_base_db->getGpForScript(script);
+    }
+    auto it = m_gp_map.find(scriptToStr(script));
+    if(it == m_gp_map.end()) {
+        return m_base_db->getGpForScript(script);
+    }
+    return it->second;
+}
+
+bool CStakesDBCache::setGpForScript(const CScript& script, const CAmount amount) {
+    if (m_viewonly) {
+        LogPrintf("ERROR: Cannot modify a viewonly cache");
+        return false;
+    }
+    m_gp_map[scriptToStr(script)] = amount;
     return true;
 }
