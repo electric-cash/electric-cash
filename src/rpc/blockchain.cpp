@@ -2491,7 +2491,7 @@ static UniValue getfreetxinfo(const JSONRPCRequest& request)
 {
     RPCHelpMan{"getfreetxinfo",
                "\nReturns information about free transaction limits for provided staking address, <address>, if it exists.",
-               {{"address", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Staking address"}},
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Staking address"}},
                RPCResult{
         RPCResult::Type::OBJ, "", "",
         {
@@ -2527,7 +2527,7 @@ static UniValue getgp(const JSONRPCRequest& request)
 {
     RPCHelpMan{"getgp",
                "\nReturns the amount of governance power for provided address.",
-               {{"address", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Address"}},
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Address"}},
                RPCResult{
         RPCResult::Type::OBJ, "", "",
         {

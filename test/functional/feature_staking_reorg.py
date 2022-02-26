@@ -46,13 +46,12 @@ class StakingReorgTest(BitcoinTestFramework):
         staking_penalty = int(
             utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0
         reward = expected_reward if not early_withdrawal else 0
-        fee = COIN // 1000
         tx_input = {
             "txid": utxo["txid"],
             "vout": utxo["vout"]
         }
         tx_output = {
-            stake_address: (utxo["amount"] * COIN - fee - staking_penalty + reward) / COIN
+            stake_address: (utxo["amount"] * COIN - staking_penalty + reward) / COIN
         }
         raw_tx = self.nodes[node_num].createrawtransaction([tx_input], [tx_output])
         signed_raw_tx = self.nodes[node_num].signrawtransactionwithwallet(raw_tx)

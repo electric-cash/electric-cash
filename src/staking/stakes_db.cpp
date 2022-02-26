@@ -129,7 +129,10 @@ CFreeTxInfo CStakesDB::getFreeTxInfoForScript(const CScript &script) const {
 CAmount CStakesDB::getGpForScript(const CScript &script) const {
     CAmount output = 0;
     if(!m_db_wrapper.Read(DBHeaders::GOVERNANCE_POWER_PREFIX + scriptToStr(script), output))
+    {
         LogPrintf("ERROR: Cannot get GP for script %s from database\n", scriptToStr(script));
+        return 0;
+    }
     return output;
 }
 
@@ -197,9 +200,6 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
         serializer.dump();
         free_tx_window_end_height_map.erase(it_f++);
     }
-    m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
-    dropCache();
-    return true;
 
     std::map<std::string, CAmount> gp_map = cache->m_gp_map;
     auto it_gp = gp_map.begin();
@@ -216,6 +216,10 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
     LogPrint(BCLog::STAKESDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     m_db_wrapper.WriteBatch(batch);
     batch.Clear();
+
+    m_db_wrapper.Write(DBHeaders::FLUSH_ONGOING, false);
+    dropCache();
+    return true;
 }
 
 StakesVector CStakesDB::getStakesCompletedAtHeight(const uint32_t height) {
