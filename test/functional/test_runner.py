@@ -239,6 +239,8 @@ BASE_SCRIPTS = [
     'feature_staking_deposit_withdrawal.py',
     'feature_staking_free_tx.py',
     'feature_staking_free_tx_reorg.py',
+    'feature_staking_gp.py',
+    'feature_staking_gp_reorg.py',
     'rpc_getstakinginfo.py',
     'rpc_getstakesforaddress.py',
     'rpc_getstakeinfo.py',
