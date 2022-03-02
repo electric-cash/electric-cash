@@ -44,7 +44,7 @@ class StakingReorgTest(BitcoinTestFramework):
         assert len(unspent) == 1, unspent
         utxo = unspent[0]
         staking_penalty = int(
-            utxo["amount"] * COIN * decimal.Decimal(STAKING_PENALTY_PERCENTAGE / 100.0)) if early_withdrawal else 0
+            float(utxo["amount"]) * COIN * STAKING_PENALTY_PERCENTAGE / 100.0) if early_withdrawal else 0
         reward = expected_reward if not early_withdrawal else 0
         tx_input = {
             "txid": utxo["txid"],

@@ -15,7 +15,7 @@ class StakingGovPowerReorgTest(BitcoinTestFramework, DepositStakingTransactionsM
         self.reorg_recalculate_reward()
 
     def get_gp(self, address: str, node_num: int):
-        return self.nodes[node_num].getgp(address)
+        return self.nodes[node_num].getgovpower(address)
 
     def reorg_recalculate_reward(self):
         deposit_amount = 300 * COIN

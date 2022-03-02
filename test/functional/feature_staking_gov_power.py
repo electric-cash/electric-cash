@@ -1,3 +1,5 @@
+import math
+
 from test_framework.messages import COIN
 from test_framework.staking_utils import DepositStakingTransactionsMixin, STAKING_PENALTY_PERCENTAGE
 from test_framework.test_framework import BitcoinTestFramework
@@ -11,16 +13,12 @@ class StakingGovPowerBasicTest(BitcoinTestFramework, DepositStakingTransactionsM
         self.early_withdrawal_test()
         self.normal_withdrawal_test()
 
-    def send_staking_deposit_tx(self, stake_address: str, deposit_value: decimal.Decimal, node_num: int,
-                                change_address: str = None):
-        txid = self.nodes[node_num].depositstake(deposit_value, 4320, stake_address)
-        return txid
-
     def get_gp(self, address: str, node_num: int):
-        return self.nodes[node_num].getgp(address)
+        return self.nodes[node_num].getgovpower(address)
 
     def early_withdrawal_test(self):
         deposit_value = 5
+        deposit_amount = deposit_value * COIN
 
         # generate 10 blocks on node 0, then sync nodes and check height and staking balance
         addr1 = self.nodes[0].getnewaddress()
@@ -28,7 +26,7 @@ class StakingGovPowerBasicTest(BitcoinTestFramework, DepositStakingTransactionsM
         self.sync_all()
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
         assert self.get_gp(addr1, 0) == 0
 
         # mine some blocks
@@ -60,7 +58,7 @@ class StakingGovPowerBasicTest(BitcoinTestFramework, DepositStakingTransactionsM
         assert self.get_gp(addr1, 0) == 0
 
         # send staking deposit transaction
-        stake_id = self.send_staking_deposit_tx(addr1, deposit_value, node_num=0)
+        stake_id = self.send_staking_deposit_tx(addr1, deposit_amount, node_num=0)
         # mine some blocks
         num_div = 54
         for i in range(num_div):
