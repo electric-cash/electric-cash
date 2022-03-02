@@ -3,7 +3,7 @@ from test_framework.staking_utils import DepositStakingTransactionsMixin, STAKIN
 from test_framework.test_framework import BitcoinTestFramework
 
 
-class StakingGpBasicTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
+class StakingGovPowerBasicTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
 
@@ -79,4 +79,4 @@ class StakingGpBasicTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
 
 
 if __name__ == '__main__':
-    StakingGpBasicTest().main()
+    StakingGovPowerBasicTest().main()

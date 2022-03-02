@@ -126,7 +126,7 @@ CFreeTxInfo CStakesDB::getFreeTxInfoForScript(const CScript &script) const {
     return it->second;
 }
 
-CAmount CStakesDB::getGpForScript(const CScript &script) const {
+CAmount CStakesDB::getGovPowerForScript(const CScript &script) const {
     CAmount output = 0;
     if(!m_db_wrapper.Read(DBHeaders::GOVERNANCE_POWER_PREFIX + scriptToStr(script), output))
     {
@@ -201,7 +201,7 @@ bool CStakesDB::flushDB(CStakesDBCache* cache) {
         free_tx_window_end_height_map.erase(it_f++);
     }
 
-    std::map<std::string, CAmount> gp_map = cache->m_gp_map;
+    std::map<std::string, CAmount> gp_map = cache->m_gov_power_map;
     auto it_gp = gp_map.begin();
     while(it_gp != gp_map.end()) {
         batch.Write(DBHeaders::GOVERNANCE_POWER_PREFIX + it_gp->first, it_gp->second);
@@ -713,22 +713,22 @@ bool CStakesDBCache::reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Pa
     return true;
 }
 
-CAmount CStakesDBCache::getGpForScript(const CScript& script) const {
+CAmount CStakesDBCache::getGovPowerForScript(const CScript& script) const {
     if (m_viewonly) {
-        return m_base_db->getGpForScript(script);
+        return m_base_db->getGovPowerForScript(script);
     }
-    auto it = m_gp_map.find(scriptToStr(script));
-    if(it == m_gp_map.end()) {
-        return m_base_db->getGpForScript(script);
+    auto it = m_gov_power_map.find(scriptToStr(script));
+    if(it == m_gov_power_map.end()) {
+        return m_base_db->getGovPowerForScript(script);
     }
     return it->second;
 }
 
-bool CStakesDBCache::setGpForScript(const CScript& script, const CAmount amount) {
+bool CStakesDBCache::setGovPowerForScript(const CScript& script, const CAmount amount) {
     if (m_viewonly) {
         LogPrintf("ERROR: Cannot modify a viewonly cache");
         return false;
     }
-    m_gp_map[scriptToStr(script)] = amount;
+    m_gov_power_map[scriptToStr(script)] = amount;
     return true;
 }

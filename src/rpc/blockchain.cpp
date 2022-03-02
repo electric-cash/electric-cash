@@ -2523,9 +2523,9 @@ static UniValue getfreetxinfo(const JSONRPCRequest& request)
     return freeTxInfoToJSON(freeTxInfo);
 }
 
-static UniValue getgp(const JSONRPCRequest& request)
+static UniValue getgovpower(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getgp",
+    RPCHelpMan{"getgovpower",
                "\nReturns the amount of governance power for provided address.",
                {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Address"}},
                RPCResult{
@@ -2546,7 +2546,7 @@ static UniValue getgp(const JSONRPCRequest& request)
     }
     CScript destScript = GetScriptForDestination(DecodeDestination(destination));
     CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
-    CAmount gp = stakes.getGpForScript(destScript);
+    CAmount gp = stakes.getGovPowerForScript(destScript);
     return gp;
 }
 
@@ -2613,7 +2613,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
     { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
     { "blockchain",         "getfreetxinfo",          &getfreetxinfo,          {"address"} },
-    { "blockchain",         "getgp",                  &getgp,                  {"address"} },
+    { "blockchain",         "getgovpower",            &getgovpower,            {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

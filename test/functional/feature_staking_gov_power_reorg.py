@@ -7,7 +7,7 @@ from test_framework.util import (
 )
 
 
-class StakingGpReorgTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
+class StakingGovPowerReorgTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
 
@@ -62,4 +62,4 @@ class StakingGpReorgTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
 
 
 if __name__ == '__main__':
-    StakingGpReorgTest().main()
+    StakingGovPowerReorgTest().main()

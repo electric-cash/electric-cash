@@ -201,7 +201,7 @@ public:
     void verifyFlushState();
     void verifyTotalAmounts() const;
     ClosedFreeTxWindowInfoVector getFreeTxWindowsCompletedAtHeight(const uint32_t nHeight);
-    CAmount getGpForScript(const CScript &script) const;
+    CAmount getGovPowerForScript(const CScript &script) const;
 };
 
 
@@ -227,7 +227,7 @@ private:
     std::set<uint32_t> m_free_tx_window_end_heights_to_remove {};
     size_t m_num_complete_stakes = 0;
     size_t m_num_early_withdrawn_stakes = 0;
-    std::map<std::string, CAmount> m_gp_map;
+    std::map<std::string, CAmount> m_gov_power_map;
 
     uint32_t calculateFreeTxLimit(const std::set<uint256>& activeStakeIds, const Consensus::Params& params) const;
     void eraseStakeFromScriptMap(const CStakesDbEntry &stake);
@@ -266,8 +266,8 @@ public:
     bool reactivateFreeTxInfos(uint32_t nHeight, const Consensus::Params &params);
     bool undoFreeTransaction(const CScript &script, const CTransaction &tx);
 
-    CAmount getGpForScript(const CScript& script) const;
-    bool setGpForScript(const CScript& script, const CAmount amount);
+    CAmount getGovPowerForScript(const CScript& script) const;
+    bool setGovPowerForScript(const CScript& script, const CAmount amount);
 };
 
 #endif //ELECTRIC_CASH_STAKES_DB_H
