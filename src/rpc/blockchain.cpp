@@ -2490,8 +2490,8 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
 static UniValue getfreetxinfo(const JSONRPCRequest& request)
 {
     RPCHelpMan{"getfreetxinfo",
-               "\nReturns information about free transaction limits for provided staking address, <txid>, if it exists.",
-               {{"address", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "Staking address"}},
+               "\nReturns information about free transaction limits for provided staking address, <address>, if it exists.",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Staking address"}},
                RPCResult{
         RPCResult::Type::OBJ, "", "",
         {
@@ -2521,6 +2521,33 @@ static UniValue getfreetxinfo(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No free TX info for this address");
     }
     return freeTxInfoToJSON(freeTxInfo);
+}
+
+static UniValue getgovpower(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getgovpower",
+               "\nReturns the amount of governance power for provided address.",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Address"}},
+               RPCResult{
+        RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::NUM, "gp", "GP amount"},
+            }
+            },
+            RPCExamples{
+        HelpExampleCli("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+        + HelpExampleRpc("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+    }
+    }.Check(request);
+
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    CScript destScript = GetScriptForDestination(DecodeDestination(destination));
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CAmount gp = stakes.getGovPowerForScript(destScript);
+    return gp;
 }
 
 static UniValue getstakesforaddress(const JSONRPCRequest& request)
@@ -2585,7 +2612,8 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
     { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
     { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
-    { "blockchain",         "getfreetxinfo",    &getfreetxinfo,    {"address"} },
+    { "blockchain",         "getfreetxinfo",          &getfreetxinfo,          {"address"} },
+    { "blockchain",         "getgovpower",            &getgovpower,            {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

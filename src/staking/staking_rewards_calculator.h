@@ -25,5 +25,10 @@ public:
     static uint32_t CalculateFreeTxLimitForStakes(const Consensus::Params& params, const std::vector<CStakesDbEntry>& stakes);
 };
 
+class CGpCalculator {
+public:
+    static CAmount CalculateGpRewardForStake(const CChainParams& params, const CStakesDbEntry& stake);
+};
+
 
 #endif //ELECTRIC_CASH_STAKING_REWARDS_CALCULATOR_H

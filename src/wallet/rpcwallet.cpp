@@ -4348,7 +4348,7 @@ static UniValue depositstake(const JSONRPCRequest& request)
 
     // Amount
     CAmount nAmount = AmountFromValue(request.params[0]);
-    if (nAmount <= stakingParams::MIN_STAKING_AMOUNT)
+    if (nAmount < stakingParams::MIN_STAKING_AMOUNT)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid stake amount");
 
     uint8_t period_index = ParseStakingPeriodToIndex(request.params[1], ::Params().GetConsensus().stakingPeriod);
