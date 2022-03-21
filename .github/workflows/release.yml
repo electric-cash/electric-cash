@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - dev
+      - fix/*
 
 env:
   ECR_REPOSITORY: electric-cash
@@ -24,6 +25,8 @@ jobs:
         run: |
           if [[ $GITHUB_REF == 'refs/heads/dev' ]]; then
             echo "IMAGE_TAG=dev-$IMAGE_TAG" >> "$GITHUB_ENV"
+          elif [[ $GITHUB_REF == 'refs/heads/fix/'* ]]; then
+            echo "IMAGE_TAG=fix-$IMAGE_TAG" >> "$GITHUB_ENV"
           fi
 
       - name: Configure AWS credentials

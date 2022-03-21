@@ -47,6 +47,7 @@ struct CTxMemPoolModifiedEntry {
         nTxWeight = entry->GetTxWeight();
         nFee = entry->GetFee();
         nTxFreeSize = entry->GetTxFreeSize();
+        nTxFreeWeight = entry->GetTxFreeWeight();
     }
 
     int64_t GetModifiedFee() const { return iter->GetModifiedFee(); }
@@ -67,6 +68,7 @@ struct CTxMemPoolModifiedEntry {
     int64_t nFreeTxWeightWithAncestors;
     int64_t nTxWeight;
     int64_t nTxFreeSize;
+    int64_t nTxFreeWeight;
 };
 
 /** Comparator for CTxMemPool::txiter objects.
@@ -129,6 +131,10 @@ struct update_for_parent_inclusion
     {
         e.nModFeesWithAncestors -= iter->GetFee();
         e.nSizeWithAncestors -= iter->GetTxSize();
+
+        e.nFreeTxSizeWithAncestors -= iter->GetTxFreeSize();
+        e.nFreeTxWeightWithAncestors -= iter->GetTxFreeWeight();
+
         e.nSigOpCostWithAncestors -= iter->GetSigOpCost();
     }
 
