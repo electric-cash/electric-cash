@@ -40,13 +40,17 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
         nFreeTxSizeWithAncestors = GetTxSize();
         nFreeSizeWithDescendants = GetTxSize();
         nTxFreeSize = GetTxSize();
+
         nFreeTxWeightWithAncestors = GetTxWeight();
+        nTxFreeWeight = GetTxWeight();
     }
     else{
         nFreeTxSizeWithAncestors = 0;
         nFreeSizeWithDescendants = 0;
-        nFreeTxWeightWithAncestors = 0;
         nTxFreeSize = 0;
+
+        nFreeTxWeightWithAncestors = 0;
+        nTxFreeWeight = 0;
     }
 }
 
@@ -107,8 +111,9 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap &cachedDescendan
             modifyFee += cit->GetModifiedFee();
             modifyCount++;
             cachedDescendants[updateIt].insert(cit);
-            // Update ancestor state for each descendant
-            mapTx.modify(cit, update_ancestor_state(updateIt->GetTxSize(), updateIt->GetModifiedFee(), 1, updateIt->GetSigOpCost(), updateIt->GetFreeTxSizeWithAncestors(), updateIt->GetFreeTxWeightWithAncestors()));
+            // Update ancestor state for each descendant-
+            mapTx.modify(cit, update_ancestor_state(updateIt->GetTxSize(), updateIt->GetModifiedFee(), 1, updateIt->GetSigOpCost(), updateIt->GetTxFreeSize(), updateIt->GetTxFreeWeight()));
+
         }
     }
     mapTx.modify(updateIt, update_descendant_state(modifySize, modifyFreeSize, modifyFee, modifyCount));
@@ -254,8 +259,8 @@ void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntries &setAncesto
         updateSize += ancestorIt->GetTxSize();
         updateFee += ancestorIt->GetModifiedFee();
         updateSigOpsCost += ancestorIt->GetSigOpCost();
-        updateFreeTxSize += ancestorIt->GetFreeTxSizeWithAncestors();
-        updateFreeTxWeight += ancestorIt->GetFreeTxWeightWithAncestors();
+        updateFreeTxSize += ancestorIt->GetTxFreeSize();
+        updateFreeTxWeight += ancestorIt->GetTxFreeWeight();
     }
     mapTx.modify(it, update_ancestor_state(updateSize, updateFee, updateCount, updateSigOpsCost, updateFreeTxSize, updateFreeTxWeight));
 }
@@ -287,8 +292,8 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
             int64_t modifySize = -((int64_t)removeIt->GetTxSize());
             CAmount modifyFee = -removeIt->GetModifiedFee();
             int modifySigOps = -removeIt->GetSigOpCost();
-            int64_t modifyFreeTxSize = -removeIt->GetFreeTxSizeWithAncestors();
-            int64_t modifyFreeTxWeight = -removeIt->GetFreeTxWeightWithAncestors();
+            int64_t modifyFreeTxSize = -removeIt->GetTxFreeSize();
+            int64_t modifyFreeTxWeight = -removeIt->GetTxFreeWeight();
             for (txiter dit : setDescendants) {
                 mapTx.modify(dit, update_ancestor_state(modifySize, modifyFee, -1, modifySigOps, modifyFreeTxSize, modifyFreeTxWeight));
             }

@@ -259,8 +259,10 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
                 modEntry.nSizeWithAncestors -= it->GetTxSize();
                 modEntry.nModFeesWithAncestors -= it->GetModifiedFee();
                 modEntry.nSigOpCostWithAncestors -= it->GetSigOpCost();
-                modEntry.nFreeTxSizeWithAncestors -= it->GetFreeTxSizeWithAncestors();
-                modEntry.nFreeTxWeightWithAncestors -= it->GetFreeTxWeightWithAncestors();
+
+                modEntry.nFreeTxSizeWithAncestors -= it->GetTxFreeSize();
+                modEntry.nFreeTxWeightWithAncestors -= it->GetTxFreeWeight();
+
                 mapModifiedTx.insert(modEntry);
             } else {
                 mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
