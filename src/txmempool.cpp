@@ -18,6 +18,7 @@
 #include <util/moneystr.h>
 #include <util/time.h>
 #include <validationinterface.h>
+#include <staking/transaction.h>
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
                                  int64_t _nTime, unsigned int _entryHeight,
@@ -940,7 +941,10 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     CTransactionRef ptx = mempool.get(outpoint.hash);
     if (ptx) {
         if (outpoint.n < ptx->vout.size()) {
-            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
+            CStakingTransactionParser stakingParser(ptx);
+            bool isStake = stakingParser.GetStakingTxType() == StakingTransactionType::DEPOSIT &&
+                    stakingParser.GetStakingDepositTxMetadata().nOutputIndex == outpoint.n;
+            coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false, isStake);
             return true;
         } else {
             return false;

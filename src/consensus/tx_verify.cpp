@@ -185,8 +185,11 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
         if (coin.IsStake()) {
             CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
+            if (!stakeDbEntry.isValid()) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unconfirmed-stake-as-input");
+            }
             isStakingWithdrawal = true;
-            if (stakeDbEntry.isValid() && stakeDbEntry.isComplete()) {
+            if (stakeDbEntry.isComplete()) {
                 CAmount stakingReward = stakeDbEntry.getReward();
                 nValueIn += stakingReward;
             } else {
