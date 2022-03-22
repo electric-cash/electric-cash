@@ -215,6 +215,7 @@ UniValue stakeToJSON(const CStakesDbEntry& stake)
     AssertLockNotHeld(cs_main); // For performance reasons
 
     UniValue result(UniValue::VOBJ);
+    result.pushKV("output_index", static_cast<int>(stake.getNumOutput()));
     result.pushKV("deposit_height", static_cast<int>(stake.getDepositBlock(Params())));
     result.pushKV("staking_period", ::Params().GetConsensus().stakingPeriod[stake.getPeriodIdx()]);
     result.pushKV("staking_amount", ValueFromAmount(stake.getAmount()));
@@ -2464,6 +2465,7 @@ static UniValue getstakeinfo(const JSONRPCRequest& request)
                RPCResult{
                        RPCResult::Type::OBJ, "", "",
                        {
+                               {RPCResult::Type::NUM, "output_index", "Index of a stake output."},
                                {RPCResult::Type::STR_HEX, "deposit_height", "Block height at which the stake was deposited."},
                                {RPCResult::Type::NUM, "staking_period", "Length of a stake in number of blocks."},
                                {RPCResult::Type::STR_AMOUNT, "staking_amount", "Staked amount in ELCASH."},
