@@ -4552,6 +4552,8 @@ static UniValue withdrawstake(const JSONRPCRequest& request)
         }
     }
 
+    coin_control.m_feerate = CFeeRate(0);
+    coin_control.fOverrideFeeRate = true;
     EnsureWalletIsUnlocked(pwallet);
 
     CTransactionRef tx = SendMoney(*locked_chain, pwallet, dest, nAmount, true, coin_control, std::move(mapValue));
