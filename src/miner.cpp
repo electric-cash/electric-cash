@@ -263,6 +263,17 @@ int BlockAssembler::UpdatePackagesForAdded(const CTxMemPool::setEntries& already
                 modEntry.nFreeTxSizeWithAncestors -= it->GetTxFreeSize();
                 modEntry.nFreeTxWeightWithAncestors -= it->GetTxFreeWeight();
 
+                if (it->GetMiningType() == TxMiningType::FREE_TX){
+                    auto it_script = it->GetTx().vin[0].scriptSig;
+                    UsedFreeTxLimit_t::iterator i = modEntry.nUsedFreeTxLimitWithAncestors.find(it_script);
+                    if (i != modEntry.nUsedFreeTxLimitWithAncestors.end()) {
+                        modEntry.nUsedFreeTxLimitWithAncestors[it_script] -= it->GetTxFreeSize();
+                    }
+                    else {
+                        modEntry.nUsedFreeTxLimitWithAncestors[it_script] = (-it->GetTxFreeSize());
+                    }
+                }
+
                 mapModifiedTx.insert(modEntry);
             } else {
                 mapModifiedTx.modify(mit, update_for_parent_inclusion(it));
@@ -345,6 +356,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
     indexed_modified_transaction_set mapModifiedTx;
     // Keep track of entries that failed inclusion, to avoid duplicate work
     CTxMemPool::setEntries failedTx;
+    UsedFreeTxLimit_t alreadyUsedFreeTxLimit;
 
     // Start by adding all descendants of previously added txs to mapModifiedTx
     // and modifying them for their already included ancestors
@@ -382,7 +394,8 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
         int64_t freeTxSizeWithAncestors = iter->GetFreeTxSizeWithAncestors();
         int64_t freeTxWeightWithAncestors = iter->GetFreeTxWeightWithAncestors();
         CAmount txFee = iter->GetFee();
-
+        auto mainTxInPackage = iter->GetTx();
+        auto usedFreeTxLimitWithAncestors = iter->GetUsedFreeTxLimitWithAncestors();
         if (fUsingModified) {
             packageSize = modit->nSizeWithAncestors;
             packageFees = modit->nModFeesWithAncestors;
@@ -390,6 +403,7 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             freeTxSizeWithAncestors = modit->nFreeTxSizeWithAncestors;
             freeTxWeightWithAncestors = modit->nFreeTxWeightWithAncestors;
             txFee = modit->nFee;
+            usedFreeTxLimitWithAncestors = modit->nUsedFreeTxLimitWithAncestors;
         }
 
         uint64_t nMinFeeForPaidPackage = blockMinFeeRate.GetFee(packageSize, freeTxSizeWithAncestors);
@@ -435,10 +449,48 @@ void BlockAssembler::addPackageTxs(int &nPackagesSelected, int &nDescendantsUpda
             continue;
         }
 
-        if ((nFreeTxWeight + freeTxWeightWithAncestors) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
+        // Check free limit
+        bool IsOverFreeLimit = false;
+        CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+
+        for (auto& it: usedFreeTxLimitWithAncestors) {
+            if(it.second < 0)
+            {
+                continue; // should not happen
+            }
+
+            CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(it.first);
+            if (!freeTxInfo.isValid()) {
+                freeTxInfo = stakes.createFreeTxInfoForScript(it.first, 0, Params().GetConsensus());
+            }
+            if (!freeTxInfo.isValid()) {
+                continue; // should not happen
+            }
+
+            int32_t usedInBlock = 0;
+            if (alreadyUsedFreeTxLimit.find(it.first) != alreadyUsedFreeTxLimit.end()){
+                usedInBlock = alreadyUsedFreeTxLimit[it.first];
+            }
+
+            if(freeTxInfo.getUsedConfirmedLimit() + it.second + usedInBlock > freeTxInfo.getLimit()){
+                IsOverFreeLimit = true;
+            }
+        }
+
+        if (!IsOverFreeLimit && (nFreeTxWeight + freeTxWeightWithAncestors) < chainparams.GetConsensus().freeTxMaxSizeInBlock)
         {
             nFreeTxWeight += freeTxWeightWithAncestors;
             nFreeTxSize += freeTxSizeWithAncestors;
+
+            // Update already used free limits
+            for (auto& it: usedFreeTxLimitWithAncestors) {
+                if (alreadyUsedFreeTxLimit.find(it.first) != alreadyUsedFreeTxLimit.end()){
+                    alreadyUsedFreeTxLimit[it.first] += it.second;
+                }
+                else{
+                    alreadyUsedFreeTxLimit[it.first] = it.second;
+                }
+            }
         }
         else{
             if (fUsingModified) {
