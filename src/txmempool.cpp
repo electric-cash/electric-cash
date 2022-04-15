@@ -26,6 +26,8 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     : tx(_tx), nFee(_nFee), nTxWeight(GetTransactionWeight(*tx)), nUsageSize(RecursiveDynamicUsage(tx)), nTime(_nTime), entryHeight(_entryHeight),
     spendsCoinbase(_spendsCoinbase), sigOpCost(_sigOpsCost), lockPoints(lp), m_epoch(0)
 {
+    calculateTransactionMiningType(); // Has to be before fee variables asingment
+
     nCountWithDescendants = 1;
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
@@ -37,7 +39,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     nModFeesWithAncestors = nFee;
     nSigOpCostWithAncestors = sigOpCost;
 
-    if (nFee == 0){
+    if (miningType == TxMiningType::FREE_TX || miningType == TxMiningType::STAKE_TX){
         nFreeTxSizeWithAncestors = GetTxSize();
         nFreeSizeWithDescendants = GetTxSize();
         nTxFreeSize = GetTxSize();
@@ -53,6 +55,40 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
         nFreeTxWeightWithAncestors = 0;
         nTxFreeWeight = 0;
     }
+
+    // Used limit only for free txs not staking transactions involved
+    if (miningType == TxMiningType::FREE_TX){
+        usedFreeTxLimit = nTxFreeSize;
+        usedFreeTxLimitWithAncestors[tx->vin[0].scriptSig] = nTxFreeSize;
+    }
+}
+
+// Has to be in constructor before fee variables asingment
+void CTxMemPoolEntry::calculateTransactionMiningType(){
+    if (nFee != 0) {
+        miningType = TxMiningType::NORMAL_TX;
+        return;
+    }
+    if (CStakingTransactionParser(tx).GetStakingTxType() != StakingTransactionType::NONE) {
+        miningType = TxMiningType::STAKE_TX;
+        return;
+    }
+
+    CScript freeTxInputScript = tx->vin[0].scriptSig;
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(freeTxInputScript);
+    if (!freeTxInfo.isValid()) {
+        freeTxInfo = stakes.createFreeTxInfoForScript(freeTxInputScript, 0, Params().GetConsensus());
+    }
+    if (!freeTxInfo.isValid()) {
+        // invalid free tx treated as normal
+        nFee = 1; // Fee cannot be 0 for normal transaction
+        miningType = TxMiningType::NORMAL_TX;
+        return;
+    }
+
+    miningType = TxMiningType::FREE_TX;
+    return;
 }
 
 void CTxMemPoolEntry::UpdateFeeDelta(int64_t newFeeDelta)
@@ -113,7 +149,7 @@ void CTxMemPool::UpdateForDescendants(txiter updateIt, cacheMap &cachedDescendan
             modifyCount++;
             cachedDescendants[updateIt].insert(cit);
             // Update ancestor state for each descendant-
-            mapTx.modify(cit, update_ancestor_state(updateIt->GetTxSize(), updateIt->GetModifiedFee(), 1, updateIt->GetSigOpCost(), updateIt->GetTxFreeSize(), updateIt->GetTxFreeWeight()));
+            mapTx.modify(cit, update_ancestor_state(updateIt->GetTxSize(), updateIt->GetModifiedFee(), 1, updateIt->GetSigOpCost(), updateIt->GetTxFreeSize(), updateIt->GetTxFreeWeight(), updateIt->GetUsedFreeTxLimitWithAncestors()));
 
         }
     }
@@ -255,6 +291,7 @@ void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntries &setAncesto
     int64_t updateSigOpsCost = 0;
     int64_t updateFreeTxSize = 0;
     int64_t updateFreeTxWeight = 0;
+    UsedFreeTxLimit_t updateUsedFreeTxLimitWithAncestors;
 
     for (txiter ancestorIt : setAncestors) {
         updateSize += ancestorIt->GetTxSize();
@@ -262,8 +299,20 @@ void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntries &setAncesto
         updateSigOpsCost += ancestorIt->GetSigOpCost();
         updateFreeTxSize += ancestorIt->GetTxFreeSize();
         updateFreeTxWeight += ancestorIt->GetTxFreeWeight();
+
+
+        if (ancestorIt->GetMiningType() == TxMiningType::FREE_TX){
+            auto it_script = ancestorIt->GetTx().vin[0].scriptSig;
+            UsedFreeTxLimit_t::iterator i = updateUsedFreeTxLimitWithAncestors.find(it_script);
+            if (i != updateUsedFreeTxLimitWithAncestors.end()) {
+                updateUsedFreeTxLimitWithAncestors[it_script] += ancestorIt->GetTxFreeSize();
+            }
+            else{
+                updateUsedFreeTxLimitWithAncestors[it_script] = ancestorIt->GetTxFreeSize();
+            }
+        }
     }
-    mapTx.modify(it, update_ancestor_state(updateSize, updateFee, updateCount, updateSigOpsCost, updateFreeTxSize, updateFreeTxWeight));
+    mapTx.modify(it, update_ancestor_state(updateSize, updateFee, updateCount, updateSigOpsCost, updateFreeTxSize, updateFreeTxWeight, updateUsedFreeTxLimitWithAncestors));
 }
 
 void CTxMemPool::UpdateChildrenForRemoval(txiter it)
@@ -295,8 +344,16 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
             int modifySigOps = -removeIt->GetSigOpCost();
             int64_t modifyFreeTxSize = -removeIt->GetTxFreeSize();
             int64_t modifyFreeTxWeight = -removeIt->GetTxFreeWeight();
+
+
+            UsedFreeTxLimit_t modifyUsedFreeTxLimitWithAncestors;
+            if (removeIt->GetMiningType() == TxMiningType::FREE_TX){
+                auto it_script = removeIt->GetTx().vin[0].scriptSig;
+                modifyUsedFreeTxLimitWithAncestors[it_script] = (-removeIt->GetTxFreeSize());
+            }
+
             for (txiter dit : setDescendants) {
-                mapTx.modify(dit, update_ancestor_state(modifySize, modifyFee, -1, modifySigOps, modifyFreeTxSize, modifyFreeTxWeight));
+                mapTx.modify(dit, update_ancestor_state(modifySize, modifyFee, -1, modifySigOps, modifyFreeTxSize, modifyFreeTxWeight, modifyUsedFreeTxLimitWithAncestors));
             }
         }
     }
@@ -346,7 +403,15 @@ void CTxMemPoolEntry::UpdateDescendantState(int64_t modifySize, int64_t modifyFr
     assert(int64_t(nCountWithDescendants) > 0);
 }
 
-void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps, int64_t modifyAncestorFreeTxSize, int64_t modifyAncestorFreeTxWeight)
+void CTxMemPoolEntry::UpdateAncestorState(
+    int64_t modifySize,
+    CAmount modifyFee,
+    int64_t modifyCount,
+    int64_t modifySigOps,
+    int64_t modifyAncestorFreeTxSize,
+    int64_t modifyAncestorFreeTxWeight,
+    UsedFreeTxLimit_t modifyUsedFreeTxLimitWithAncestors
+    )
 {
     nSizeWithAncestors += modifySize;
     assert(nSizeWithAncestors > 0);
@@ -359,6 +424,19 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
     assert(nFreeTxSizeWithAncestors >= 0);
     nFreeTxWeightWithAncestors += modifyAncestorFreeTxWeight;
     assert(nFreeTxWeightWithAncestors >= 0);
+
+    for (auto& it: modifyUsedFreeTxLimitWithAncestors) {
+        UsedFreeTxLimit_t::iterator i = usedFreeTxLimitWithAncestors.find(it.first);
+
+        if (i != usedFreeTxLimitWithAncestors.end()) {
+            usedFreeTxLimitWithAncestors[it.first] += it.second;
+        }
+        else{
+            usedFreeTxLimitWithAncestors[it.first] = it.second;
+        }
+
+        assert(usedFreeTxLimitWithAncestors[it.first] >= 0);
+    }
 }
 
 CTxMemPool::CTxMemPool(CBlockPolicyEstimator* estimator)
@@ -877,7 +955,7 @@ void CTxMemPool::PrioritiseTransaction(const uint256& hash, const CAmount& nFeeD
             CalculateDescendants(it, setDescendants);
             setDescendants.erase(it);
             for (txiter descendantIt : setDescendants) {
-                mapTx.modify(descendantIt, update_ancestor_state(0, nFeeDelta, 0, 0, 0, 0));
+                mapTx.modify(descendantIt, update_ancestor_state(0, nFeeDelta, 0, 0, 0, 0, UsedFreeTxLimit_t()));
             }
             ++nTransactionsUpdated;
         }

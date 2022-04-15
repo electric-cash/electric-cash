@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <map>
 
 #include <amount.h>
 #include <coins.h>
@@ -61,12 +62,20 @@ struct LockPoints
  * all ancestors of the newly added transaction.
  *
  */
+enum TxMiningType{
+    NORMAL_TX,
+    FREE_TX,
+    STAKE_TX
+};
+
+using UsedFreeTxLimit_t = std::map<CScript, int64_t> ;
 
 class CTxMemPoolEntry
 {
 private:
     const CTransactionRef tx;
-    const CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
+    CAmount nFee;             //!< Cached to avoid expensive parent-transaction lookups
+    TxMiningType miningType;
     const size_t nTxWeight;         //!< ... and avoid recomputing tx weight (also used for GetTxSize())
     const size_t nUsageSize;        //!< ... and total memory usage
     const int64_t nTime;            //!< Local time when entering the mempool
@@ -93,6 +102,10 @@ private:
     int64_t nSigOpCostWithAncestors;
     int64_t nFreeTxSizeWithAncestors;
     int64_t nFreeTxWeightWithAncestors;
+    uint32_t usedFreeTxLimit;
+    UsedFreeTxLimit_t usedFreeTxLimitWithAncestors;
+
+    void calculateTransactionMiningType();
 
 public:
     CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
@@ -117,7 +130,7 @@ public:
     // Adjusts the descendant state.
     void UpdateDescendantState(int64_t modifySize, int64_t modifyFreeSize, CAmount modifyFee, int64_t modifyCount);
     // Adjusts the ancestor state
-    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps, int64_t modifyAncestorFreeTxSize, int64_t modifyAncestorFreeTxWeight);
+    void UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int64_t modifySigOps, int64_t modifyAncestorFreeTxSize, int64_t modifyAncestorFreeTxWeight, UsedFreeTxLimit_t modifyUsedFreeTxLimitWithAncestors);
     // Updates the fee delta used for mining priority score, and the
     // modified fees with descendants.
     void UpdateFeeDelta(int64_t feeDelta);
@@ -137,6 +150,8 @@ public:
     int64_t GetSigOpCostWithAncestors() const { return nSigOpCostWithAncestors; }
     int64_t GetFreeTxSizeWithAncestors() const { return nFreeTxSizeWithAncestors; }
     int64_t GetFreeTxWeightWithAncestors() const {return nFreeTxWeightWithAncestors; }
+    UsedFreeTxLimit_t GetUsedFreeTxLimitWithAncestors() const {return usedFreeTxLimitWithAncestors; }
+    TxMiningType GetMiningType() const { return miningType; }
 
     mutable size_t vTxHashesIdx; //!< Index in mempool's vTxHashes
     mutable uint64_t m_epoch; //!< epoch when last touched, useful for graph algorithms
@@ -161,12 +176,12 @@ struct update_descendant_state
 
 struct update_ancestor_state
 {
-    update_ancestor_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount, int64_t _modifySigOpsCost, int64_t _modifyAncestorFreeTxSize, int64_t _modifyAncestorFreeTxWeight) :
-        modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount), modifySigOpsCost(_modifySigOpsCost), modifyAncestorFreeTxSize(_modifyAncestorFreeTxSize), modifyAncestorFreeTxWeight(_modifyAncestorFreeTxWeight)
+    update_ancestor_state(int64_t _modifySize, CAmount _modifyFee, int64_t _modifyCount, int64_t _modifySigOpsCost, int64_t _modifyAncestorFreeTxSize, int64_t _modifyAncestorFreeTxWeight, UsedFreeTxLimit_t _modifyUsedFreeTxLimitWithAncestors) :
+        modifySize(_modifySize), modifyFee(_modifyFee), modifyCount(_modifyCount), modifySigOpsCost(_modifySigOpsCost), modifyAncestorFreeTxSize(_modifyAncestorFreeTxSize), modifyAncestorFreeTxWeight(_modifyAncestorFreeTxWeight), modifyUsedFreeTxLimitWithAncestors(_modifyUsedFreeTxLimitWithAncestors)
     {}
 
     void operator() (CTxMemPoolEntry &e)
-        { e.UpdateAncestorState(modifySize, modifyFee, modifyCount, modifySigOpsCost, modifyAncestorFreeTxSize, modifyAncestorFreeTxWeight); }
+        { e.UpdateAncestorState(modifySize, modifyFee, modifyCount, modifySigOpsCost, modifyAncestorFreeTxSize, modifyAncestorFreeTxWeight, modifyUsedFreeTxLimitWithAncestors); }
 
     private:
         int64_t modifySize;
@@ -175,6 +190,7 @@ struct update_ancestor_state
         int64_t modifySigOpsCost;
         int64_t modifyAncestorFreeTxSize;
         int64_t modifyAncestorFreeTxWeight;
+        UsedFreeTxLimit_t modifyUsedFreeTxLimitWithAncestors;
 };
 
 struct update_fee_delta

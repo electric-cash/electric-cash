@@ -48,6 +48,8 @@ struct CTxMemPoolModifiedEntry {
         nFee = entry->GetFee();
         nTxFreeSize = entry->GetTxFreeSize();
         nTxFreeWeight = entry->GetTxFreeWeight();
+
+        nUsedFreeTxLimitWithAncestors = entry->GetUsedFreeTxLimitWithAncestors();
     }
 
     int64_t GetModifiedFee() const { return iter->GetModifiedFee(); }
@@ -69,6 +71,7 @@ struct CTxMemPoolModifiedEntry {
     int64_t nTxWeight;
     int64_t nTxFreeSize;
     int64_t nTxFreeWeight;
+    UsedFreeTxLimit_t nUsedFreeTxLimitWithAncestors;
 };
 
 /** Comparator for CTxMemPool::txiter objects.
@@ -136,6 +139,17 @@ struct update_for_parent_inclusion
         e.nFreeTxWeightWithAncestors -= iter->GetTxFreeWeight();
 
         e.nSigOpCostWithAncestors -= iter->GetSigOpCost();
+
+        if (iter->GetMiningType() == TxMiningType::FREE_TX){
+            auto it_script = iter->GetTx().vin[0].scriptSig;
+            UsedFreeTxLimit_t::iterator i = e.nUsedFreeTxLimitWithAncestors.find(it_script);
+            if (i != e.nUsedFreeTxLimitWithAncestors.end()) {
+                e.nUsedFreeTxLimitWithAncestors[it_script] -= iter->GetTxFreeSize();
+            }
+            else {
+                e.nUsedFreeTxLimitWithAncestors[it_script] = (-iter->GetTxFreeSize());
+            }
+        }
     }
 
     CTxMemPool::txiter iter;
