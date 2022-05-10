@@ -74,7 +74,10 @@ void CTxMemPoolEntry::calculateTransactionMiningType(){
         return;
     }
 
-    CScript freeTxInputScript = tx->vin[0].scriptSig;
+    const COutPoint &prevout = tx->vin[0].prevout;
+    const Coin& coin = ::ChainstateActive().CoinsTip().AccessCoin(prevout);
+    const CScript freeTxInputScript = coin.out.scriptPubKey;
+
     CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
     CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(freeTxInputScript);
     if (!freeTxInfo.isValid()) {
