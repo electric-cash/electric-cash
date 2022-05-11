@@ -106,6 +106,7 @@ private:
     UsedFreeTxLimit_t usedFreeTxLimitWithAncestors;
     CScript freeTxInputScript;
 
+
     void calculateTransactionMiningType();
 
 public:
