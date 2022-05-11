@@ -75,7 +75,7 @@ public:
 
     void removeUnconfirmedTxId(const uint256& txid) {
         if (m_unconfirmed_transactions.count(txid)) {
-            m_used_limit_confirmed -= m_unconfirmed_transactions[txid];
+            m_used_limit_unconfirmed -= m_unconfirmed_transactions[txid];
             m_unconfirmed_transactions.erase(txid);
         }
     }

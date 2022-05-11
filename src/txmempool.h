@@ -104,6 +104,7 @@ private:
     int64_t nFreeTxWeightWithAncestors;
     uint32_t usedFreeTxLimit;
     UsedFreeTxLimit_t usedFreeTxLimitWithAncestors;
+    CScript freeTxInputScript;
 
     void calculateTransactionMiningType();
 

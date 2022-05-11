@@ -59,7 +59,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
     // Used limit only for free txs not staking transactions involved
     if (miningType == TxMiningType::FREE_TX){
         usedFreeTxLimit = nTxFreeSize;
-        usedFreeTxLimitWithAncestors[tx->vin[0].scriptSig] = nTxFreeSize;
+        usedFreeTxLimitWithAncestors[freeTxInputScript] = nTxFreeSize;
     }
 }
 
@@ -76,7 +76,7 @@ void CTxMemPoolEntry::calculateTransactionMiningType(){
 
     const COutPoint &prevout = tx->vin[0].prevout;
     const Coin& coin = ::ChainstateActive().CoinsTip().AccessCoin(prevout);
-    const CScript freeTxInputScript = coin.out.scriptPubKey;
+    freeTxInputScript = coin.out.scriptPubKey;
 
     CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
     CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(freeTxInputScript);

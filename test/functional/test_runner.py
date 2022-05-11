@@ -104,7 +104,7 @@ BASE_SCRIPTS = [
     'rpc_rawtransaction.py',
     'wallet_address_types.py',
     # TODO(mtwaro): re-enable this when miner is ready for free tx
-    #'feature_bip68_sequence.py',
+    'feature_bip68_sequence.py',
     'p2p_feefilter.py',
     'feature_reindex.py',
     'feature_abortnode.py',
@@ -154,7 +154,7 @@ BASE_SCRIPTS = [
     'rpc_setban.py',
     'p2p_blocksonly.py',
     # TODO(mtwaro): re-enable this when miner is ready for free tx
-    # 'mining_prioritisetransaction.py',
+    'mining_prioritisetransaction.py',
     'p2p_invalid_locator.py',
     'p2p_invalid_block.py',
     'p2p_invalid_messages.py',
@@ -233,19 +233,19 @@ BASE_SCRIPTS = [
     'auxpow_zerohash.py',
 
     # staking tests
-    # 'feature_staking_pool.py',
-    # 'feature_staking_burn.py',
-    # 'feature_staking_reorg.py',
-    # 'feature_staking_deposit_withdrawal.py',
-    # 'feature_staking_free_tx.py',
-    # 'feature_staking_free_tx_reorg.py',
-    # 'feature_staking_gov_power.py',
-    # 'feature_staking_gov_power_reorg.py',
-    # 'rpc_getstakinginfo.py',
-    # 'rpc_getstakesforaddress.py',
-    # 'rpc_getstakeinfo.py',
-    # 'wallet_staking.py'
-    
+    'feature_staking_pool.py',
+    'feature_staking_burn.py',
+    'feature_staking_reorg.py',
+    'feature_staking_deposit_withdrawal.py',
+    'feature_staking_free_tx.py',
+    'feature_staking_free_tx_reorg.py',
+    'feature_staking_gov_power.py',
+    'feature_staking_gov_power_reorg.py',
+    'rpc_getstakinginfo.py',
+    'rpc_getstakesforaddress.py',
+    'rpc_getstakeinfo.py',
+    'wallet_staking.py'
+
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time
 ]
