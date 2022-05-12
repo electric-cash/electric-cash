@@ -12,6 +12,7 @@ STAKING_TX_BURN_SUBHEADER = 0x42
 STAKING_TX_DEPOSIT_SUBHEADER = 0x44
 STAKING_PENALTY_PERCENTAGE = 3.0
 
+from time import sleep
 
 class StakingReorgTest(BitcoinTestFramework, FreeTransactionMixin):
     def set_test_params(self):
