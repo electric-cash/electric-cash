@@ -62,6 +62,7 @@ class StakingReorgTest(BitcoinTestFramework, FreeTransactionMixin):
         self.send_free_tx([addr2], 8 * COIN, 0, addr1)
         self.nodes[0].generate(1)
 
+        sleep(5)
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         # height of nodes after nodes reconnecting
@@ -207,6 +208,7 @@ class StakingReorgTest(BitcoinTestFramework, FreeTransactionMixin):
         self.nodes[0].generate(5)
         self.nodes[1].generate(5)
 
+        sleep(5)
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         # height of nodes after nodes reconnecting

@@ -91,7 +91,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         self.nodes[0].generate(1)
         self.sync_all()
 
-        sleep(5)
+        sleep(10)
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
@@ -130,6 +130,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         self.nodes[0].generate(50)
         self.sync_all()
 
+        sleep(10)
         stake_info = self.nodes[0].getstakeinfo(stake_id)
 
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
