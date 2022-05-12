@@ -5,7 +5,7 @@ from test_framework.staking_utils import DepositStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
 
-
+from time import sleep
 class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
@@ -91,6 +91,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         self.nodes[0].generate(1)
         self.sync_all()
 
+        sleep(5)
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['deposit_height'] == node0_height + 1, 'Wrong deposit height'
         assert stake_info['staking_period'] == month_stake_length_blocks, 'Wrong staking period'
