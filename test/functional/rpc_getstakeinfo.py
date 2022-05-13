@@ -5,7 +5,7 @@ from test_framework.staking_utils import DepositStakingTransactionsMixin
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_raises_rpc_error
 
-
+from time import sleep
 class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
@@ -88,6 +88,7 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         stake_info = self.nodes[0].getstakeinfo(stake_id)
         assert stake_info['paid_out'] == False
 
+        sleep(5)
         self.nodes[0].generate(1)
         self.sync_all()
 
@@ -125,8 +126,11 @@ class GetStakeInfoTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
         assert stake_info['fulfilled'] == False
         assert stake_info['paid_out'] == False
 
+
         self.spend_stake(0, stake_id, addr1, early_withdrawal=True)
+        sleep(5)
         self.nodes[0].generate(50)
+        sleep(10)
         self.sync_all()
 
         stake_info = self.nodes[0].getstakeinfo(stake_id)

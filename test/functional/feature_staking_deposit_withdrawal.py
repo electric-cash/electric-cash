@@ -6,6 +6,8 @@ from test_framework.messages import COIN
 from test_framework.staking_utils import DepositStakingTransactionsMixin, STAKING_PENALTY_PERCENTAGE
 from test_framework.test_framework import BitcoinTestFramework
 
+from time import sleep
+
 class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransactionsMixin):
     def set_test_params(self):
         self.num_nodes = 2
@@ -85,6 +87,7 @@ class StakingDepositWithdrawalTest(BitcoinTestFramework, DepositStakingTransacti
         expected_reward_per_block = math.floor(deposit_amount * staking_percentage / 100.0 / 360.0 / 144.0)
         expected_reward = expected_reward_per_block * stake_length_blocks
 
+        sleep(5)
         node0_height = self.nodes[0].getblockcount()
         node1_height = self.nodes[1].getblockcount()
         assert node0_height == node1_height, f'Starting heights differ ' \
