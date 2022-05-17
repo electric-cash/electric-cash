@@ -130,137 +130,137 @@ void BumpFee(TransactionView& view, const uint256& txid, bool expectDisabled, st
 //     QT_QPA_PLATFORM=xcb     src/qt/test/test_elcash-qt  # Linux
 //     QT_QPA_PLATFORM=windows src/qt/test/test_elcash-qt  # Windows
 //     QT_QPA_PLATFORM=cocoa   src/qt/test/test_elcash-qt  # macOS
-// void TestGUI(interfaces::Node& node)
-// {
-//     // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
-//     TestChain100Setup test;
-//     for (int i = 0; i < 5; ++i) {
-//         test.CreateAndProcessBlock({}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
-//     }
-//     node.context()->connman = std::move(test.m_node.connman);
-//     node.context()->mempool = std::move(test.m_node.mempool);
-//     std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), WalletLocation(), WalletDatabase::CreateMock());
-//     bool firstRun;
-//     wallet->LoadWallet(firstRun);
-//     {
-//         auto spk_man = wallet->GetOrCreateLegacyScriptPubKeyMan();
-//         auto locked_chain = wallet->chain().lock();
-//         LOCK2(wallet->cs_wallet, spk_man->cs_KeyStore);
-//         wallet->SetAddressBook(GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type), "", "receive");
-//         spk_man->AddKeyPubKey(test.coinbaseKey, test.coinbaseKey.GetPubKey());
-//         wallet->SetLastBlockProcessed(105, ::ChainActive().Tip()->GetBlockHash());
-//     }
-//     {
-//         auto locked_chain = wallet->chain().lock();
-//         LockAssertion lock(::cs_main);
+void TestGUI(interfaces::Node& node)
+{
+    // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
+    TestChain100Setup test;
+    for (int i = 0; i < 5; ++i) {
+        test.CreateAndProcessBlock({}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
+    }
+    node.context()->connman = std::move(test.m_node.connman);
+    node.context()->mempool = std::move(test.m_node.mempool);
+    std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), WalletLocation(), WalletDatabase::CreateMock());
+    bool firstRun;
+    wallet->LoadWallet(firstRun);
+    {
+        auto spk_man = wallet->GetOrCreateLegacyScriptPubKeyMan();
+        auto locked_chain = wallet->chain().lock();
+        LOCK2(wallet->cs_wallet, spk_man->cs_KeyStore);
+        wallet->SetAddressBook(GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type), "", "receive");
+        spk_man->AddKeyPubKey(test.coinbaseKey, test.coinbaseKey.GetPubKey());
+        wallet->SetLastBlockProcessed(105, ::ChainActive().Tip()->GetBlockHash());
+    }
+    {
+        auto locked_chain = wallet->chain().lock();
+        LockAssertion lock(::cs_main);
 
-//         WalletRescanReserver reserver(wallet.get());
-//         reserver.reserve();
-//         CWallet::ScanResult result = wallet->ScanForWalletTransactions(locked_chain->getBlockHash(0), {} /* stop_block */, reserver, true /* fUpdate */);
-//         QCOMPARE(result.status, CWallet::ScanResult::SUCCESS);
-//         QCOMPARE(result.last_scanned_block, ::ChainActive().Tip()->GetBlockHash());
-//         QVERIFY(result.last_failed_block.IsNull());
-//     }
-//     wallet->SetBroadcastTransactions(true);
+        WalletRescanReserver reserver(wallet.get());
+        reserver.reserve();
+        CWallet::ScanResult result = wallet->ScanForWalletTransactions(locked_chain->getBlockHash(0), {} /* stop_block */, reserver, true /* fUpdate */);
+        QCOMPARE(result.status, CWallet::ScanResult::SUCCESS);
+        QCOMPARE(result.last_scanned_block, ::ChainActive().Tip()->GetBlockHash());
+        QVERIFY(result.last_failed_block.IsNull());
+    }
+    wallet->SetBroadcastTransactions(true);
 
-//     // Create widgets for sending coins and listing transactions.
-//     std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
-//     SendCoinsDialog sendCoinsDialog(platformStyle.get());
-//     TransactionView transactionView(platformStyle.get());
-//     OptionsModel optionsModel(node);
-//     AddWallet(wallet);
-//     WalletModel walletModel(interfaces::MakeWallet(wallet), node, platformStyle.get(), &optionsModel);
-//     RemoveWallet(wallet);
-//     sendCoinsDialog.setModel(&walletModel);
-//     transactionView.setModel(&walletModel);
+    // Create widgets for sending coins and listing transactions.
+    std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    SendCoinsDialog sendCoinsDialog(platformStyle.get());
+    TransactionView transactionView(platformStyle.get());
+    OptionsModel optionsModel(node);
+    AddWallet(wallet);
+    WalletModel walletModel(interfaces::MakeWallet(wallet), node, platformStyle.get(), &optionsModel);
+    RemoveWallet(wallet);
+    sendCoinsDialog.setModel(&walletModel);
+    transactionView.setModel(&walletModel);
 
-//     {
-//         // Check balance in send dialog
-//         QLabel* balanceLabel = sendCoinsDialog.findChild<QLabel*>("labelBalance");
-//         QString balanceText = balanceLabel->text();
-//         int unit = walletModel.getOptionsModel()->getDisplayUnit();
-//         CAmount balance = walletModel.wallet().getBalance();
-//         QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways);
-//         QCOMPARE(balanceText, balanceComparison);
-//     }
+    {
+        // Check balance in send dialog
+        QLabel* balanceLabel = sendCoinsDialog.findChild<QLabel*>("labelBalance");
+        QString balanceText = balanceLabel->text();
+        int unit = walletModel.getOptionsModel()->getDisplayUnit();
+        CAmount balance = walletModel.wallet().getBalance();
+        QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways);
+        QCOMPARE(balanceText, balanceComparison);
+    }
 
-//     // Send two transactions, and verify they are added to transaction list.
-//     TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();
-//     QCOMPARE(transactionTableModel->rowCount({}), 105);
-//     uint256 txid1 = SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 5 * COIN, false /* rbf */);
-//     uint256 txid2 = SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 10 * COIN, true /* rbf */);
-//     QCOMPARE(transactionTableModel->rowCount({}), 107);
-//     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
-//     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
+    // Send two transactions, and verify they are added to transaction list.
+    TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();
+    QCOMPARE(transactionTableModel->rowCount({}), 105);
+    uint256 txid1 = SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 5 * COIN, false /* rbf */);
+    uint256 txid2 = SendCoins(*wallet.get(), sendCoinsDialog, PKHash(), 10 * COIN, true /* rbf */);
+    QCOMPARE(transactionTableModel->rowCount({}), 107);
+    QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
+    QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
 
-//     // Call bumpfee. Test disabled, canceled, enabled, then failing cases.
-//     BumpFee(transactionView, txid1, true /* expect disabled */, "not BIP 125 replaceable" /* expected error */, false /* cancel */);
-//     BumpFee(transactionView, txid2, false /* expect disabled */, {} /* expected error */, true /* cancel */);
-//     BumpFee(transactionView, txid2, false /* expect disabled */, {} /* expected error */, false /* cancel */);
-//     BumpFee(transactionView, txid2, true /* expect disabled */, "already bumped" /* expected error */, false /* cancel */);
+    // Call bumpfee. Test disabled, canceled, enabled, then failing cases.
+    BumpFee(transactionView, txid1, true /* expect disabled */, "not BIP 125 replaceable" /* expected error */, false /* cancel */);
+    BumpFee(transactionView, txid2, false /* expect disabled */, {} /* expected error */, true /* cancel */);
+    BumpFee(transactionView, txid2, false /* expect disabled */, {} /* expected error */, false /* cancel */);
+    BumpFee(transactionView, txid2, true /* expect disabled */, "already bumped" /* expected error */, false /* cancel */);
 
-//     // Check current balance on OverviewPage
-//     OverviewPage overviewPage(platformStyle.get());
-//     overviewPage.setWalletModel(&walletModel);
-//     QLabel* balanceLabel = overviewPage.findChild<QLabel*>("labelBalance");
-//     QString balanceText = balanceLabel->text();
-//     int unit = walletModel.getOptionsModel()->getDisplayUnit();
-//     CAmount balance = walletModel.wallet().getBalance();
-//     QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways);
-//     QCOMPARE(balanceText, balanceComparison);
+    // Check current balance on OverviewPage
+    OverviewPage overviewPage(platformStyle.get());
+    overviewPage.setWalletModel(&walletModel);
+    QLabel* balanceLabel = overviewPage.findChild<QLabel*>("labelBalance");
+    QString balanceText = balanceLabel->text();
+    int unit = walletModel.getOptionsModel()->getDisplayUnit();
+    CAmount balance = walletModel.wallet().getBalance();
+    QString balanceComparison = BitcoinUnits::formatWithUnit(unit, balance, false, BitcoinUnits::separatorAlways);
+    QCOMPARE(balanceText, balanceComparison);
 
-//     // Check Request Payment button
-//     ReceiveCoinsDialog receiveCoinsDialog(platformStyle.get());
-//     receiveCoinsDialog.setModel(&walletModel);
-//     RecentRequestsTableModel* requestTableModel = walletModel.getRecentRequestsTableModel();
+    // Check Request Payment button
+    ReceiveCoinsDialog receiveCoinsDialog(platformStyle.get());
+    receiveCoinsDialog.setModel(&walletModel);
+    RecentRequestsTableModel* requestTableModel = walletModel.getRecentRequestsTableModel();
 
-//     // Label input
-//     QLineEdit* labelInput = receiveCoinsDialog.findChild<QLineEdit*>("reqLabel");
-//     labelInput->setText("TEST_LABEL_1");
+    // Label input
+    QLineEdit* labelInput = receiveCoinsDialog.findChild<QLineEdit*>("reqLabel");
+    labelInput->setText("TEST_LABEL_1");
 
-//     // Amount input
-//     BitcoinAmountField* amountInput = receiveCoinsDialog.findChild<BitcoinAmountField*>("reqAmount");
-//     amountInput->setValue(1);
+    // Amount input
+    BitcoinAmountField* amountInput = receiveCoinsDialog.findChild<BitcoinAmountField*>("reqAmount");
+    amountInput->setValue(1);
 
-//     // Message input
-//     QLineEdit* messageInput = receiveCoinsDialog.findChild<QLineEdit*>("reqMessage");
-//     messageInput->setText("TEST_MESSAGE_1");
-//     int initialRowCount = requestTableModel->rowCount({});
-//     QPushButton* requestPaymentButton = receiveCoinsDialog.findChild<QPushButton*>("receiveButton");
-//     requestPaymentButton->click();
-//     for (QWidget* widget : QApplication::topLevelWidgets()) {
-//         if (widget->inherits("ReceiveRequestDialog")) {
-//             ReceiveRequestDialog* receiveRequestDialog = qobject_cast<ReceiveRequestDialog*>(widget);
-//             QTextEdit* rlist = receiveRequestDialog->QObject::findChild<QTextEdit*>("outUri");
-//             QString paymentText = rlist->toPlainText();
-//             QStringList paymentTextList = paymentText.split('\n');
-//             QCOMPARE(paymentTextList.at(0), QString("Payment information"));
-//             QVERIFY(paymentTextList.at(1).indexOf(QString("URI: bitcoin:")) != -1);
-//             QVERIFY(paymentTextList.at(2).indexOf(QString("Address:")) != -1);
-//             QCOMPARE(paymentTextList.at(3), QString("Amount: 0.00000001 ") + QString::fromStdString(CURRENCY_UNIT));
-//             QCOMPARE(paymentTextList.at(4), QString("Label: TEST_LABEL_1"));
-//             QCOMPARE(paymentTextList.at(5), QString("Message: TEST_MESSAGE_1"));
-//         }
-//     }
+    // Message input
+    QLineEdit* messageInput = receiveCoinsDialog.findChild<QLineEdit*>("reqMessage");
+    messageInput->setText("TEST_MESSAGE_1");
+    int initialRowCount = requestTableModel->rowCount({});
+    QPushButton* requestPaymentButton = receiveCoinsDialog.findChild<QPushButton*>("receiveButton");
+    requestPaymentButton->click();
+    for (QWidget* widget : QApplication::topLevelWidgets()) {
+        if (widget->inherits("ReceiveRequestDialog")) {
+            ReceiveRequestDialog* receiveRequestDialog = qobject_cast<ReceiveRequestDialog*>(widget);
+            QTextEdit* rlist = receiveRequestDialog->QObject::findChild<QTextEdit*>("outUri");
+            QString paymentText = rlist->toPlainText();
+            QStringList paymentTextList = paymentText.split('\n');
+            QCOMPARE(paymentTextList.at(0), QString("Payment information"));
+            QVERIFY(paymentTextList.at(1).indexOf(QString("URI: bitcoin:")) != -1);
+            QVERIFY(paymentTextList.at(2).indexOf(QString("Address:")) != -1);
+            QCOMPARE(paymentTextList.at(3), QString("Amount: 0.00000001 ") + QString::fromStdString(CURRENCY_UNIT));
+            QCOMPARE(paymentTextList.at(4), QString("Label: TEST_LABEL_1"));
+            QCOMPARE(paymentTextList.at(5), QString("Message: TEST_MESSAGE_1"));
+        }
+    }
 
-//     // Clear button
-//     QPushButton* clearButton = receiveCoinsDialog.findChild<QPushButton*>("clearButton");
-//     clearButton->click();
-//     QCOMPARE(labelInput->text(), QString(""));
-//     QCOMPARE(amountInput->value(), CAmount(0));
-//     QCOMPARE(messageInput->text(), QString(""));
+    // Clear button
+    QPushButton* clearButton = receiveCoinsDialog.findChild<QPushButton*>("clearButton");
+    clearButton->click();
+    QCOMPARE(labelInput->text(), QString(""));
+    QCOMPARE(amountInput->value(), CAmount(0));
+    QCOMPARE(messageInput->text(), QString(""));
 
-//     // Check addition to history
-//     int currentRowCount = requestTableModel->rowCount({});
-//     QCOMPARE(currentRowCount, initialRowCount+1);
+    // Check addition to history
+    int currentRowCount = requestTableModel->rowCount({});
+    QCOMPARE(currentRowCount, initialRowCount+1);
 
-//     // Check Remove button
-//     QTableView* table = receiveCoinsDialog.findChild<QTableView*>("recentRequestsView");
-//     table->selectRow(currentRowCount-1);
-//     QPushButton* removeRequestButton = receiveCoinsDialog.findChild<QPushButton*>("removeRequestButton");
-//     removeRequestButton->click();
-//     QCOMPARE(requestTableModel->rowCount({}), currentRowCount-1);
-// }
+    // Check Remove button
+    QTableView* table = receiveCoinsDialog.findChild<QTableView*>("recentRequestsView");
+    table->selectRow(currentRowCount-1);
+    QPushButton* removeRequestButton = receiveCoinsDialog.findChild<QPushButton*>("removeRequestButton");
+    removeRequestButton->click();
+    QCOMPARE(requestTableModel->rowCount({}), currentRowCount-1);
+}
 
 } // namespace
 

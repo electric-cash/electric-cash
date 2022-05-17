@@ -162,7 +162,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 {
     // are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {
-        return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent",
+        return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent-2",
                          strprintf("%s: inputs missing/spent", __func__));
     }
     isStakingWithdrawal = false;
