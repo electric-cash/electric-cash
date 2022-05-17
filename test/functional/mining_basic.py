@@ -138,8 +138,8 @@ class MiningTest(BitcoinTestFramework):
         bad_tx.vin[0].prevout.hash = 255
         bad_tx.rehash()
         bad_block.vtx.append(bad_tx)
-        assert_template(node, bad_block, 'bad-txns-inputs-missingorspent')
-        assert_submitblock(bad_block, 'bad-txns-inputs-missingorspent')
+        assert_template(node, bad_block, 'bad-txns-inputs-missingorspent-2')
+        assert_submitblock(bad_block, 'bad-txns-inputs-missingorspent-2')
 
         self.log.info("getblocktemplate: Test nonfinal transaction")
         bad_block = copy.deepcopy(block)
