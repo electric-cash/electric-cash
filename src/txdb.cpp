@@ -390,7 +390,6 @@ bool CCoinsViewDB::Upgrade() {
             COutPoint outpoint(key.second, 0);
             for (size_t i = 0; i < old_coins.vout.size(); ++i) {
                 if (!old_coins.vout[i].IsNull() && !old_coins.vout[i].scriptPubKey.IsUnspendable()) {
-                    LogPrintf("coinsdbupgrade: \n");
                     Coin newcoin(std::move(old_coins.vout[i]), old_coins.nHeight, old_coins.fCoinBase);
                     outpoint.n = i;
                     CoinEntry entry(&outpoint);

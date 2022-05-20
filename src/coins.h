@@ -43,7 +43,7 @@ public:
     uint32_t nHeight : 31;
 
     //! construct a Coin from a CTxOut and height/coinbase/stake information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fStakeIn = false) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), fStake(fStakeIn), nHeight(nHeightIn) {}
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fStakeIn = false) : out(std::move(outIn)), fCoinBase(fCoinBaseIn),fStake(fStakeIn), nHeight(nHeightIn) {}
     Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fStakeIn = false) : out(outIn), fCoinBase(fCoinBaseIn), fStake(fStakeIn), nHeight(nHeightIn) {}
 
     void Clear() {
