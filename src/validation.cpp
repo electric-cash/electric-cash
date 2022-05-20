@@ -1875,6 +1875,8 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
                 // Reactivate stakes spent prematurely
                 if (fStakingActive && txundo.vprevout[j].IsStake()) {
                     CStakesDbEntry stake = stakes.getStakeDbEntry(out.hash);
+                    LogPrintf("tx hash: %s: \n", tx.GetHash().ToString());
+                    LogPrintf("txout hash: %s: \n", out.hash.ToString());
                     assert(stake.isValid() && !stake.isActive());
                     if (!stake.isComplete()) {
                         stakes.reactivateStake(stake.getKey(), pindex->nHeight);
