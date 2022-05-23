@@ -1908,7 +1908,10 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         stakes.stakingPool().decreaseBalance(stakingBurnsAndPenalties);
         std::vector<CStakesDbEntry> stakesToReactivate = stakes.getStakesCompletedAtHeight(pindex->nHeight);
         for (auto& stake : stakesToReactivate) {
-            stakes.reactivateStake(stake.getKey(), pindex->nHeight);
+            // Incomplete stakes should be reactivated above.
+            if (stake.isComplete()) {
+                stakes.reactivateStake(stake.getKey(), pindex->nHeight);
+            }
         }
         double globalStakingRewardCoefficient = CStakingRewardsCalculator::CalculateGlobalRewardCoefficient(chainparams, stakes, pindex->nHeight, true);
         LogPrintf("Global staking reward coefficient for block %d: %lf \n", pindex->nHeight, globalStakingRewardCoefficient);
