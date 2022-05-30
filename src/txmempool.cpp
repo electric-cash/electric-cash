@@ -19,6 +19,7 @@
 #include <util/time.h>
 #include <validationinterface.h>
 #include <staking/transaction.h>
+#include <rpc/rawtransaction.h>
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
                                  int64_t _nTime, unsigned int _entryHeight,
@@ -69,7 +70,8 @@ void CTxMemPoolEntry::calculateTransactionMiningType(){
         miningType = TxMiningType::NORMAL_TX;
         return;
     }
-    if (CStakingTransactionParser(tx).GetStakingTxType() != StakingTransactionType::NONE) {
+
+    if (CStakingTransactionParser(tx).GetStakingTxType() != StakingTransactionType::NONE || checkIfWithdrawalTransaction(*tx)) {
         miningType = TxMiningType::STAKE_TX;
         return;
     }
