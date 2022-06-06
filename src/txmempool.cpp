@@ -306,7 +306,7 @@ void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntries &setAncesto
         updateFreeTxWeight += ancestorIt->GetTxFreeWeight();
 
 
-        if (ancestorIt->GetMiningType() == TxMiningType::FREE_TX){
+        if (ancestorIt->GetMiningType() == TxMiningType::FREE_TX) {
             auto it_script = ancestorIt->GetTx().vin[0].scriptSig;
             UsedFreeTxLimit_t::iterator i = updateUsedFreeTxLimitWithAncestors.find(it_script);
             if (i != updateUsedFreeTxLimitWithAncestors.end()) {
