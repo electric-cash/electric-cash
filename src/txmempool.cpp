@@ -19,7 +19,6 @@
 #include <util/time.h>
 #include <validationinterface.h>
 #include <staking/transaction.h>
-#include <rpc/rawtransaction.h>
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,
                                  int64_t _nTime, unsigned int _entryHeight,
@@ -66,15 +65,23 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFe
 
 // Has to be in constructor before fee variables asingment
 void CTxMemPoolEntry::calculateTransactionMiningType(){
-    if (CStakingTransactionParser(tx).GetStakingTxType() != StakingTransactionType::NONE || checkIfWithdrawalTransaction(*tx)) {
-        miningType = TxMiningType::STAKE_TX;
-        nFee = 0;
+    if (nFee > 0) {
+        miningType = TxMiningType::NORMAL_TX;
         return;
     }
 
-    if (nFee != 0) { // Withdrawal Transaction have negative fee
-        miningType = TxMiningType::NORMAL_TX;
+    if (CStakingTransactionParser(tx).GetStakingTxType() != StakingTransactionType::NONE) {
+        miningType = TxMiningType::STAKE_TX;
         return;
+    }
+
+    // Withdrawal Transaction
+    for(const auto& input : tx->vin) {
+        const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(input.prevout.hash);
+        if(stake.isValid() && stake.getNumOutput() == input.prevout.n) {
+            miningType = TxMiningType::STAKE_TX;
+            return;
+        }
     }
 
     const COutPoint &prevout = tx->vin[0].prevout;
