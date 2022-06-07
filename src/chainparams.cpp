@@ -330,18 +330,18 @@ public:
         consensus.fStrictChainId = true;
 
         // Staking parameters
-        consensus.nStakingStartHeight = 101;
+        consensus.nStakingStartHeight = 101; // To be set later
         consensus.stakingPeriod = {
-                4320,
-                12960,
-                25920,
-                51840
+                12,
+                36,
+                72,
+                144
         };
         consensus.stakingRewardPercentage = {
-                5.0,
-                6.0,
-                7.25,
-                10.0
+                5000.0,
+                6000.0,
+                7250.0,
+                10000.0
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
         consensus.freeTxDifficultyCoefficient = 10;
