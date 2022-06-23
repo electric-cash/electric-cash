@@ -332,16 +332,16 @@ public:
         // Staking parameters
         consensus.nStakingStartHeight = 101;
         consensus.stakingPeriod = {
-                12,
-                36,
-                72,
-                144
+                4320,
+                12960,
+                25920,
+                51840
         };
         consensus.stakingRewardPercentage = {
-                5000.0,
-                6000.0,
-                7250.0,
-                10000.0
+                5.0,
+                6.0,
+                7.25,
+                10.0
         };
         consensus.freeTxMaxSizeInBlock = 1000000;
         consensus.freeTxDifficultyCoefficient = 10;
