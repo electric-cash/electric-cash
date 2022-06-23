@@ -218,7 +218,7 @@ public:
         consensus.fStrictChainId = false;
 
         // Staking parameters
-        consensus.nStakingStartHeight = 101; // To be set later
+        consensus.nStakingStartHeight = 74600;
         consensus.stakingPeriod = {
                 12,
                 36,
@@ -330,7 +330,7 @@ public:
         consensus.fStrictChainId = true;
 
         // Staking parameters
-        consensus.nStakingStartHeight = 101; // To be set later
+        consensus.nStakingStartHeight = 101;
         consensus.stakingPeriod = {
                 12,
                 36,
