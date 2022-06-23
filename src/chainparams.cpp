@@ -256,7 +256,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        
+
         vSeeds.emplace_back("seed.testnet.electriccash.global");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
