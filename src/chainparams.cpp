@@ -218,7 +218,7 @@ public:
         consensus.fStrictChainId = false;
 
         // Staking parameters
-        consensus.nStakingStartHeight = 101; // To be set later
+        consensus.nStakingStartHeight = 74600;
         consensus.stakingPeriod = {
                 12,
                 36,
@@ -256,7 +256,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        
+
         vSeeds.emplace_back("seed.testnet.electriccash.global");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
