@@ -12,6 +12,7 @@ from test_framework.util import (
     disconnect_nodes,
 )
 from test_framework.messages import CTransaction, COIN
+from decimal import Decimal
 
 class TxnMallTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -39,8 +40,7 @@ class TxnMallTest(BitcoinTestFramework):
         else:
             output_type = "legacy"
 
-        # All nodes should start with 12,500 ELCASH:
-        starting_balance = 12500
+        starting_balance = Decimal(12500)
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress()  # bug workaround, coins generated assigned to first getnewaddress!
@@ -76,7 +76,7 @@ class TxnMallTest(BitcoinTestFramework):
         # createrawtransaction randomizes the order of its outputs, so swap them if necessary.
         clone_tx = CTransaction()
         clone_tx.deserialize(io.BytesIO(bytes.fromhex(clone_raw)))
-        if (rawtx1["vout"][0]["value"] == 400 and clone_tx.vout[0].nValue != 400*COIN or rawtx1["vout"][0]["value"] != 400 and clone_tx.vout[0].nValue == 400*COIN):
+        if (rawtx1["vout"][0]["value"] == 360 and clone_tx.vout[0].nValue != 360*COIN or rawtx1["vout"][0]["value"] != 360 and clone_tx.vout[0].nValue == 360*COIN):
             (clone_tx.vout[0], clone_tx.vout[1]) = (clone_tx.vout[1], clone_tx.vout[0])
 
         # Use a different signature hash type to sign.  This creates an equivalent but malleated clone.
@@ -96,7 +96,7 @@ class TxnMallTest(BitcoinTestFramework):
         # matured block, minus tx1 and tx2 amounts, and minus transaction fees:
         expected = starting_balance + node0_tx1["fee"] + node0_tx2["fee"]
         if self.options.mine_block:
-            expected += 500
+            expected += 450
         expected += tx1["amount"] + tx1["fee"]
         expected += tx2["amount"] + tx2["fee"]
         assert_equal(self.nodes[0].getbalance(), expected)
@@ -137,9 +137,9 @@ class TxnMallTest(BitcoinTestFramework):
 
         # Check node0's total balance; should be same as before the clone, + 100 ELCASH for 2 matured,
         # less possible orphaned matured subsidy
-        expected += 1000
+        expected += 900
         if (self.options.mine_block):
-            expected -= 500
+            expected -= 450
         assert_equal(self.nodes[0].getbalance(), expected)
 
 if __name__ == '__main__':

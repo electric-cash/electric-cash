@@ -856,3 +856,18 @@ UniValue GetServicesNames(ServiceFlags services)
 
     return servicesNames;
 }
+
+uint8_t ParseStakingPeriodToIndex(const UniValue& value, const std::array<size_t, stakingParams::NUM_STAKING_PERIODS>& staking_periods)
+{
+    int num_blocks = value.get_int();
+    auto itr = std::find(staking_periods.begin(), staking_periods.end(), num_blocks);
+    if (itr == staking_periods.end()) {
+        std::stringstream pos_values;
+        for (size_t period : staking_periods) {
+            pos_values << period << " ";
+        }
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid staking period, must be one of: %s.", pos_values.str()));
+    }
+    size_t idx = std::distance(staking_periods.begin(), itr);
+    return idx;
+}

@@ -108,7 +108,7 @@ class RpcCreateMultiSigTest(BitcoinTestFramework):
 
         height = node0.getblockchaininfo()["blocks"]
         assert 150 < height < 350
-        total = (height - 100) * 500
+        total = min(100, height - 100) * 500 + max(0, height - 200) * 450
         assert bal1 == 0
         assert bal2 == self.moved
         assert bal0 + bal1 + bal2 == total

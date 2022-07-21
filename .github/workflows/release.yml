@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+      - dev
+      - fix/*
 
 env:
   ECR_REPOSITORY: electric-cash
@@ -19,6 +21,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set environment variables for dev branch
+        run: |
+          if [[ $GITHUB_REF == 'refs/heads/dev' ]]; then
+            echo "IMAGE_TAG=dev-$IMAGE_TAG" >> "$GITHUB_ENV"
+          elif [[ $GITHUB_REF == 'refs/heads/fix/'* ]]; then
+            echo "IMAGE_TAG=fix-$IMAGE_TAG" >> "$GITHUB_ENV"
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -31,9 +41,11 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
 
       - name: Python Semantic Release
+        if: ${{ env.GITHUB_REF == 'refs/heads/master' }}
         uses: relekang/python-semantic-release@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

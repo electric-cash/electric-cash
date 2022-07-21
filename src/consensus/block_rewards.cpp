@@ -1,4 +1,5 @@
 #include <consensus/block_rewards.h>
+#include <math.h>
 
 
 CAmount GetBlockRewardForHeight(uint32_t height)
@@ -12,3 +13,9 @@ CAmount GetBlockRewardForHeight(uint32_t height)
      }
      return 0;
  }
+
+CAmount GetStakingRewardForHeight(uint32_t height)
+{
+    return static_cast<CAmount> (floor(FRACTION_OF_STAKING_REWARD * static_cast<double>(GetBlockRewardForHeight(height))));
+
+}

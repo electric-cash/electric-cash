@@ -8,6 +8,8 @@
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
 #include <consensus/validation.h>
+#include <staking/transaction.h>
+#include <staking/staking_rewards_calculator.h>
 
 // TODO remove the following dependencies
 #include <chain.h>
@@ -156,14 +158,14 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
     return nSigOps;
 }
 
-bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee)
+bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, CAmount& txfee, CStakesDBCache& stakes, bool& isStakingWithdrawal)
 {
     // are the actual inputs available?
     if (!inputs.HaveInputs(tx)) {
-        return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent",
+        return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent-2",
                          strprintf("%s: inputs missing/spent", __func__));
     }
-
+    isStakingWithdrawal = false;
     CAmount nValueIn = 0;
     for (unsigned int i = 0; i < tx.vin.size(); ++i) {
         const COutPoint &prevout = tx.vin[i].prevout;
@@ -181,9 +183,24 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         if (!MoneyRange(coin.out.nValue) || !MoneyRange(nValueIn)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
+        if (coin.IsStake()) {
+            CStakesDbEntry stakeDbEntry = stakes.getStakeDbEntry(prevout.hash);
+            if (!stakeDbEntry.isValid()) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-unconfirmed-stake-as-input");
+            }
+            isStakingWithdrawal = true;
+            if (stakeDbEntry.isComplete()) {
+                CAmount stakingReward = stakeDbEntry.getReward();
+                nValueIn += stakingReward;
+            } else {
+                auto stakingPenalty = CStakingRewardsCalculator::CalculatePenaltyForStake(stakeDbEntry);
+                nValueIn -= stakingPenalty;
+             }
+        }
     }
 
-    const CAmount value_out = tx.GetValueOut();
+    CAmount value_out = tx.GetValueOut();
+
     if (nValueIn < value_out) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
             strprintf("value in (%s) < value out (%s)", FormatMoney(nValueIn), FormatMoney(value_out)));

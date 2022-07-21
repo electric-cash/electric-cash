@@ -71,8 +71,8 @@ public:
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
         consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 1; 
-        consensus.MinBIP9WarningHeight = 1; 
+        consensus.SegwitHeight = 1;
+        consensus.MinBIP9WarningHeight = 1;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
         consensus.nPowTargetSpacing = 10 * 60;
@@ -85,7 +85,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
         consensus.nLwmaAveragingWindow = 30;
-        
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x01");
 
@@ -96,6 +96,30 @@ public:
         consensus.nAuxpowChainId = 0x2137;
         consensus.nAuxpowStartHeight = 1;
         consensus.fStrictChainId = true;
+
+        // Staking parameters
+        consensus.nStakingStartHeight = 999999; // To be set later
+        consensus.stakingPeriod = {
+                4320,
+                12960,
+                25920,
+                51840
+        };
+        consensus.stakingRewardPercentage = {
+                5.0,
+                6.0,
+                7.25,
+                10.0
+        };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 10;
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -166,8 +190,8 @@ public:
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
-        consensus.CSVHeight = 1; 
-        consensus.SegwitHeight = 1; 
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 1;
         consensus.MinBIP9WarningHeight = 1;
         consensus.powLimit = uint256S("00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
@@ -181,7 +205,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
         consensus.nLwmaAveragingWindow = 30;
-        
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x01");
 
@@ -189,10 +213,33 @@ public:
         consensus.defaultAssumeValid = uint256S("0x00");
 
         // AUX POW Parameters
-        consensus.nAuxpowChainId = 0x2137;
+        consensus.nAuxpowChainId = 0x2138;
         consensus.nAuxpowStartHeight = 1;
         consensus.fStrictChainId = false;
 
+        // Staking parameters
+        consensus.nStakingStartHeight = 75145;
+        consensus.stakingPeriod = {
+                12,
+                36,
+                72,
+                144
+        };
+        consensus.stakingRewardPercentage = {
+                5000.0,
+                6000.0,
+                7250.0,
+                10000.0
+        };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 10;
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;
@@ -209,7 +256,7 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        
+
         vSeeds.emplace_back("seed.testnet.electriccash.global");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
@@ -282,6 +329,29 @@ public:
         consensus.nAuxpowStartHeight = 100;
         consensus.fStrictChainId = true;
 
+        // Staking parameters
+        consensus.nStakingStartHeight = 101;
+        consensus.stakingPeriod = {
+                4320,
+                12960,
+                25920,
+                51840
+        };
+        consensus.stakingRewardPercentage = {
+                5.0,
+                6.0,
+                7.25,
+                10.0
+        };
+        consensus.freeTxMaxSizeInBlock = 1000000;
+        consensus.freeTxDifficultyCoefficient = 10;
+        consensus.freeTxBaseLimit = 500;
+        consensus.freeTxLimitCoefficient = {
+                20,
+                25,
+                35,
+                50
+        };
         pchMessageStart[0] = 0x65;
         pchMessageStart[1] = 0x6c;
         pchMessageStart[2] = 0x63;

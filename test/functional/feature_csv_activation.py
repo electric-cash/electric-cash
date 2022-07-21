@@ -92,14 +92,14 @@ def sign_transaction(node, unsignedtx):
     return tx
 
 def create_bip112special(node, input, txversion, address):
-    tx = create_transaction(node, input, address, amount=Decimal("499.98"))
+    tx = create_transaction(node, input, address, amount=Decimal("449.98"))
     tx.nVersion = txversion
     signtx = sign_transaction(node, tx)
     signtx.vin[0].scriptSig = CScript([-1, OP_CHECKSEQUENCEVERIFY, OP_DROP] + list(CScript(signtx.vin[0].scriptSig)))
     return signtx
 
 def create_bip112emptystack(node, input, txversion, address):
-    tx = create_transaction(node, input, address, amount=Decimal("499.98"))
+    tx = create_transaction(node, input, address, amount=Decimal("449.98"))
     tx.nVersion = txversion
     signtx = sign_transaction(node, tx)
     signtx.vin[0].scriptSig = CScript([OP_CHECKSEQUENCEVERIFY] + list(CScript(signtx.vin[0].scriptSig)))

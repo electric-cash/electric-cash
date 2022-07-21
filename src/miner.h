@@ -42,18 +42,36 @@ struct CTxMemPoolModifiedEntry {
         nSizeWithAncestors = entry->GetSizeWithAncestors();
         nModFeesWithAncestors = entry->GetModFeesWithAncestors();
         nSigOpCostWithAncestors = entry->GetSigOpCostWithAncestors();
+        nFreeTxSizeWithAncestors = entry->GetFreeTxSizeWithAncestors();
+        nFreeTxWeightWithAncestors = entry->GetFreeTxWeightWithAncestors();
+        nTxWeight = entry->GetTxWeight();
+        nFee = entry->GetFee();
+        nTxFreeSize = entry->GetTxFreeSize();
+        nTxFreeWeight = entry->GetTxFreeWeight();
+
+        nUsedFreeTxLimitWithAncestors = entry->GetUsedFreeTxLimitWithAncestors();
     }
 
     int64_t GetModifiedFee() const { return iter->GetModifiedFee(); }
     uint64_t GetSizeWithAncestors() const { return nSizeWithAncestors; }
     CAmount GetModFeesWithAncestors() const { return nModFeesWithAncestors; }
+    int64_t GetFreeTxSizeWithAncestors() const { return nFreeTxSizeWithAncestors; }
     size_t GetTxSize() const { return iter->GetTxSize(); }
+    int64_t GetTxFreeSize() const { return nTxFreeSize; }
     const CTransaction& GetTx() const { return iter->GetTx(); }
+    CAmount GetFee() const { return nFee; }
 
     CTxMemPool::txiter iter;
     uint64_t nSizeWithAncestors;
     CAmount nModFeesWithAncestors;
+    CAmount nFee;
     int64_t nSigOpCostWithAncestors;
+    int64_t nFreeTxSizeWithAncestors;
+    int64_t nFreeTxWeightWithAncestors;
+    int64_t nTxWeight;
+    int64_t nTxFreeSize;
+    int64_t nTxFreeWeight;
+    UsedFreeTxLimit_t nUsedFreeTxLimitWithAncestors;
 };
 
 /** Comparator for CTxMemPool::txiter objects.
@@ -100,7 +118,7 @@ typedef boost::multi_index_container<
             // Reuse same tag from CTxMemPool's similar index
             boost::multi_index::tag<ancestor_score>,
             boost::multi_index::identity<CTxMemPoolModifiedEntry>,
-            CompareTxMemPoolEntryByAncestorFee
+            CompareTxMemPoolEntryByAncestorFeeWithPassForFreeTx
         >
     >
 > indexed_modified_transaction_set;
@@ -116,7 +134,22 @@ struct update_for_parent_inclusion
     {
         e.nModFeesWithAncestors -= iter->GetFee();
         e.nSizeWithAncestors -= iter->GetTxSize();
+
+        e.nFreeTxSizeWithAncestors -= iter->GetTxFreeSize();
+        e.nFreeTxWeightWithAncestors -= iter->GetTxFreeWeight();
+
         e.nSigOpCostWithAncestors -= iter->GetSigOpCost();
+
+        if (iter->GetMiningType() == TxMiningType::FREE_TX){
+            auto it_script = iter->GetTx().vin[0].scriptSig;
+            UsedFreeTxLimit_t::iterator i = e.nUsedFreeTxLimitWithAncestors.find(it_script);
+            if (i != e.nUsedFreeTxLimitWithAncestors.end()) {
+                e.nUsedFreeTxLimitWithAncestors[it_script] -= iter->GetTxFreeSize();
+            }
+            else {
+                e.nUsedFreeTxLimitWithAncestors[it_script] = (-iter->GetTxFreeSize());
+            }
+        }
     }
 
     CTxMemPool::txiter iter;
@@ -142,6 +175,9 @@ private:
     uint64_t nBlockSigOpsCost;
     CAmount nFees;
     CTxMemPool::setEntries inBlock;
+    //TODO(mtwaro): use proper value instead of 0 when implementing mining algo.
+    uint32_t nFreeTxSize = 0;
+    uint64_t nFreeTxWeight = 0;
 
     // Chain context for the block
     int nHeight;
@@ -197,10 +233,18 @@ private:
       * state updated assuming given transactions are inBlock. Returns number
       * of updated descendants. */
     int UpdatePackagesForAdded(const CTxMemPool::setEntries& alreadyAdded, indexed_modified_transaction_set& mapModifiedTx) EXCLUSIVE_LOCKS_REQUIRED(m_mempool.cs);
+
+    CMutableTransaction CreateCoinbaseTransaction(const CScript& scriptPubKeyIn);
+    bool decideOnUsingMap(
+        CTxMemPool::txiter& iter,
+        CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator& mi,
+        indexed_modified_transaction_set& mapModifiedTx,
+        modtxscoreiter& modit
+        );
 };
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
-int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
+int64_t UpdateTime(CBlockHeader* pblock, const CBlockIndex* pindexPrev);
 
 #endif // ELCASH_MINER_H

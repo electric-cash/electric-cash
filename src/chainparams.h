@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <vector>
+#include <staking/stakingparams.h>
 
 struct SeedSpec6 {
     uint8_t addr[16];

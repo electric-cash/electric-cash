@@ -14,6 +14,7 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/standard.h>
+#include <staking/stakingparams.h>
 #include <univalue.h>
 #include <util/check.h>
 
@@ -89,6 +90,7 @@ UniValue DescribeAddress(const CTxDestination& dest);
 
 //! Parse a confirm target option and raise an RPC error if it is invalid.
 unsigned int ParseConfirmTarget(const UniValue& value, unsigned int max_target);
+uint8_t ParseStakingPeriodToIndex(const UniValue& value, const std::array<size_t, stakingParams::NUM_STAKING_PERIODS>& staking_periods);
 
 RPCErrorCode RPCErrorFromTransactionError(TransactionError terr);
 UniValue JSONRPCTransactionError(TransactionError terr, const std::string& err_string = "");

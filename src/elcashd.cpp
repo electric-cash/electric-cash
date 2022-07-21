@@ -20,6 +20,7 @@
 #include <util/system.h>
 #include <util/threadnames.h>
 #include <util/translation.h>
+#include <staking/staking_pool.h>
 
 #include <functional>
 

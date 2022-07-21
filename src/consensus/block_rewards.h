@@ -13,8 +13,10 @@
 const uint32_t BOOTSTRAP_PERIOD = 4200;
 const uint32_t REWARD_REDUCTION_PERIOD = 52500;
 const uint32_t NUMBER_OF_REWARD_REDUCTIONS = 39;
+const double FRACTION_OF_STAKING_REWARD = 0.1;
 
-const std::array<CAmount, 39> REWARD_AMOUNTS = {
+
+const std::array<CAmount, NUMBER_OF_REWARD_REDUCTIONS> REWARD_AMOUNTS = {
     50000000000,
     7500000000,
     7000000000,
@@ -57,5 +59,7 @@ const std::array<CAmount, 39> REWARD_AMOUNTS = {
 };
 
 CAmount GetBlockRewardForHeight(uint32_t height);
+
+CAmount GetStakingRewardForHeight(uint32_t height);
 
 #endif //ELCASH_CONSENSUS_BLOCK_REWARDS_H

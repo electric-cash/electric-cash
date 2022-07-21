@@ -47,7 +47,6 @@
 #include <txdb.h>
 #include <txmempool.h>
 #include <ui_interface.h>
-#include <util/asmap.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/threadnames.h>
@@ -70,9 +69,7 @@
 #include <sys/stat.h>
 #endif
 
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/algorithm/string/split.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread.hpp>
 
@@ -1581,6 +1578,12 @@ bool AppInitMain(NodeContext& node)
 
                 // At this point we're either in reindex or we've loaded a useful
                 // block tree into BlockIndex()!
+
+                // TODO: use a separate cache size parameter
+                ::ChainstateActive().InitStakesDB(
+                        /* cache_size_bytes */ nCoinDBCache,
+                        /* in_memory */ false,
+                        /* should_wipe */ fReset || fReindexChainState);
 
                 ::ChainstateActive().InitCoinsDB(
                     /* cache_size_bytes */ nCoinDBCache,

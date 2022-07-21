@@ -14,6 +14,7 @@
 #include <core_io.h>
 #include <hash.h>
 #include <index/blockfilterindex.h>
+#include <key_io.h>
 #include <node/coinstats.h>
 #include <node/context.h>
 #include <node/utxo_snapshot.h>
@@ -35,6 +36,7 @@
 #include <validation.h>
 #include <validationinterface.h>
 #include <warnings.h>
+#include <staking/staking_pool.h>
 
 #include <stdint.h>
 
@@ -205,6 +207,33 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIn
         result.pushKV("previousblockhash", blockindex->pprev->GetBlockHash().GetHex());
     if (pnext)
         result.pushKV("nextblockhash", pnext->GetBlockHash().GetHex());
+    return result;
+}
+
+UniValue stakeToJSON(const CStakesDbEntry& stake)
+{
+    AssertLockNotHeld(cs_main); // For performance reasons
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("output_index", static_cast<int>(stake.getNumOutput()));
+    result.pushKV("deposit_height", static_cast<int>(stake.getDepositBlock(Params())));
+    result.pushKV("staking_period", ::Params().GetConsensus().stakingPeriod[stake.getPeriodIdx()]);
+    result.pushKV("staking_amount", ValueFromAmount(stake.getAmount()));
+    result.pushKV("accumulated_reward", ValueFromAmount(stake.getReward()));
+    result.pushKV("fulfilled", stake.isComplete());
+    result.pushKV("paid_out", !::ChainstateActive().CoinsTip().HaveCoin(COutPoint{stake.getKey(), stake.getNumOutput()}));
+    return result;
+}
+
+UniValue freeTxInfoToJSON(const CFreeTxInfo& freeTxInfo)
+{
+    AssertLockNotHeld(cs_main); // For performance reasons
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("limit", static_cast<int>(freeTxInfo.getLimit()));
+    result.pushKV("used_blockchain_limit", static_cast<int>(freeTxInfo.getUsedConfirmedLimit()));
+    result.pushKV("used_mempool_limit", static_cast<int>(freeTxInfo.getUsedUnconfirmedLimit()));
+    result.pushKV("day_window_end_height", freeTxInfo.getCurrentWindowStartHeight() > 0 ? static_cast<int>(freeTxInfo.getCurrentWindowEndHeight()) : 0);
     return result;
 }
 
@@ -418,6 +447,7 @@ static std::vector<RPCResult> MempoolEntryDescription() { return {
     RPCResult{RPCResult::Type::NUM, "weight", "transaction weight as defined in BIP 141."},
     RPCResult{RPCResult::Type::STR_AMOUNT, "fee", "transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)"},
     RPCResult{RPCResult::Type::STR_AMOUNT, "modifiedfee", "transaction fee with fee deltas used for mining priority (DEPRECATED)"},
+    RPCResult{RPCResult::Type::NUM, "mining_type", "Number of mining type enum"},
     RPCResult{RPCResult::Type::NUM_TIME, "time", "local time transaction entered pool in seconds since 1 Jan 1970 GMT"},
     RPCResult{RPCResult::Type::NUM, "height", "block height when transaction entered pool"},
     RPCResult{RPCResult::Type::NUM, "descendantcount", "number of in-mempool descendant transactions (including this one)"},
@@ -457,6 +487,7 @@ static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPool
     info.pushKV("weight", (int)e.GetTxWeight());
     info.pushKV("fee", ValueFromAmount(e.GetFee()));
     info.pushKV("modifiedfee", ValueFromAmount(e.GetModifiedFee()));
+    info.pushKV("mining_type", ValueFromAmount(e.GetMiningType()));
     info.pushKV("time", count_seconds(e.GetTime()));
     info.pushKV("height", (int)e.GetHeight());
     info.pushKV("descendantcount", e.GetCountWithDescendants());
@@ -599,9 +630,10 @@ static UniValue getmempoolancestors(const JSONRPCRequest& request)
     }
 
     CTxMemPool::setEntries setAncestors;
-    uint64_t noLimit = std::numeric_limits<uint64_t>::max();
+    uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
     std::string dummy;
-    mempool.CalculateMemPoolAncestors(*it, setAncestors, noLimit, noLimit, noLimit, noLimit, dummy, false);
+    mempool.CalculateMemPoolAncestors(*it, setAncestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, false);
+
 
     if (!fVerbose) {
         UniValue o(UniValue::VARR);
@@ -1944,7 +1976,7 @@ static UniValue getblockstats(const JSONRPCRequest& request)
     ret_all.pushKV("minfeerate", (minfeerate == MAX_MONEY) ? 0 : minfeerate);
     ret_all.pushKV("mintxsize", mintxsize == MAX_BLOCK_SERIALIZED_SIZE ? 0 : mintxsize);
     ret_all.pushKV("outs", outputs);
-    ret_all.pushKV("subsidy", GetBlockSubsidy(pindex->nHeight));
+    ret_all.pushKV("subsidy", GetBlockSubsidy(pindex->nHeight, Params().GetConsensus().nStakingStartHeight));
     ret_all.pushKV("swtotal_size", swtotal_size);
     ret_all.pushKV("swtotal_weight", swtotal_weight);
     ret_all.pushKV("swtxs", swtxs);
@@ -2390,6 +2422,165 @@ UniValue dumptxoutset(const JSONRPCRequest& request)
     return result;
 }
 
+
+static UniValue getstakinginfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakinginfo",
+               "\nReturns the basic stats about staking.\n",
+               {},
+               RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM, "staking_pool", "current staking pool balance"},
+                            {RPCResult::Type::NUM, "num_active_stakes", "current number of active stakes"},
+                            {RPCResult::Type::NUM, "num_complete_stakes", "total number of completed stakes"},
+                            {RPCResult::Type::NUM, "num_early_withdrawn_stakes", "total number of stakes ended prematurely"},
+                            {RPCResult::Type::NUM, "num_staking_addresses", "current number of addresses posessing at least one active stake"},
+                            {RPCResult::Type::NUM, "total_staked", "total staked amount (network-wide)"},
+                        }
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakinginfo", "")
+                       + HelpExampleRpc("getstakinginfo", "")
+               },
+    }.Check(request);
+
+    LOCK(cs_main);
+    UniValue results(UniValue::VOBJ);
+    results.pushKV("staking_pool", ::ChainstateActive().GetStakesDB().stakingPool().getBalance());
+    results.pushKV("num_active_stakes", ::ChainstateActive().GetStakesDB().getAllActiveStakes().size());
+    results.pushKV("num_complete_stakes", ::ChainstateActive().GetStakesDB().getNumCompleteStakes());
+    results.pushKV("num_early_withdrawn_stakes", ::ChainstateActive().GetStakesDB().getNumEarlyWithdrawnStakes());
+    results.pushKV("num_staking_addresses", ::ChainstateActive().GetStakesDB().getScriptMap().size());
+    CAmount totalStaked{0};
+    for(const auto& value : ::ChainstateActive().GetStakesDB().getAmountsByPeriods())
+        totalStaked += value;
+    results.pushKV("total_staked", totalStaked);
+    return results;
+}
+
+static UniValue getstakeinfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakeinfo",
+               "\nReturns information about a stake with a given <txid>, if it exists in the database.",
+               {{"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "TXID of deposit transaction"}},
+               RPCResult{
+                       RPCResult::Type::OBJ, "", "",
+                       {
+                               {RPCResult::Type::NUM, "output_index", "Index of a stake output."},
+                               {RPCResult::Type::STR_HEX, "deposit_height", "Block height at which the stake was deposited."},
+                               {RPCResult::Type::NUM, "staking_period", "Length of a stake in number of blocks."},
+                               {RPCResult::Type::STR_AMOUNT, "staking_amount", "Staked amount in ELCASH."},
+                               {RPCResult::Type::STR_AMOUNT, "accumulated_reward", "Accumulated staking reward at the moment of request."},
+                               {RPCResult::Type::BOOL, "fulfilled", "Whether the stake is fulfilled."},
+                               {RPCResult::Type::BOOL, "paid_out", "Whether the stake was spent."},
+                       }
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
+                       + HelpExampleRpc("getstakeinfo", "\"9e615ca3328896332d253739a3f681725cd986c553844badc40c5132342b7584\"")
+               }
+    }.Check(request);
+
+    uint256 hash(ParseHashV(request.params[0], "txid"));
+
+    const CStakesDbEntry& stake = ::ChainstateActive().GetStakesDB().getStakeDbEntry(hash);
+    if (!stake.isValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Stake not found");
+    }
+    return stakeToJSON(stake);
+}
+
+static UniValue getfreetxinfo(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getfreetxinfo",
+               "\nReturns information about free transaction limits for provided staking address, <address>, if it exists.",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Staking address"}},
+               RPCResult{
+        RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::NUM, "limit", "Free transaction limit in vBytes."},
+            {RPCResult::Type::NUM, "used_blockchain_limit", "Used free transaction limit for confirmed transactions, in vBytes."},
+            {RPCResult::Type::NUM, "used_mempool_limit", "Used free transaction limit for unconfirmed transactions, in vBytes."},
+            {RPCResult::Type::NUM, "day_window_end_height", "Block height at which the current day window ends. 0 if it didn't start."},
+            }
+            },
+            RPCExamples{
+        HelpExampleCli("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+        + HelpExampleRpc("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+    }
+    }.Check(request);
+
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    CScript destScript = GetScriptForDestination(DecodeDestination(destination));
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CFreeTxInfo freeTxInfo = stakes.getFreeTxInfoForScript(destScript);
+    if (!freeTxInfo.isValid()) {
+        freeTxInfo = stakes.createFreeTxInfoForScript(destScript, 0, Params().GetConsensus());
+    }
+    if (!freeTxInfo.isValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No free TX info for this address");
+    }
+    return freeTxInfoToJSON(freeTxInfo);
+}
+
+static UniValue getgovpower(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getgovpower",
+               "\nReturns the amount of governance power for provided address.",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Address"}},
+               RPCResult{
+        RPCResult::Type::OBJ, "", "",
+        {
+            {RPCResult::Type::NUM, "gp", "GP amount"},
+            }
+            },
+            RPCExamples{
+        HelpExampleCli("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+        + HelpExampleRpc("getfreetxinfo", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+    }
+    }.Check(request);
+
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    CScript destScript = GetScriptForDestination(DecodeDestination(destination));
+    CStakesDBCache stakes(&::ChainstateActive().GetStakesDB(), true);
+    CAmount gp = stakes.getGovPowerForScript(destScript);
+    return gp;
+}
+
+static UniValue getstakesforaddress(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"getstakesforaddress",
+               "\nReturns the list of stakes indexes for all active stakes.\n",
+               {{"address", RPCArg::Type::STR, RPCArg::Optional::NO, "ELCASH address"}},
+               RPCResult{
+                    RPCResult::Type::ARR, "", "",
+                        {{RPCResult::Type::STR_HEX, "txid", "active staking index"}}
+               },
+               RPCExamples{
+                       HelpExampleCli("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+                       + HelpExampleRpc("getstakesforaddress", "\"elcash1qpugxns27d5ead7809s0fyh930awjc86jeeejg4\"")
+               },
+    }.Check(request);
+
+    LOCK(cs_main);
+    std::string destination{request.params[0].get_str()};
+    if(!IsValidDestinationString(destination)) {
+         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ELCASH address");
+    }
+    UniValue results(UniValue::VARR);
+    for(const auto& stakeId : ::ChainstateActive().GetStakesDB().getActiveStakeIdsForScript(GetScriptForDestination(DecodeDestination(destination)))) {
+        results.push_back(stakeId.GetHex());
+    }
+    return results;
+}
+
 void RegisterBlockchainRPCCommands(CRPCTable &t)
 {
 // clang-format off
@@ -2420,6 +2611,13 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
     { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
+
+    /* Staking methods*/
+    { "blockchain",         "getstakinginfo",         &getstakinginfo,         {} },
+    { "blockchain",         "getstakeinfo",           &getstakeinfo,           {"txid"} },
+    { "blockchain",         "getstakesforaddress",    &getstakesforaddress,    {"address"} },
+    { "blockchain",         "getfreetxinfo",          &getfreetxinfo,          {"address"} },
+    { "blockchain",         "getgovpower",            &getgovpower,            {"address"} },
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

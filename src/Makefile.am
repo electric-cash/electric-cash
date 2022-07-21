@@ -196,6 +196,12 @@ ELCASH_CORE_H = \
   script/signingprovider.h \
   script/standard.h \
   shutdown.h \
+  staking/stakes_db.h \
+  staking/free_tx_info.h \
+  staking/staking_pool.h \
+  staking/transaction.h \
+  staking/staking_rewards_calculator.h \
+  staking/util.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -312,6 +318,10 @@ libelcash_server_a_SOURCES = \
   rpc/server.cpp \
   script/sigcache.cpp \
   shutdown.cpp \
+  staking/stakes_db.cpp \
+  staking/staking_pool.cpp \
+  staking/staking_rewards_calculator.cpp \
+  staking/util.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -488,6 +498,7 @@ libelcash_common_a_SOURCES = \
   script/sign.cpp \
   script/signingprovider.cpp \
   script/standard.cpp \
+  staking/transaction.cpp \
   versionbitsinfo.cpp \
   warnings.cpp \
   $(ELCASH_CORE_H)

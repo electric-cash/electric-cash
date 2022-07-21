@@ -79,7 +79,7 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getwalletinfo()['balance'], 500)
         assert_equal(self.nodes[1].getbalances()['mine']['trusted'], 500)
 
-        assert_equal(self.nodes[0].getbalances()['watchonly']['immature'], 50000)
+        assert_equal(self.nodes[0].getbalances()['watchonly']['immature'], 49850)
         assert 'watchonly' not in self.nodes[1].getbalances()
 
         assert_equal(self.nodes[0].getbalance(), 500)
@@ -94,7 +94,7 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(self.nodes[1].getbalance(minconf=0, include_watchonly=True), 500)
 
         # Send 40 ELCASH from 0 to 1 and 60 ELCASH from 1 to 0.
-        txs = create_transactions(self.nodes[0], self.nodes[1].getnewaddress(), 490, [Decimal('0.01')])
+        txs = create_transactions(self.nodes[0], self.nodes[1].getnewaddress(), 440, [Decimal('0.01')])
         self.nodes[0].sendrawtransaction(txs[0]['hex'])
         self.nodes[1].sendrawtransaction(txs[0]['hex'])  # sending on both nodes is faster than waiting for propagation
 
@@ -149,10 +149,10 @@ class WalletTest(BitcoinTestFramework):
 
         def test_balances(*, fee_node_1=0):
             # getbalance without any arguments includes unconfirmed transactions, but not untrusted transactions
-            assert_equal(self.nodes[0].getbalance(), Decimal('9.99'))  # change from node 0's send
+            assert_equal(self.nodes[0].getbalance(), Decimal('59.99'))  # change from node 0's send
             assert_equal(self.nodes[1].getbalance(), Decimal('0'))  # node 1's send had an unsafe input
             # Same with minconf=0
-            assert_equal(self.nodes[0].getbalance(minconf=0), Decimal('9.99'))
+            assert_equal(self.nodes[0].getbalance(minconf=0), Decimal('59.99'))
             assert_equal(self.nodes[1].getbalance(minconf=0), Decimal('0'))
             # getbalance with a minconf incorrectly excludes coins that have been spent more recently than the minconf blocks ago
             # TODO: fix getbalance tracking of coin spentness depth
@@ -163,9 +163,9 @@ class WalletTest(BitcoinTestFramework):
             assert_equal(self.nodes[0].getbalances()['mine']['untrusted_pending'], Decimal('510'))
             assert_equal(self.nodes[0].getwalletinfo()["unconfirmed_balance"], Decimal('510'))
 
-            assert_equal(self.nodes[1].getunconfirmedbalance(), Decimal('480') - fee_node_1)  # Doesn't include output of node 0's send since it was spent
-            assert_equal(self.nodes[1].getbalances()['mine']['untrusted_pending'], Decimal('480') - fee_node_1)
-            assert_equal(self.nodes[1].getwalletinfo()["unconfirmed_balance"], Decimal('480') - fee_node_1)
+            assert_equal(self.nodes[1].getunconfirmedbalance(), Decimal('430') - fee_node_1)  # Doesn't include output of node 0's send since it was spent
+            assert_equal(self.nodes[1].getbalances()['mine']['untrusted_pending'], Decimal('430') - fee_node_1)
+            assert_equal(self.nodes[1].getwalletinfo()["unconfirmed_balance"], Decimal('430') - fee_node_1)
 
         test_balances(fee_node_1=Decimal('0.01'))
 
@@ -181,11 +181,11 @@ class WalletTest(BitcoinTestFramework):
         self.sync_all()
 
         # balances are correct after the transactions are confirmed
-        assert_equal(self.nodes[0].getbalance(), Decimal('519.99'))  # node 1's send plus change from node 0's send
-        assert_equal(self.nodes[1].getbalance(), Decimal('479.98'))  # change from node 0's send
+        assert_equal(self.nodes[0].getbalance(), Decimal('569.99'))  # node 1's send plus change from node 0's send
+        assert_equal(self.nodes[1].getbalance(), Decimal('429.98'))  # change from node 0's send
 
         # Send total balance away from node 1
-        txs = create_transactions(self.nodes[1], self.nodes[0].getnewaddress(), Decimal('479.97'), [Decimal('0.01')])
+        txs = create_transactions(self.nodes[1], self.nodes[0].getnewaddress(), Decimal('429.97'), [Decimal('0.01')])
         self.nodes[1].sendrawtransaction(txs[0]['hex'])
         self.nodes[1].generatetoaddress(2, ADDRESS_WATCHONLY)
         self.sync_all()
