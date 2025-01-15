@@ -39,6 +39,8 @@ jobs:
   release:
     name: release on github
     runs-on: ubuntu-latest
+    needs:
+      - build-binary
     permissions:
       contents: write
     steps:
