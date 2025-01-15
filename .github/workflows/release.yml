@@ -22,7 +22,7 @@ jobs:
         run: docker build -t $BUILD_NAME --build-arg GIT_COMMIT=$GITHUB_REF-$GITHUB_SHA -f ci/docker/Dockerfile.static .
 
       - name: Copy binaries from docker image
-        run:
+        run: |
           docker create --name elcash $BUILD_NAME
           mkdir elcash-binaries
           docker cp elcash:/code/src/elcashd elcash-binaries/elcashd
