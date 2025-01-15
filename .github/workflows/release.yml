@@ -50,4 +50,5 @@ jobs:
           path: elcash-binaries
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "elcash-binaries/*"
+          generateReleaseNotes: true
+          artifacts: "elcash-binaries/artifact-elcashd/*"
